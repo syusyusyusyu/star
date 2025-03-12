@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>マジカルミライ - 初音ミクのアリーナライブ</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/textalive-app-api/dist/index.js"></script>
+    <script src="game-loader.js"></script>
+    <script src="script.js"></script>
+</head>
+<body class="browser-bar-adjust">
+    <div id="game-container">
+        <div id="stage"></div>
+        <div id="stage-light"></div>
+        <div id="miku"></div>
+        <div id="song-info">
+            <div id="song-title">マジカルミライ2025</div>
+            <div id="loading">初音ミクのアリーナライブ</div>
+        </div>
+        <div id="score-container">
+            <div id="score">0</div>
+            <div id="combo">コンボ: 0</div>
+        </div> 
+        <div id="instructions">歌詞の文字にマウスを当ててポイントを獲得しよう！</div>
+        <div id="controls">
+            <button id="play-pause">一時停止</button>
+            <button id="restart">最初から</button>
+        </div>
+    </div>
+    <div id="results-screen" class="hidden">
+        <div class="results-container">
+            <div class="results-score-section">
+                <h2>リザルト</h2>
+                <div id="final-score-display">0</div>
+                <div id="final-combo-display">最大コンボ: 0</div>
+                <div id="rank-display">ランク: S</div>
+            </div>
+            <div class="results-miku-section">
+                <div id="results-miku"></div>
+            </div>
+        </div>
+        <div class="results-buttons">
+            <button id="back-to-title">タイトルへ戻る</button>
+            <button id="replay-song">もう一度プレイ</button>
+        </div>
+    </div>
+</body>
+</html>

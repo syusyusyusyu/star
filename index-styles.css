@@ -1,0 +1,106 @@
+/* カスタムスタイル */
+body {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="%2339C5BB"><circle cx="12" cy="12" r="10" /></svg>'), auto;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    min-height: -webkit-fill-available;
+}
+
+html {
+    height: -webkit-fill-available;
+}
+
+/* スポットライト効果 */
+.spotlight {
+    position: fixed;
+    bottom: 0;
+    width: 400px;
+    height: 800px;
+    background: conic-gradient(
+        rgba(57, 197, 187, 0) 0deg,
+        rgba(57, 197, 187, 0) 15deg,
+        rgba(57, 197, 187, 0.1) 20deg,
+        rgba(57, 197, 187, 0.1) 25deg,
+        rgba(57, 197, 187, 0) 30deg,
+        rgba(57, 197, 187, 0) 360deg
+    );
+    opacity: 0.7;
+    animation: rotateLights 8s linear infinite;
+    transform-origin: bottom center;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* 曲選択アイテム */
+.song-item {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.song-item:hover, .song-item:focus {
+    transform: translateY(-3px);
+    box-shadow: 0 0 20px rgba(57, 197, 187, 0.6);
+}
+
+/* 星エフェクト */
+.star {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background-color: #fff;
+    border-radius: 50%;
+    opacity: 0.7;
+    animation: star-twinkle 3s linear infinite;
+    box-shadow: 0 0 5px #fff;
+    pointer-events: none;
+}
+
+/* ミクのシルエット */
+.miku-silhouette {
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 160"><rect x="30" y="30" width="40" height="60" fill="%2339C5BB"/><circle cx="50" cy="20" r="20" fill="%23FFFFFF"/><rect x="20" y="15" width="15" height="60" fill="%2339C5BB"/><rect x="65" y="15" width="15" height="60" fill="%2339C5BB"/><rect x="35" y="90" width="10" height="40" fill="%23000000"/><rect x="55" y="90" width="10" height="40" fill="%23000000"/></svg>') no-repeat center/contain;
+    animation: float 2s infinite alternate ease-in-out;
+    pointer-events: none;
+}
+
+/* アニメーション */
+@keyframes star-twinkle {
+    0% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.5); }
+    100% { opacity: 0.2; transform: scale(1); }
+}
+
+@keyframes rotateLights {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes ripple {
+    to {
+        transform: translate(-50%, -50%) scale(2.5);
+        opacity: 0;
+    }
+}
+
+/* メディア対応 */
+@media screen and (max-width: 768px) {
+    .spotlight {
+        width: 250px;
+        height: 500px;
+    }
+}
+
+@media screen and (max-height: 700px) {
+    .py-12 {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
+    .mb-8 {
+        margin-bottom: 1rem;
+    }
+    
+    .space-y-3 > * + * {
+        margin-top: 0.5rem;
+    }
+}

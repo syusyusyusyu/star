@@ -1,0 +1,695 @@
+/* 基本変数定義 */
+:root {
+    --primary-color: #39C5BB;
+    --text-color: #FFFFFF;
+    --bg-dark: #090A0F;
+    --bg-gradient-start: #1B2735;
+    --accent-color: #FF69B4;
+    --lyric-speed: 10s;
+    --bg-accent-color: rgba(57, 197, 187, 0.1);
+    --vh: 1vh; /* 動的な高さ単位 */
+    --browser-header-height: 0px; /* ブラウザUIの高さ調整用 */
+    --browser-footer-height: 0px; /* モバイルブラウザフッター用 */
+}
+
+/* 基本スタイル */
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #000;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="%2339C5BB"><circle cx="12" cy="12" r="10" /></svg>'), auto;
+    height: 100vh; /* フォールバック */
+    height: calc(var(--vh, 1vh) * 100); /* 動的調整 */
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+}
+
+/* ゲームコンテナ */
+#game-container {
+    width: 100%;
+    height: 100vh; /* フォールバック */
+    height: calc(var(--vh, 1vh) * 100);
+    position: relative;
+    background: radial-gradient(ellipse at bottom, var(--bg-gradient-start) 0%, var(--bg-dark) 70%),
+              radial-gradient(ellipse at top right, var(--bg-accent-color) 0%, transparent 70%);
+    overflow: hidden;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    padding-top: var(--browser-header-height);
+    padding-bottom: var(--browser-footer-height);
+    box-sizing: border-box;
+}
+
+/* ステージ要素 */
+#stage {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 80px;
+    background: radial-gradient(circle, var(--primary-color), #1a1a2e);
+    border-radius: 150px 150px 0 0;
+    box-shadow: 0 0 30px rgba(57, 197, 187, 0.8);
+    z-index: 10;
+}
+
+#stage-light {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 200px;
+    background: radial-gradient(ellipse at bottom, rgba(57, 197, 187, 0.3) 0%, transparent 70%);
+    z-index: 5;
+    pointer-events: none;
+}
+
+#miku {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 160px;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 160"><rect x="30" y="30" width="40" height="60" fill="%2339C5BB"/><circle cx="50" cy="20" r="20" fill="%23FFFFFF"/><rect x="20" y="15" width="15" height="60" fill="%2339C5BB"/><rect x="65" y="15" width="15" height="60" fill="%2339C5BB"/><rect x="35" y="90" width="10" height="40" fill="%23000000"/><rect x="55" y="90" width="10" height="40" fill="%23000000"/></svg>') no-repeat center/contain;
+    z-index: 15;
+    animation: dance 2s infinite alternate ease-in-out;
+}
+
+/* 観客要素 */
+.audience {
+    width: 15px;
+    height: 25px;
+    background-color: #333;
+    border-radius: 50% 50% 0 0;
+    position: absolute;
+    transform-origin: bottom center;
+}
+
+.audience:after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 8px;
+    background-color: #222;
+    border-radius: 50%;
+    z-index: -1;
+}
+
+.penlight {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-30deg);
+    width: 4px;
+    height: 15px;
+    background-color: var(--primary-color);
+    animation: wave 0.5s infinite alternate ease-in-out;
+    box-shadow: 0 0 10px var(--primary-color);
+    transform-origin: bottom center;
+}
+
+/* 歌詞バブル */
+.lyric-bubble {
+    position: absolute;
+    color: var(--text-color);
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(57, 197, 187, 0.8);
+    user-select: none;
+    pointer-events: auto;
+    z-index: 20;
+    animation: float var(--lyric-speed) linear forwards;
+    transition: transform 0.2s, color 0.2s;
+    padding: 8px 15px;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lyric-bubble:hover {
+    transform: scale(1.3);
+    color: var(--primary-color);
+    text-shadow: 0 0 15px rgba(57, 197, 187, 1);
+    cursor: pointer;
+}
+
+.random-text {
+    position: absolute;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 16px;
+    pointer-events: none;
+    animation: floatRandom 8s linear forwards;
+}
+
+/* スコア表示 */
+#score-container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+#score {
+    font-size: 32px;
+    color: var(--text-color);
+    text-shadow: 0 0 10px var(--primary-color);
+}
+
+#combo {
+    font-size: 24px;
+    color: var(--text-color);
+    text-shadow: 0 0 10px var(--accent-color);
+}
+
+#song-info {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 50;
+    color: white;
+    font-size: 18px;
+    text-shadow: 0 0 10px rgba(57, 197, 187, 0.8);
+}
+
+/* パーティクルエフェクト */
+.particle {
+    position: absolute;
+    background: radial-gradient(circle, var(--primary-color), transparent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 30;
+    animation: explode 1s forwards;
+}
+
+/* コントロール */
+#controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
+    display: flex;
+    gap: 10px;
+}
+
+#controls button {
+    background-color: rgba(57, 197, 187, 0.8);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+#controls button:hover {
+    background-color: rgba(57, 197, 187, 1);
+    transform: scale(1.05);
+}
+
+#instructions {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 18px;
+    text-align: center;
+    opacity: 0.8;
+    z-index: 50;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 15px 25px;
+    border-radius: 10px;
+    animation: fadeOut 5s forwards;
+}
+
+/* 光エフェクト */
+.spotlight {
+    position: absolute;
+    bottom: 0;
+    width: 200px;
+    height: 400px;
+    background: conic-gradient(
+        rgba(57, 197, 187, 0) 0deg,
+        rgba(57, 197, 187, 0) 15deg,
+        rgba(57, 197, 187, 0.1) 20deg,
+        rgba(57, 197, 187, 0.1) 25deg,
+        rgba(57, 197, 187, 0) 30deg,
+        rgba(57, 197, 187, 0) 360deg
+    );
+    z-index: 8;
+    opacity: 0.7;
+    animation: rotateLights 8s linear infinite;
+    transform-origin: bottom center;
+}
+
+.light-effect {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background-color: #fff;
+    border-radius: 50%;
+    opacity: 0.7;
+    z-index: 6;
+    animation: lightTwinkle 3s linear infinite;
+    box-shadow: 0 0 5px #fff;
+}
+
+/* 特殊効果要素 */
+.star-particle, .shooting-star, .tap-ripple, .flash-effect {
+    position: absolute;
+    pointer-events: none;
+}
+
+/* 特殊効果要素 */
+.star-particle {
+    position: absolute;
+    pointer-events: none;
+    width: 30px;  
+    height: 30px; 
+    background-color: rgba(255, 255, 255, 0.8);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    animation: twinkle 0.8s linear forwards;
+    z-index: 900;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.6); /* 光の輝きも強化 (元: 8px) */
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    /* 他のスタイル... */
+    .star-particle { 
+        width: 20px;  
+        height: 20px; 
+    }
+}
+
+.shooting-star {
+    background: radial-gradient(circle at 30% 30%, #fff 0%, rgba(255, 255, 220, 0.8) 50%, transparent 80%);
+    border-radius: 50%;
+    z-index: 1000;
+    box-shadow: 0 0 15px rgba(255, 255, 220, 0.8);
+}
+
+.tap-ripple {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.4);
+    transform: scale(0);
+    animation: ripple 0.6s ease-out;
+    z-index: 10;
+}
+
+.flash-effect {
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.3);
+    animation: flash 0.5s ease-out;
+    z-index: 1000;
+}
+
+/* 戻るボタン */
+.back-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: 1px solid rgba(57, 197, 187, 0.5);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1000;
+    transition: all 0.3s;
+}
+
+.back-button:hover {
+    background-color: rgba(57, 197, 187, 0.8);
+    transform: scale(1.1);
+}
+
+/* アニメーション定義 */
+@keyframes dance {
+    0% { transform: translateX(-50%) translateY(0); }
+    100% { transform: translateX(-50%) translateY(-20px); }
+}
+
+@keyframes wave {
+    0% { transform: translateX(-50%) rotate(-30deg); }
+    100% { transform: translateX(-50%) rotate(30deg); }
+}
+
+@keyframes float {
+    0% { transform: translateY(0) scale(1); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-700px) scale(0.5); opacity: 0; }
+}
+
+@keyframes floatRandom {
+    0% { transform: translateY(0); opacity: 0; }
+    10% { opacity: 0.5; }
+    100% { transform: translateY(-500px); opacity: 0; }
+}
+
+@keyframes explode {
+    0% { transform: scale(0); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes fadeOut {
+    0% { opacity: 0.9; }
+    70% { opacity: 0.9; }
+    100% { opacity: 0; }
+}
+
+@keyframes rotateLights {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes lightTwinkle {
+    0% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.5); }
+    100% { opacity: 0.2; transform: scale(1); }
+}
+
+@keyframes twinkle {
+    0% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+    100% { transform: scale(0.2) rotate(180deg); opacity: 0; }
+}
+
+@keyframes ripple {
+    to { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes flash {
+    0% { opacity: 0.7; }
+    100% { opacity: 0; }
+}
+
+/* モバイル用スタイル */
+.mobile-controls {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    z-index: 100;
+}
+
+.mobile-controls button {
+    min-width: 100px;
+    min-height: 50px;
+    font-size: 18px;
+    padding: 10px 15px;
+    border-radius: 30px;
+    background-color: rgba(0, 0, 0, 0.7);
+    border: 2px solid #39C5BB;
+    color: white;
+    box-shadow: 0 0 10px rgba(57, 197, 187, 0.7);
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    #score { font-size: 2rem; }
+    #combo { font-size: 1rem; }
+    #instructions { font-size: 0.9rem; padding: 5px; }
+    .lyric-bubble { font-size: 22px; }
+    .light-effect { opacity: 0.7; }
+    .penlight { box-shadow: 0 0 5px currentColor; }
+    .star-particle { width: 8px; height: 8px; }
+    .tap-ripple { animation-duration: 0.5s; }
+}
+
+@media (max-width: 480px) {
+    #score { font-size: 1.8rem; }
+    .lyric-bubble { font-size: 20px; padding: 6px 12px; }
+    .mobile-controls button { min-width: 80px; min-height: 40px; font-size: 16px; }
+}
+
+/* Results Screen Styles */
+#results-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh; /* フォールバック */
+    height: calc(var(--vh, 1vh) * 100);
+    background: radial-gradient(ellipse at bottom, var(--bg-gradient-start) 0%, var(--bg-dark) 70%),
+                radial-gradient(ellipse at top right, var(--bg-accent-color) 0%, transparent 70%);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 1s ease;
+    pointer-events: none;
+    padding-top: var(--browser-header-height);
+    padding-bottom: var(--browser-footer-height);
+    box-sizing: border-box;
+}
+
+#results-screen.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.results-container {
+    display: flex;
+    width: 90%;
+    max-width: 1200px;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 50px;
+}
+
+.results-score-section {
+    flex: 1;
+    padding: 20px;
+    text-align: center;
+    animation: slideInLeft 1s ease forwards;
+}
+
+.results-score-section h2 {
+    font-size: 36px;
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    text-shadow: 0 0 15px rgba(57, 197, 187, 0.8);
+}
+
+#final-score-display {
+    font-size: 72px;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 15px;
+    text-shadow: 0 0 20px var(--primary-color);
+}
+
+#final-combo-display {
+    font-size: 28px;
+    color: var(--accent-color);
+    margin-bottom: 15px;
+    text-shadow: 0 0 10px rgba(255, 105, 180, 0.7);
+}
+
+#rank-display {
+    font-size: 48px;
+    font-weight: bold;
+    color: gold;
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+    margin-top: 20px;
+}
+
+.results-miku-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    animation: fadeIn 1.5s ease 0.8s forwards;
+}
+
+#results-miku {
+    width: 300px;
+    height: 400px;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 160"><rect x="30" y="30" width="40" height="60" fill="%2339C5BB"/><circle cx="50" cy="20" r="20" fill="%23FFFFFF"/><rect x="20" y="15" width="15" height="60" fill="%2339C5BB"/><rect x="65" y="15" width="15" height="60" fill="%2339C5BB"/><rect x="35" y="90" width="10" height="40" fill="%23000000"/><rect x="55" y="90" width="10" height="40" fill="%23000000"/></svg>') no-repeat center/contain;
+    animation: floatMiku 3s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 20px rgba(57, 197, 187, 0.8));
+}
+
+.results-buttons {
+    display: flex;
+    gap: 20px;
+}
+
+.results-buttons button {
+    background-color: rgba(57, 197, 187, 0.8);
+    border: 2px solid transparent;
+    color: white;
+    padding: 12px 30px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.3s;
+    box-shadow: 0 0 15px rgba(57, 197, 187, 0.6);
+}
+
+.results-buttons button:hover {
+    background-color: rgba(57, 197, 187, 1);
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(57, 197, 187, 0.9);
+    border-color: white;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-50px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes floatMiku {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-20px); }
+}
+
+/* Responsive styles */
+@media (max-width: 992px) {
+    .results-container {
+        width: 95%;
+    }
+    
+    #final-score-display {
+        font-size: 60px;
+    }
+    
+    #rank-display {
+        font-size: 42px;
+    }
+}
+
+@media (max-width: 768px) {
+    .results-container {
+        flex-direction: column;
+    }
+    
+    .results-score-section {
+        margin-bottom: 30px;
+    }
+    
+    #results-miku {
+        width: 250px;
+        height: 350px;
+    }
+    
+    .results-buttons button {
+        padding: 10px 25px;
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .results-score-section h2 {
+        font-size: 28px;
+    }
+    
+    #final-score-display {
+        font-size: 48px;
+    }
+    
+    #final-combo-display {
+        font-size: 22px;
+    }
+    
+    #rank-display {
+        font-size: 36px;
+    }
+    
+    #results-miku {
+        width: 135px;
+        height: 195px;
+    }
+    
+    .results-buttons {
+        flex-direction: column;
+        gap: 15px;
+    }
+}
+
+/* ブラウザバー対応用の追加スタイル */
+.browser-bar-adjust {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* iPhone X以降のノッチ対応 */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+    }
+    
+    #game-container, #results-screen {
+        padding-top: max(var(--browser-header-height), env(safe-area-inset-top));
+        padding-bottom: max(var(--browser-footer-height), env(safe-area-inset-bottom));
+    }
+    
+    /* コントロール調整 */
+    .mobile-controls {
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+}
+
+/* ブラウザバーでの高さ変更時のコントロール位置調整 */
+@media screen and (max-height: 600px) {
+    #controls {
+        bottom: 10px;
+    }
+    
+    #instructions {
+        top: 40%;
+    }
+    
+    #stage {
+        height: 60px;
+    }
+    
+    #miku {
+        bottom: 60px;
+        height: 140px;
+    }
+}

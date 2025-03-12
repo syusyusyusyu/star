@@ -1,10 +1,9 @@
-// 曲のデータ
+// 曲のデータ - 難易度を削除
 const songsData = [
     {
         id: 1,
         title: "メルト",
         artist: "ryo (supercell)",
-        difficulty: "EASY",
         apiToken: "x0ogHDnqRB8hjnrf",
         songUrl: "https://piapro.jp/t/--OD/20240202150903"
     },
@@ -12,15 +11,13 @@ const songsData = [
         id: 2,
         title: "千本桜",
         artist: "黒うさP",
-        difficulty: "NORMAL",
-        apiToken: "dJcf3DnRT5hjnsu2",
-        songUrl: "https://piapro.jp/t/--SE/20240202150903"
+        apiToken: "wifkp8ak1TEhQ8pI",
+        songUrl: "https://piapro.jp/t/hZ35/20240130103028"
     },
     {
         id: 3,
         title: "ワールドイズマイン",
         artist: "ryo (supercell)",
-        difficulty: "HARD",
         apiToken: "hJ4gKcnSF6rmd6t9",
         songUrl: "https://piapro.jp/t/--MI/20240202150903"
     },
@@ -28,7 +25,6 @@ const songsData = [
         id: 4,
         title: "ローリンガール",
         artist: "wowaka",
-        difficulty: "HARD",
         apiToken: "pL7hVbnRG3dke9a1",
         songUrl: "https://piapro.jp/t/--WW/20240202150903"
     },
@@ -36,7 +32,6 @@ const songsData = [
         id: 5,
         title: "マジカルミライ 2025",
         artist: "Mitchie M",
-        difficulty: "SPECIAL",
         apiToken: "rT8jKvmSL2pqe3z4",
         songUrl: "https://piapro.jp/t/--MM/20240202150903"
     }

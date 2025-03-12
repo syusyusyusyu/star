@@ -1,219 +1,441 @@
 /**
- * マジカルミライ - 初音ミクのアリーナライブ (Canvas版)
- * DOMベースのゲームをCanvas APIを使って再実装
+ * ボイスアイドル・ミュージックゲーム
+ * 
+ * このゲームは歌詞が画面上に表示され、プレイヤーがそれらをクリックまたはスワイプして
+ * ポイントを獲得する音楽リズムゲームです。TextAlivePlayerを使用して歌詞と音楽を同期させています。
+ * 
+ * 最適化ポイント:
+ * - デバイス性能に応じた処理の調整
+ * - オブジェクトプールとメモリ管理の強化
+ * - イベント処理の統合とスロットリング
+ * - 視覚エフェクトの条件付き減量
+ * - 数学計算の簡略化
  */
- 
 class GameManager {
+    /**
+     * ゲームマネージャーの初期化
+     * 各コンポーネントの初期化と設定を行う
+     */
     constructor() {
-        // Canvas初期化
-        this.canvas = document.getElementById('gameCanvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.resizeCanvas();
+        // API情報の初期化 - window.songConfig から取得するか、デフォルト値を使用
+        this.apiToken = window.songConfig?.apiToken || "wifkp8ak1TEhQ8pI";
+        this.songUrl = window.songConfig?.songUrl || "https://piapro.jp/t/hZ35/20240130103028";
         
-        // UI要素
+        // 各種初期化処理を実行
+        this.initGameState();         // ゲーム状態変数の初期化
+        this.setupViewportHandling(); // ブラウザUI対応のビューポート処理追加
+        this.initDOMElements();       // DOM要素の参照取得
+        this.initLyricsData();        // 歌詞データの初期化
+        this.initRandomTexts();       // ランダムテキストの準備
+        this.setupEvents();           // イベントリスナーの設定
+        this.createLightEffects();    // 光エフェクトの作成
+        this.initGame();              // ゲーム初期化
+        this.startComboResetTimer();  // コンボリセットタイマー開始
+        this.adjustUIForDevice();     // デバイス適応UI設定
+        this.initTextAlivePlayer();   // TextAliveプレーヤーの初期化
+    }
+
+    /**
+     * ゲーム状態の初期化
+     * スコア、コンボ、表示状態などのゲームの状態変数を設定
+     * パフォーマンス向上: デバイス性能に応じて変数を最適化
+     */
+    initGameState() {
+        // 基本状態変数（短縮初期化構文で最適化）
+        this.score = this.combo = this.currentLyricIndex = this.maxCombo = 0;
+        this.startTime = Date.now();
+        this.isPaused = this.isPlayerInitialized = this.clickHandled = this.resultsDisplayed = false;
+        this.player = null;
+        
+        // 表示データ管理用コレクション
+        this.activeCharacters = new Set();           // アクティブな文字のセット
+        this.displayedLyricsTimestamps = new Set();  // 表示済み歌詞のタイムスタンプ
+        
+        // パフォーマンス最適化用の変数
+        this.frameCount = this.lastFrameTime = 0;
+        this.fps = 60;
+        this.throttleFrames = this.detectPerformance();  // デバイス性能に基づいたフレーム間隔を設定
+        this.isProcessingPlayback = false;               // 再生処理中フラグ
+        this.animationFrameId = null;                    // アニメーションフレームID
+        
+        // マウス軌跡エフェクト用変数
+        this.mouseTrail = [];                            // マウス軌跡のパーティクル配列
+        this.maxTrailLength = this.isMobileDevice() ? 5 : 10;  // モバイルでは軌跡を短く
+        this.lastMousePosition = { x: 0, y: 0 };         // 前回のマウス位置
+        
+        // オブジェクトプール（メモリ効率化）
+        const poolSize = this.isMobileDevice() ? 15 : 30;  // モバイルではプールサイズを小さく
+        this.maxPoolSize = poolSize;
+        this.particlePool = [];       // クリックエフェクト用パーティクルプール
+        this.lyricBubblePool = [];    // 歌詞バブル用オブジェクトプール
+        this.randomTextPool = [];     // ランダムテキスト用オブジェクトプール
+        this.trailParticlePool = [];  // 軌跡パーティクル用プール
+    }
+
+    /**
+ * ブラウザUIに対応するためのビューポート処理
+ * モバイルブラウザにおけるアドレスバーなどの影響を調整
+ */
+setupViewportHandling() {
+    // ビューポート高さを計算して設定
+    const setViewportProperty = () => {
+        // 実際のビューポート高さを取得
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        
+        // iOS Safariのツールバー調整
+        if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+            // 縦向きの場合
+            if (window.innerHeight < window.innerWidth) {
+                document.documentElement.style.setProperty('--browser-footer-height', '80px');
+            } else {
+                document.documentElement.style.setProperty('--browser-footer-height', '120px');
+            }
+        }
+    };
+    
+    // 初期設定
+    setViewportProperty();
+    
+    // リサイズとスクロール時に再計算
+    window.addEventListener('resize', () => {
+        setTimeout(setViewportProperty, 100);
+    });
+    
+    window.addEventListener('orientationchange', () => {
+        setTimeout(setViewportProperty, 100);
+    });
+    
+    // スクロール状態検出（アドレスバーの表示/非表示）
+    let lastScrollPosition = window.scrollY;
+    window.addEventListener('scroll', () => {
+        // スクロール方向検出
+        const currentScrollPosition = window.scrollY;
+        const isScrollingDown = currentScrollPosition > lastScrollPosition;
+        
+        // スクロールダウンでアドレスバーが隠れる場合
+        if (isScrollingDown && currentScrollPosition > 50) {
+            document.documentElement.style.setProperty('--browser-header-height', '0px');
+        } else if (!isScrollingDown && currentScrollPosition < 20) {
+            // スクロールアップでアドレスバーが表示される場合
+            document.documentElement.style.setProperty('--browser-header-height', '20px');
+        }
+        
+        lastScrollPosition = currentScrollPosition;
+    });
+    
+    // iOS Safariのフルスクリーンモード対応
+    document.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+}
+
+    /**
+     * デバイス性能を検出してフレームスキップ数を決定
+     * 低性能デバイスでは処理頻度を下げてパフォーマンスを確保
+     * @returns {number} フレームスキップ数
+     */
+    detectPerformance() {
+        return navigator.hardwareConcurrency <= 4 || this.isMobileDevice() ? 4 : 3;
+    }
+
+    /**
+     * DOM要素の初期化
+     * ゲームで使用するDOM要素への参照を取得
+     */
+    initDOMElements() {
+        this.gameContainer = document.getElementById('game-container');
+        this.scoreElement = document.getElementById('score');
+        this.comboElement = document.getElementById('combo');
         this.playPauseBtn = document.getElementById('play-pause');
         this.restartBtn = document.getElementById('restart');
-        
-        // ゲーム状態初期化
-        this.initGameState();
-        this.setupEvents();
-        
-        // ローディング状態管理
-        this.loadingComplete = false;
-        this.resourcesLoaded = 0;
-        this.totalResources = 3; // 読み込むリソースの総数（API接続、観客生成、エフェクト生成）
-        this.showLoadingScreen();
-        
-        // アニメーションループ開始
-        this.startAnimationLoop();
-        
-        // リソース読み込み処理の開始
-        this.loadResources();
+        this.loading = document.getElementById('loading');
+        this.stageElement = document.getElementById('stage');
     }
-    
-    // Canvasサイズをウィンドウに合わせる
-    resizeCanvas() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-        this.width = this.canvas.width;
-        this.height = this.canvas.height;
-    }
-    
-    // ローディング画面表示
-    showLoadingScreen() {
-        this.updateLoadingProgress(0);
-    }
-    
-    // ローディング進捗表示
-    updateLoadingProgress(progress) {
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(0, 0, this.width, this.height);
+
+    /**
+     * イベントリスナーの設定
+     * ユーザー入力とシステムイベントの処理を設定
+     * 最適化: 重複するイベント処理を統合
+     */
+    setupEvents() {
+        // イベントリスナーを集約して管理
+        this.setupUserInteractions();  // ユーザー入力処理
+        this.setupControls();          // ゲームコントロール処理
         
-        this.ctx.font = 'bold 24px sans-serif';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillStyle = '#39C5BB';
-        this.ctx.fillText('Loading...', this.width / 2, this.height / 2 - 30);
-        
-        // プログレスバー背景
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-        this.ctx.fillRect(this.width / 2 - 100, this.height / 2 + 10, 200, 20);
-        
-        // プログレスバー
-        this.ctx.fillStyle = '#39C5BB';
-        this.ctx.fillRect(this.width / 2 - 100, this.height / 2 + 10, 200 * progress, 20);
+        // リサイズ処理（デバウンス最適化）
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            if (resizeTimeout) clearTimeout(resizeTimeout);  // 連続リサイズ中は処理をスキップ
+            resizeTimeout = setTimeout(() => {
+                // リサイズ完了後に観客のみ再配置（軽量化）
+                document.querySelectorAll('.audience').forEach(a => a.remove());
+                this.createAudience();
+            }, 250);
+        });
     }
-    
-    // ローディング画面非表示
-    hideLoadingScreen() {
-        // 何もしない - 次のフレームで自然に消える
-    }
-    
-    // リソース読み込み
-    loadResources() {
-        // TextAlivePlayerの初期化（非同期）
-        this.initTextAlivePlayer().then(() => {
-            this.resourceLoaded();
-        }).catch(() => {
-            this.fallbackToBasicMode();
-            this.resourceLoaded();
+
+    /**
+     * ユーザー入力イベントの設定
+     * マウス・タッチ操作の処理を効率的に設定
+     * 最適化: マウスとタッチのロジックを統合、重複処理を削減
+     */
+    setupUserInteractions() {
+        const throttleDelay = 16;  // 約60FPSに対応（16ms）
+        let lastEventTime = 0;
+        let lastX = 0, lastY = 0;
+        
+        // マウス/タッチ移動処理を統合（コード重複を防止）
+        const handleMove = (x, y, isTouch) => {
+            const now = Date.now();
+            if (now - lastEventTime < throttleDelay) return;  // スロットリング
+            
+            lastEventTime = now;
+            const dx = x - lastX, dy = y - lastY;
+            const moved = Math.sqrt(dx*dx + dy*dy) >= 5;  // 5px以上の移動があった場合のみ処理
+            
+            if (moved) {
+                lastX = x; lastY = y;
+                this.lastMousePosition = { x, y };
+                
+                // パフォーマンス最適化: フレームを間引いてエフェクト生成
+                if (this.frameCount % 2 === 0) {
+                    this.createTrailParticle(x, y);  // 軌跡パーティクル作成
+                    if (Math.random() < (isTouch ? 0.03 : 0.01)) {  // タッチでは頻度高め
+                        this.createShooting(x, y, dx, dy);  // ランダムに流れ星効果
+                    }
+                }
+                
+                // タッチ操作では検出範囲を広げる
+                this.checkLyricsInArea(x, y, isTouch ? 45 : 35);
+            }
+        };
+        
+        // マウスイベント
+        this.gameContainer.addEventListener('mousemove', (e) => {
+            handleMove(e.clientX, e.clientY, false);
         });
         
-        // 観客生成（重い処理なので非同期で）
-        setTimeout(() => {
-            this.createAudience();
-            this.resourceLoaded();
-        }, 0);
+        // タッチイベント（パフォーマンス最適化）
+        this.gameContainer.addEventListener('touchmove', (e) => {
+            e.preventDefault();  // スクロール防止
+            const touch = e.touches[0];
+            handleMove(touch.clientX, touch.clientY, true);
+        }, { passive: false });
         
-        // 光エフェクト生成（同じく非同期で）
-        setTimeout(() => {
-            this.createLightEffects();
-            this.resourceLoaded();
-        }, 0);
+        // タッチ開始処理
+        this.gameContainer.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            lastX = touch.clientX; lastY = touch.clientY;
+            this.checkLyricsInArea(touch.clientX, touch.clientY, 35);
+        });
+        
+        // クリック処理
+        this.gameContainer.addEventListener('click', (e) => {
+            const x = e.clientX, y = e.clientY;
+            this.createTapEffect?.(x, y);  // オプショナルチェーン（メソッドが存在する場合のみ実行）
+            this.checkLyricsInArea(x, y, 35);
+            
+            // 確率ベースでエフェクト追加（軽量化）
+            if (Math.random() < 0.2) {
+                const angle = Math.random() * Math.PI * 2;
+                this.createShooting(x, y, Math.cos(angle) * 5, Math.sin(angle) * 5);
+            }
+        });
     }
-    
-    // リソース読み込み完了時の処理
-    resourceLoaded() {
-        this.resourcesLoaded++;
+
+    /**
+     * ゲームコントロールの設定
+     * 再生・停止・リスタートなどのボタン操作を設定
+     */
+    setupControls() {
+        this.playPauseBtn.addEventListener('click', this.handlePlayPause.bind(this));
+        this.restartBtn.addEventListener('click', this.handleRestart.bind(this));
+        document.body.addEventListener('click', this.handleBodyClick.bind(this));
         
-        // ローディング進捗表示の更新
-        const progress = this.resourcesLoaded / this.totalResources;
-        this.updateLoadingProgress(progress);
+        if (this.loading) {
+            this.loading.addEventListener('click', this.handleLoadingClick.bind(this));
+        }
+    }
+
+    /**
+     * 再生/一時停止ボタンのクリック処理
+     * 最適化: エラー処理の改善、処理の非同期化
+     */
+    async handlePlayPause() {
+        if (this.isProcessingPlayback) return;  // 処理中の連打防止
+        this.isProcessingPlayback = true;
         
-        // すべてのリソースが読み込まれたらローディング完了
-        if (this.resourcesLoaded >= this.totalResources) {
-            this.loadingComplete = true;
-            this.hideLoadingScreen();
+        try {
+            this.isPaused = !this.isPaused;
+            
+            if (this.isPaused) {
+                // 停止処理
+                this.playPauseBtn.textContent = '再生';
+                
+                if (this.player && this.isPlayerInitialized && this.player.isPlaying) {
+                    await new Promise(resolve => setTimeout(resolve, 100));  // APIの準備待ち
+                    await this.player.requestPause().catch(e => {
+                        if (e.name !== 'AbortError') console.error("Player pause error:", e);
+                    });
+                }
+                
+                // ランダムテキスト表示を停止
+                if (this.randomTextInterval) {
+                    clearInterval(this.randomTextInterval);
+                    this.randomTextInterval = null;
+                }
+            } else {
+                // 再生処理
+                this.playPauseBtn.textContent = '一時停止';
+                
+                if (this.player && this.isPlayerInitialized && !this.player.isPlaying) {
+                    await new Promise(resolve => setTimeout(resolve, 100));  // APIの準備待ち
+                    await this.player.requestPlay().catch(e => {
+                        if (e.name !== 'AbortError') {
+                            this.fallbackToBasicMode();  // 代替モードに切り替え
+                        }
+                    });
+                } else if (!this.player || !this.isPlayerInitialized) {
+                    // 代替モードでの再生位置設定
+                    this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
+                }
+                
+                // ランダムテキスト表示を開始
+                if (!this.randomTextInterval) {
+                    this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
+                }
+            }
+        } finally {
+            // 連打防止タイマー
+            setTimeout(() => this.isProcessingPlayback = false, 800);
         }
     }
     
-    // ゲーム状態の初期化
-    initGameState() {
-        // 基本状態
-        this.score = 0;
-        this.combo = 0;
-        this.maxCombo = 0;
-        this.currentLyricIndex = 0;
-        this.startTime = Date.now();
-        this.isPaused = false;
-        this.player = null;
-        this.isPlayerInitialized = false;
-        this.resultsDisplayed = false;
+    /**
+     * リスタートボタンのクリック処理
+     * ゲームを初期状態に戻して再開
+     * 最適化: エラー処理の改善、非同期処理のチェーン化
+     */
+    async handleRestart() {
+        if (this.isProcessingPlayback) return;  // 処理中の連打防止
+        this.isProcessingPlayback = true;
         
-        // 表示コンテンツ
-        this.lyricBubbles = [];
-        this.randomTexts = [];
-        this.particles = [];
-        this.audiences = [];
-        this.lightEffects = [];
-        this.mouseTrail = [];
-        this.displayedLyricsTimestamps = new Set();
+        try {
+            this.restartGame();  // ゲーム状態をリセット
+            
+            if (this.player && this.isPlayerInitialized) {
+                try {
+                    if (this.player.isPlaying) await this.player.requestPause();
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    await this.player.requestStop();
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    
+                    // 再生リクエストとエラーリカバリの改善
+                    await this.player.requestPlay().catch(e => {
+                        if (e.name === 'AbortError') {
+                            // AbortErrorの場合は少し待ってリトライ
+                            return new Promise(resolve => setTimeout(resolve, 500))
+                                .then(() => this.player.requestPlay());
+                        }
+                        this.fallbackToBasicMode();
+                    });
+                } catch (e) {
+                    this.fallbackToBasicMode();
+                }
+            } else {
+                // 代替モードでのリスタート
+                this.isPaused = false;
+                this.currentLyricIndex = 0;
+                this.startTime = Date.now();
+                this.playPauseBtn.textContent = '一時停止';
+            }
+        } finally {
+            // 連打防止タイマー（リスタートは長めに設定）
+            setTimeout(() => this.isProcessingPlayback = false, 1500);
+        }
+    }
+    
+    /**
+     * ゲーム画面のクリック処理（初回再生用）
+     * 画面クリックで音楽再生を開始する
+     */
+    async handleBodyClick() {
+        if (!this.player || !this.isPlayerInitialized) return;
         
-        // マウス位置
-        this.mousePos = { x: 0, y: 0 };
+        // クリック連打防止
+        const now = Date.now();
+        if (now - (this.lastClickTime || 0) < 1000) return;
+        this.lastClickTime = now;
         
-        // フレームカウンター
-        this.frameCount = 0;
+        // 停止中なら再生開始
+        if (this.player.isPlaying === false && !this.clickHandled) {
+            this.clickHandled = true;
+            try {
+                await this.player.requestPlay();
+                this.isPaused = false;
+                this.playPauseBtn.textContent = '一時停止';
+            } catch (e) {
+                this.fallbackToBasicMode();
+            }
+            setTimeout(() => { this.clickHandled = false; }, 1500);  // 連打防止
+        }
+    }
+    
+    /**
+     * ローディング画面のクリック処理
+     * ローディング画面をクリックして再生開始
+     */
+    async handleLoadingClick() {
+        if (this.isProcessingPlayback) return;
+        this.isProcessingPlayback = true;
         
-        // 色設定
-        this.primaryColor = '#39C5BB';
-        this.accentColor = '#FF69B4';
-        this.textColor = '#FFFFFF';
-        
-        // 曲データ
-        this.apiToken = window.songConfig?.apiToken || defaultSong.apiToken;
-        this.songUrl = window.songConfig?.songUrl || defaultSong.songUrl;
-        this.songTitle = window.songConfig?.title || defaultSong.title;
-        
-        // 歌詞データ初期化
-        this.initLyricsData();
-        
-        // ランダムテキスト初期化
-        this.randomTextsList = ["ミク！", "かわいい！", "最高！", "いくよー！", "がんばれ！", 
-                              "39！", "イェーイ！", "キャー！", "すごい！", "大好き！",
-                              "バンザイ！", "ワーオ！", "さいこー！", "クール！", "すてき！"];
+        try {
+            if (this.player && this.isPlayerInitialized && !this.player.isPlaying) {
+                await this.player.requestPlay().catch(() => this.fallbackToBasicMode());
+                this.isPaused = false;
+                this.playPauseBtn.textContent = '一時停止';
+            } else {
+                // 代替モードでの開始
+                this.isPaused = false;
+                this.startTime = Date.now();
+                this.playPauseBtn.textContent = '一時停止';
+            }
+        } finally {
+            setTimeout(() => this.isProcessingPlayback = false, 1000);  // 連打防止
+        }
+    }
+
+    /**
+     * ゲームの初期化処理
+     * 観客生成、タイマー開始などの初期設定
+     */
+    initGame() {
+        this.createAudience();  // 観客を生成
         this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
-        
-        // コンボリセットタイマー
-        this.startComboResetTimer();
+        this.startLyricsTimer();  // 歌詞表示タイマーを開始
+    }
+
+    /**
+     * ランダムテキストのデータを初期化
+     * 観客が表示するコールやリアクションのテキスト
+     */
+    initRandomTexts() {
+        this.randomTexts = ["ミク！", "かわいい！", "最高！", "いくよー！", "がんばれ！", 
+                           "39！", "イェーイ！", "キャー！", "すごい！", "大好き！",
+                           "バンザイ！", "ワーオ！", "さいこー！", "クール！", "すてき！"];
+        this.randomTextInterval = null;
     }
     
-    // イベントリスナーの設定
-    setupEvents() {
-        // ユーザー操作
-        this.canvas.addEventListener('mousemove', e => {
-            this.mousePos = { x: e.clientX, y: e.clientY };
-            this.checkLyricsInArea(e.clientX, e.clientY, 35);
-            if (this.frameCount % 2 === 0) this.createTrailParticle(e.clientX, e.clientY);
-        });
-        
-        this.canvas.addEventListener('touchmove', e => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            this.mousePos = { x: touch.clientX, y: touch.clientY };
-            this.checkLyricsInArea(touch.clientX, touch.clientY, 45);
-            if (this.frameCount % 2 === 0) this.createTrailParticle(touch.clientX, touch.clientY);
-        }, { passive: false });
-        
-        this.canvas.addEventListener('click', e => {
-            this.checkLyricsInArea(e.clientX, e.clientY, 40);
-            this.createTapEffect(e.clientX, e.clientY);
-            if (Math.random() < 0.2) {
-                const angle = Math.random() * Math.PI * 2;
-                this.createShooting(e.clientX, e.clientY, Math.cos(angle) * 5, Math.sin(angle) * 5);
-            }
-            this.handleBodyClick();
-        });
-        
-        // コントロールボタン
-        this.playPauseBtn.addEventListener('click', () => this.handlePlayPause());
-        this.restartBtn.addEventListener('click', () => this.handleRestart());
-        
-        // リザルト画面ボタン
-        document.getElementById('back-to-title').addEventListener('click', () => {
-            window.location.href = 'index.html';
-        });
-        
-        document.getElementById('replay-song').addEventListener('click', () => {
-            const resultsScreen = document.getElementById('results-screen');
-            resultsScreen.classList.remove('show');
-            resultsScreen.classList.add('hidden');
-            this.restartGame();
-        });
-        
-        // ウィンドウリサイズ
-        window.addEventListener('resize', () => {
-            this.resizeCanvas();
-            if (this.loadingComplete) {
-                this.createAudience();
-            }
-        });
-    }
-    
-    // 歌詞データの初期化
+    /**
+     * 歌詞データの初期化
+     * APIからのデータが取得できない場合のフォールバックデータも準備
+     */
     initLyricsData() {
-        this.lyricsData = [];
-        this.fallbackLyricsData = [
+        this.lyricsData = [];  // API経由で取得する予定の実際の歌詞データ
+        this.fallbackLyricsData = [  // APIが失敗した場合のフォールバックデータ
             { time: 1000, text: "マ" }, { time: 1500, text: "ジ" },
             { time: 2000, text: "カ" }, { time: 2500, text: "ル" },
             { time: 3000, text: "ミ" }, { time: 3500, text: "ラ" },
@@ -222,86 +444,158 @@ class GameManager {
             { time: 6500, text: "ク" }
         ];
     }
-    
-    // TextAlivePlayerの初期化
-    initTextAlivePlayer() {
-        return new Promise((resolve, reject) => {
-            if (typeof TextAliveApp === 'undefined') {
-                reject('TextAliveApp not found');
-                return;
-            }
+
+    /**
+     * デバイスタイプに応じてUIを調整
+     * モバイルデバイスの場合は操作方法を変更
+     */
+    adjustUIForDevice() {
+        const isMobile = this.isMobileDevice();
+        
+        if (isMobile) {
+            // モバイル向けUIの調整
+            const controls = document.getElementById('controls');
+            if (controls) controls.classList.add('mobile-controls');
             
-            try {
-                this.player = new TextAliveApp.Player({
-                    app: { token: this.apiToken },
-                    mediaElement: document.createElement('audio')
-                });
-                document.body.appendChild(this.player.mediaElement);
-                this.isPlayerInitialized = true;
-                
-                this.player.addListener({
-                    onAppReady: (app) => {
-                        if (app && !app.managed) {
-                            try {
-                                this.player.createFromSongUrl(this.songUrl);
-                                resolve();
-                            } catch {
-                                reject('Failed to load song');
-                            }
-                        }
-                    },
-                    onVideoReady: (video) => {
-                        if (video && video.firstPhrase) this.updateLyricsFromVideo(video);
-                    },
-                    onTimeUpdate: (position) => this.updateLyricsDisplay(position),
-                    onPlay: () => {
-                        this.isPaused = false;
-                        this.playPauseBtn.textContent = '一時停止';
-                        if (!this.randomTextInterval) {
-                            this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
-                        }
-                    },
-                    onPause: () => {
-                        this.isPaused = true;
-                        this.playPauseBtn.textContent = '再生';
-                        clearInterval(this.randomTextInterval);
-                        this.randomTextInterval = null;
-                    },
-                    onStop: () => {
-                        this.isPaused = true;
-                        this.playPauseBtn.textContent = '再生';
-                        this.restartGame();
-                    },
-                    onError: () => reject('Player error')
-                });
-            } catch (error) {
-                reject(error);
+            const instructions = document.getElementById('instructions');
+            if (instructions) instructions.textContent = '歌詞の文字をタップまたはスワイプしてポイントを獲得しよう！';
+            
+            // 縦向きの場合は警告を表示（オプショナルチェーン使用）
+            if (window.innerHeight > window.innerWidth) this.showOrientationWarning?.();
+            this.showMobileHint();  // モバイル操作のヒントを表示
+        }
+    }
+
+    /**
+     * ユーザーのデバイスがモバイルかどうかを判定
+     * @returns {boolean} モバイルデバイスならtrue
+     */
+    isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    /**
+     * モバイルデバイス向けの操作ヒントを表示
+     */
+    showMobileHint() {
+        const mobileHint = document.createElement('div');
+        mobileHint.className = 'mobile-hint';
+        mobileHint.textContent = '👆 指でスワイプして歌詞をなぞろう！';
+        this.gameContainer.appendChild(mobileHint);
+        
+        // 5秒後にヒントをフェードアウト
+        setTimeout(() => {
+            if (mobileHint.parentNode) {
+                mobileHint.style.opacity = '0';
+                setTimeout(() => mobileHint.remove(), 1000);
             }
-        });
+        }, 5000);
+    }
+
+    /**
+     * TextAlivePlayerを初期化
+     * 歌詞と音楽の同期を行うAPIを使用
+     * 最適化: エラー処理の強化、早期リターンによる処理削減
+     */
+    initTextAlivePlayer() {
+        // TextAlive APIが利用できない場合は早期リターン
+        if (typeof TextAliveApp === 'undefined') {
+            if (this.loading) this.loading.textContent = "TextAliveが見つかりません。代替モードで起動中...";
+            this.fallbackToBasicMode();
+            return;
+        }
+        
+        // すでに初期化済みなら処理しない
+        if (this.isPlayerInitialized) return;
+        
+        try {
+            // プレーヤーインスタンスを作成
+            this.player = new TextAliveApp.Player({
+                app: { token: this.apiToken },
+                mediaElement: document.createElement('audio')
+            });
+            document.body.appendChild(this.player.mediaElement);
+            this.isPlayerInitialized = true;
+            
+            // イベントリスナーを設定
+            this.player.addListener({
+                // アプリ準備完了時
+                onAppReady: (app) => {
+                    if (app && !app.managed) {
+                        try {
+                            this.player.createFromSongUrl(this.songUrl);
+                        } catch {
+                            this.fallbackToBasicMode();
+                        }
+                    }
+                },
+                // 動画データ準備完了時
+                onVideoReady: (video) => {
+                    if (video && video.firstPhrase) this.updateLyricsFromVideo(video);
+                    if (this.loading) this.loading.textContent = "準備完了！クリックして開始";
+                },
+                // 再生位置更新時
+                onTimeUpdate: (position) => this.updateLyricsDisplay(position),
+                // 再生開始時
+                onPlay: () => {
+                    this.isPaused = false;
+                    this.playPauseBtn.textContent = '一時停止';
+                    if (!this.randomTextInterval) {
+                        this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
+                    }
+                },
+                // 一時停止時
+                onPause: () => {
+                    this.isPaused = true;
+                    this.playPauseBtn.textContent = '再生';
+                    clearInterval(this.randomTextInterval);
+                    this.randomTextInterval = null;
+                },
+                // 停止時
+                onStop: () => {
+                    this.isPaused = true;
+                    this.playPauseBtn.textContent = '再生';
+                    this.restartGame();
+                },
+                // エラー発生時
+                onError: () => this.fallbackToBasicMode()
+            });
+        } catch {
+            this.fallbackToBasicMode();
+        }
     }
     
-    // API接続に失敗した場合の代替モード
+    /**
+     * API接続に失敗した場合の代替モードに切り替え
+     * 内部でハードコードされた歌詞データを使用
+     */
     fallbackToBasicMode() {
         this.isPlayerInitialized = false;
         this.player = null;
-        this.lyricsData = this.fallbackLyricsData;
-        this.startLyricsTimer();
+        
+        if (this.loading) this.loading.textContent = "APIエラー。代替モードで起動中...";
+        this.lyricsData = this.fallbackLyricsData;  // フォールバックデータを使用
+        this.startLyricsTimer();  // 独自タイマーで歌詞表示を開始
     }
     
-    // TextAliveから歌詞情報を更新
+    /**
+     * TextAliveから取得したビデオデータから歌詞情報を更新
+     * @param {Object} video - TextAliveから取得したビデオデータ
+     */
     updateLyricsFromVideo(video) {
         try {
             this.lyricsData = [];
             let currentPhrase = video.firstPhrase;
             
+            // フレーズ、単語、文字の階層構造からすべての文字データを取得
             while (currentPhrase) {
                 let currentWord = currentPhrase.firstWord;
                 while (currentWord) {
                     let currentChar = currentWord.firstChar;
                     while (currentChar) {
                         this.lyricsData.push({
-                            time: currentChar.startTime,
-                            text: currentChar.text
+                            time: currentChar.startTime,  // 表示開始時間
+                            text: currentChar.text        // 文字テキスト
                         });
                         currentChar = currentChar.next;
                     }
@@ -310,290 +604,601 @@ class GameManager {
                 currentPhrase = currentPhrase.next;
             }
             
+            // 時間順にソート
             this.lyricsData.sort((a, b) => a.time - b.time);
-        } catch {}
+        } catch {}  // エラー時は処理をスキップ（空のtry-catchで最適化）
     }
     
-    // 現在の再生位置に応じて歌詞を表示
+    /**
+     * 現在の再生位置に応じて歌詞を表示
+     * @param {number} position - 現在の再生位置（ミリ秒）
+     * 最適化: フレームスキップによる処理頻度の調整
+     */
     updateLyricsDisplay(position) {
         if (this.isPaused) return;
+        if (!this.displayedLyrics) this.displayedLyrics = new Set();
+        
+        // パフォーマンス最適化：フレームをスキップ
+        this.frameCount++;
+        if (this.frameCount % this.throttleFrames !== 0) return;
         
         for (let i = 0; i < this.lyricsData.length; i++) {
             const lyric = this.lyricsData[i];
-            if (lyric.time <= position && lyric.time > position - 500 && 
-                !this.displayedLyricsTimestamps.has(lyric.time)) {
-                this.displayLyricBubble(lyric.text);
-                this.displayedLyricsTimestamps.add(lyric.time);
-                setTimeout(() => this.displayedLyricsTimestamps.delete(lyric.time), 8000);
+            // 現在の位置より少し前（500ms以内）の歌詞を表示
+            if (lyric.time <= position && lyric.time > position - 500 && !this.displayedLyrics.has(lyric.time)) {
+                this.displayLyricBubble(lyric.text);  // 歌詞バブルを表示
+                this.displayedLyrics.add(lyric.time);
+                // 10秒後に再表示できるようにする
+                setTimeout(() => this.displayedLyrics.delete(lyric.time), 10000);
             }
         }
         
+        // 曲終了チェック
         this.checkSongEnd(position);
     }
     
-    // 歌詞表示用タイマー
+    /**
+     * 歌詞表示用タイマーを開始
+     * APIが使用できない場合のフォールバックモード用
+     * 最適化: パフォーマンスのためにフレームスキップを実装
+     */
     startLyricsTimer() {
         this.currentLyricIndex = 0;
         this.startTime = Date.now();
+        this.displayedLyricsTimestamps = new Set();
         
-        if (this.lyricsTimerInterval) clearInterval(this.lyricsTimerInterval);
+        // 既存のアニメーションがあればキャンセル
+        if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         
-        this.lyricsTimerInterval = setInterval(() => {
-            if (this.isPaused) return;
+        const checkLyrics = () => {
+            // プレーヤーが初期化済み、または一時停止中の場合はスキップ
+            if ((this.isPlayerInitialized && this.player) || this.isPaused) {
+                this.animationFrameId = requestAnimationFrame(checkLyrics);
+                return;
+            }
+            
+            // パフォーマンス最適化：フレームをスキップ
+            this.frameCount++;
+            if (this.frameCount % this.throttleFrames !== 0) {
+                this.animationFrameId = requestAnimationFrame(checkLyrics);
+                return;
+            }
             
             const currentTime = Date.now() - this.startTime;
+            let processedLyrics = 0;
+            const maxProcessPerFrame = 3;  // 1フレームあたりの最大処理数
             
+            // 現在の時間に表示すべき歌詞を処理
             while (this.currentLyricIndex < this.lyricsData.length && 
-                   this.lyricsData[this.currentLyricIndex].time <= currentTime) {
+                   this.lyricsData[this.currentLyricIndex].time <= currentTime &&
+                   processedLyrics < maxProcessPerFrame) {
                 
                 const lyric = this.lyricsData[this.currentLyricIndex];
                 if (!this.displayedLyricsTimestamps.has(lyric.time)) {
                     this.displayLyricBubble(lyric.text);
                     this.displayedLyricsTimestamps.add(lyric.time);
-                    setTimeout(() => this.displayedLyricsTimestamps.delete(lyric.time), 8000);
+                    
+                    // 一定時間後に再表示可能に
+                    setTimeout(() => {
+                        this.displayedLyricsTimestamps.delete(lyric.time);
+                    }, 8000);
+                    
+                    processedLyrics++;
                 }
                 
                 this.currentLyricIndex++;
             }
             
+            // すべての歌詞を表示したらループ
             if (this.currentLyricIndex >= this.lyricsData.length) {
                 this.currentLyricIndex = 0;
                 this.displayedLyricsTimestamps.clear();
                 this.startTime = Date.now();
             }
-        }, 100);
-    }
-    
-    
-    // 再生/一時停止ボタンの処理
-    async handlePlayPause() {
-        this.isPaused = !this.isPaused;
-        
-        if (this.isPaused) {
-            this.playPauseBtn.textContent = '再生';
             
-            if (this.player && this.isPlayerInitialized && this.player.isPlaying) {
-                try {
-                    await this.player.requestPause();
-                } catch {
-                    // エラーを無視
-                }
-            }
-            
-            if (this.randomTextInterval) {
-                clearInterval(this.randomTextInterval);
-                this.randomTextInterval = null;
-            }
-        } else {
-            this.playPauseBtn.textContent = '一時停止';
-            
-            if (this.player && this.isPlayerInitialized && !this.player.isPlaying) {
-                try {
-                    await this.player.requestPlay();
-                } catch {
-                    this.fallbackToBasicMode();
-                }
-            } else if (!this.player || !this.isPlayerInitialized) {
-                this.startTime = Date.now();
-            }
-            
-            if (!this.randomTextInterval) {
-                this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
-            }
-        }
-    }
-
-    // リスタートボタンの処理
-    async handleRestart() {
-        this.restartGame();
-        
-        if (this.player && this.isPlayerInitialized) {
-            try {
-                if (this.player.isPlaying) await this.player.requestPause();
-                await this.player.requestStop();
-                await this.player.requestPlay();
-            } catch {
-                this.fallbackToBasicMode();
-            }
-        } else {
-            this.isPaused = false;
-            this.currentLyricIndex = 0;
-            this.startTime = Date.now();
-            this.playPauseBtn.textContent = '一時停止';
-        }
-    }
-
-    // 画面クリック処理（初回再生用）
-    async handleBodyClick() {
-        if (!this.player || !this.isPlayerInitialized) return;
-        
-        if (this.player.isPlaying === false) {
-            try {
-                await this.player.requestPlay();
-                this.isPaused = false;
-                this.playPauseBtn.textContent = '一時停止';
-            } catch {
-                this.fallbackToBasicMode();
-            }
-        }
-    }
-    
-    // 歌詞バブルを表示
-    displayLyricBubble(text) {
-        if (!text) return;
-        
-        // 既に表示済みの同じ歌詞はスキップ
-        for (const bubble of this.lyricBubbles) {
-            if (bubble.text === text) return;
-        }
-        
-        // 新しい歌詞バブルのプロパティを設定
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        let x, y;
-        if (isMobile) {
-            x = this.width * 0.15 + Math.random() * (this.width * 0.7);
-            y = this.height * 0.3 + Math.random() * (this.height * 0.55);
-        } else {
-            x = 100 + Math.random() * (this.width - 300);
-            y = this.height - 300 - Math.random() * 100;
-        }
-        
-        // 歌詞バブルオブジェクトを作成して配列に追加
-        const bubble = {
-            text: text,
-            x: x + (Math.random() - 0.5) * 50,
-            y: y + (Math.random() - 0.5) * 50,
-            opacity: 1,
-            color: this.primaryColor,
-            fontSize: isMobile ? 24 : 30,
-            active: true,
-            createdAt: Date.now()
+            this.animationFrameId = requestAnimationFrame(checkLyrics);
         };
         
-        this.lyricBubbles.push(bubble);
+        this.animationFrameId = requestAnimationFrame(checkLyrics);
+    }
+
+    /**
+     * 歌詞バブルを表示
+     * @param {string} text - 表示する歌詞テキスト
+     * 最適化: オブジェクトプールを利用してDOM生成コストを削減
+     */
+    displayLyricBubble(text) {
+        if (!text) return;
+
+        // 同じテキストが既に表示されている場合はスキップ
+        const existingBubbles = document.querySelectorAll('.lyric-bubble');
+        for (let bubble of existingBubbles) {
+            if (bubble.textContent === text) return;
+        }
+
+        const isMobile = this.isMobileDevice();
         
-        // 一定時間後に削除
+        // 表示位置計算（デバイスに応じて調整）
+        let baseX, baseY;
+        if (isMobile) {
+            // モバイル：画面幅の15%～85%の範囲（はみ出し防止）
+            baseX = window.innerWidth * 0.15 + Math.random() * (window.innerWidth * 0.7);
+            // モバイル：縦方向も広い範囲を使用
+            baseY = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
+        } else {
+            // PC：画面中央～下部のエリア
+            baseX = 100 + Math.random() * (window.innerWidth - 300);
+            baseY = window.innerHeight - 300 - Math.random() * 100;
+        }
+
+        // オブジェクトプールから再利用または新規作成
+        let charBubble;
+        if (this.lyricBubblePool.length > 0) {
+            charBubble = this.lyricBubblePool.pop();
+        } else {
+            charBubble = document.createElement('div');
+            charBubble.className = 'lyric-bubble';
+            charBubble.addEventListener('mouseenter', () => this.clickLyric(charBubble));
+        }
+        
+        // バブルの設定
+        charBubble.textContent = text;
+        charBubble.style.pointerEvents = 'auto';
+        charBubble.style.opacity = '1';
+        charBubble.style.left = `${baseX + (Math.random() - 0.5) * 50}px`;
+        charBubble.style.top = `${baseY + (Math.random() - 0.5) * 50}px`;
+        charBubble.style.color = '#39C5BB';  // ミクカラー
+        charBubble.style.transition = 'color 0.3s ease-in-out, opacity 0.5s ease-in-out';
+        charBubble.style.fontSize = isMobile ? '24px' : '30px';  // デバイスに合わせたサイズ
+        
+        this.gameContainer.appendChild(charBubble);
+        
+        // 一定時間後に削除またはプールに戻す
         setTimeout(() => {
-            const index = this.lyricBubbles.indexOf(bubble);
-            if (index !== -1) {
-                this.lyricBubbles.splice(index, 1);
+            if (charBubble.parentNode) {
+                charBubble.remove();
+                if (this.lyricBubblePool.length < this.maxPoolSize) {
+                    this.lyricBubblePool.push(charBubble);
+                }
             }
         }, 8000);
     }
 
-    // ランダムテキスト（観客のコール）を作成
+    /**
+     * ランダムテキスト（観客のコール）を作成して表示
+     * 最適化: オブジェクトプールを使用し、DOM操作を最小化
+     */
     createRandomText() {
         if (this.isPaused) return;
         
-        // Limit random text creation on low-end devices or when too many exist
-        const isLowEndDevice = navigator.hardwareConcurrency <= 4 || 
-                              /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        // オブジェクトプールから再利用または新規作成
+        let text;
+        if (this.randomTextPool.length > 0) {
+            text = this.randomTextPool.pop();
+        } else {
+            text = document.createElement('div');
+            text.className = 'random-text';
+        }
         
-        if ((isLowEndDevice && this.randomTexts.length > 10) || this.randomTexts.length > 25) return;
+        // テキストの内容と表示位置を設定
+        text.textContent = this.randomTexts[Math.floor(Math.random() * this.randomTexts.length)];
         
-        const text = this.randomTextsList[Math.floor(Math.random() * this.randomTextsList.length)];
-        const x = Math.random() * this.width * 0.8 + this.width * 0.1;
-        const y = this.height - Math.random() * 200;
+        const x = Math.random() * window.innerWidth * 0.8 + window.innerWidth * 0.1;
+        const y = window.innerHeight - Math.random() * 200;
         
-        const randomText = {
-            text: text,
-            x: x,
-            y: y,
-            opacity: 0.5 + Math.random() * 0.5,
-            fontSize: 14 + Math.random() * 12,
-            rotation: -20 + Math.random() * 40,
-            createdAt: Date.now()
-        };
+        text.style.left = `${x}px`;
+        text.style.top = `${y}px`;
+        text.style.opacity = 0.5 + Math.random() * 0.5;
+        text.style.fontSize = `${14 + Math.random() * 12}px`;
+        text.style.transform = `rotate(${-20 + Math.random() * 40}deg)`;
         
-        this.randomTexts.push(randomText);
+        this.gameContainer.appendChild(text);
         
+        // 一定時間後に削除またはプールに戻す
         setTimeout(() => {
-            const index = this.randomTexts.indexOf(randomText);
-            if (index !== -1) {
-                this.randomTexts.splice(index, 1);
+            if (text.parentNode) {
+                text.remove();
+                if (this.randomTextPool.length < this.maxPoolSize) {
+                    this.randomTextPool.push(text);
+                }
             }
         }, 6000);
     }
 
-    // 指定された座標を中心とする円形の領域内にある歌詞要素をチェック
+    /**
+     * 歌詞要素がクリックされた時の処理
+     * @param {HTMLElement} element - クリックされた歌詞要素
+     */
+    clickLyric(element) {
+        if (element.style.pointerEvents === 'none') return;  // 既に処理済みの場合はスキップ
+        
+        this.combo++;  // コンボを増加
+        this.maxCombo = Math.max(this.maxCombo, this.combo);  // 最大コンボ数を更新
+        const comboBonus = Math.floor(this.combo / 5) + 1;  // 5コンボごとにボーナス増加
+        const points = 100 * comboBonus;  // ポイント計算
+        this.score += points;
+        
+        this.scoreElement.textContent = this.score;
+        this.comboElement.textContent = `コンボ: ${this.combo}`;
+        
+        // クリック時に色を変更（ピンク色）
+        element.style.color = '#FF69B4';
+        this.createClickEffect(element);  // クリックエフェクトを表示
+        element.style.pointerEvents = 'none';  // 再クリック防止
+        
+        // 少し遅延させてからフェードアウト（色の変化を見せるため）
+        setTimeout(() => {
+            element.style.opacity = '0';
+        }, 100);
+        
+        this.lastScoreTime = Date.now();  // コンボリセットタイマー用
+    }
+
+    /**
+     * 指定された座標を中心とする円形の領域内にある歌詞要素をチェック
+     * @param {number} x - 中心X座標
+     * @param {number} y - 中心Y座標
+     * @param {number} radius - 検出する円の半径
+     * @returns {boolean} 歌詞要素が検出されたかどうか
+     * 最適化: Math.sqrt計算を避け、距離の二乗を使用
+     */
     checkLyricsInArea(x, y, radius) {
+        const lyricElements = document.querySelectorAll('.lyric-bubble');
         let detected = false;
+        
+        // 半径の二乗を事前計算（Math.sqrt呼び出しを削減）
         const radiusSquared = radius * radius;
         
-        for (let i = 0; i < this.lyricBubbles.length; i++) {
-            const bubble = this.lyricBubbles[i];
-            if (!bubble.active) continue;
+        for (let i = 0; i < lyricElements.length; i++) {
+            const element = lyricElements[i];
+            if (element.style.pointerEvents === 'none') continue;
             
-            const dx = x - bubble.x;
-            const dy = y - bubble.y;
+            const rect = element.getBoundingClientRect();
+            const elementCenterX = rect.left + rect.width / 2;
+            const elementCenterY = rect.top + rect.height / 2;
+            
+            const dx = x - elementCenterX, dy = y - elementCenterY;
+            // 高速化: Math.sqrtを避けて距離の二乗を計算
             const distanceSquared = dx * dx + dy * dy;
-            const textWidth = this.ctx.measureText(bubble.text).width;
-            const combinedRadius = radius + Math.max(textWidth, bubble.fontSize) / 2;
+            const combinedRadius = radius + Math.max(rect.width, rect.height) / 2;
             
+            // 距離の二乗を比較（Math.sqrt呼び出しを回避）
             if (distanceSquared <= combinedRadius * combinedRadius) {
-                this.clickLyric(bubble);
+                this.clickLyric(element);  // 歌詞をクリックした処理を実行
                 detected = true;
-                // ヒットエフェクトを削除
+                this.createHitEffect(elementCenterX, elementCenterY);  // ヒットエフェクトを表示
             }
         }
         
         return detected;
     }
 
-    // 歌詞要素がクリックされた時の処理
-    clickLyric(bubble) {
-        if (!bubble.active) return;
-        
-        this.combo++;
-        this.maxCombo = Math.max(this.maxCombo, this.combo);
-        const comboBonus = Math.floor(this.combo / 5) + 1;
-        const points = 100 * comboBonus;
-        this.score += points;
-        
-        bubble.color = '#FFFF00'; // 黄色に変更
-        bubble.active = false;
-        
-        // スコア表示エフェクト
-        const pointDisplay = {
-            text: `+${points}`,
-            x: bubble.x,
-            y: bubble.y,
-            color: '#FFFF00',
-            opacity: 1,
-            fontSize: 24,
-            createdAt: Date.now()
-        };
-        
-        this.particles.push(pointDisplay);
-        
-        // パーティクルエフェクトは削除（シンプル化のため）
-        
-        this.lastScoreTime = Date.now();
+    /**
+     * 指定された位置にある歌詞要素をチェック（小さい範囲で）
+     * @param {number} x - X座標
+     * @param {number} y - Y座標
+     * @returns {boolean} 歌詞要素が検出されたかどうか
+     */
+    checkLyricsAtPosition(x, y) {
+        return this.checkLyricsInArea(x, y, 40);  // 半径40pxの範囲で歌詞をチェック
     }
 
-    // コンボをリセットするタイマー
+    /**
+     * コンボをリセットするタイマーを開始
+     * 一定時間クリックがないとコンボがリセットされる
+     */
     startComboResetTimer() {
         this.lastScoreTime = Date.now();
         
         if (this.comboResetTimer) clearInterval(this.comboResetTimer);
         
         this.comboResetTimer = setInterval(() => {
+            // 30秒間クリックがなければコンボリセット
             if (Date.now() - this.lastScoreTime > 30000 && this.combo > 0) {
                 this.combo = 0;
+                this.comboElement.textContent = `コンボ: ${this.combo}`;
             }
         }, 1000);
     }
 
-    // 観客を作成
+    /**
+     * 舞台照明などの光エフェクトを作成
+     * 最適化: DocumentFragmentの使用、デバイス性能に応じたエフェクト数の調整
+     */
+    createLightEffects() {
+        const isLowEndDevice = navigator.hardwareConcurrency <= 4 || this.isMobileDevice();
+        const fragment = document.createDocumentFragment();  // DOM操作の最適化
+        
+        // スポットライト
+        for (let i = 0; i < 3; i++) {
+            const spotlight = document.createElement('div');
+            spotlight.className = 'spotlight';
+            spotlight.style.left = `${(i * 30) + 20}%`;
+            spotlight.style.animationDelay = `${i * -2.5}s`;  // ずらしてアニメーション
+            fragment.appendChild(spotlight);
+        }
+        
+        // キラキラエフェクト (デバイスによって数を調整)
+        const lightCount = isLowEndDevice ? 15 : 30;  // 低性能デバイスでは半分に
+        for (let i = 0; i < lightCount; i++) {
+            const light = document.createElement('div');
+            light.className = 'light-effect';
+            light.style.left = `${Math.random() * 100}%`;
+            light.style.top = `${Math.random() * 100}%`;
+            light.style.animationDelay = `${Math.random() * 3}s`;  // ランダムなタイミング
+            fragment.appendChild(light);
+        }
+        
+        // 一度のDOM操作でまとめて追加（パフォーマンス向上）
+        this.gameContainer.appendChild(fragment);
+    }
+
+    /**
+     * 歌詞にヒットした時の視覚効果を作成
+     * @param {number} x - ヒット位置のX座標
+     * @param {number} y - ヒット位置のY座標
+     */
+    createHitEffect(x, y) {
+        const ripple = document.createElement('div');
+        ripple.className = 'tap-ripple';
+        ripple.style.backgroundColor = 'rgba(57, 197, 187, 0.5)';  // ミクカラー（半透明）
+        ripple.style.width = '40px';
+        ripple.style.height = '40px';
+        ripple.style.left = `${x - 20}px`;  // 中心に配置するための調整
+        ripple.style.top = `${y - 20}px`;
+        
+        this.gameContainer.appendChild(ripple);
+        setTimeout(() => ripple.parentNode && ripple.remove(), 500);
+    }
+
+    /**
+     * 流れ星エフェクトを作成
+     * @param {number} x - 開始位置X座標
+     * @param {number} y - 開始位置Y座標
+     * @param {number} dx - X方向の速度
+     * @param {number} dy - Y方向の速度
+     */
+    createShooting(x, y, dx, dy) {
+        // 方向が指定されていない場合はランダムな方向を設定
+        if (dx === 0 && dy === 0) {
+            const angle = Math.random() * Math.PI * 2;
+            dx = Math.cos(angle) * 5;
+            dy = Math.sin(angle) * 5;
+        }
+
+        // 流れ星のサイズと要素を作成
+        const meteorSize = 15 + Math.random() * 15;
+        const meteor = document.createElement('div');
+        meteor.className = 'shooting-star';
+        meteor.style.width = `${meteorSize}px`;
+        meteor.style.height = `${meteorSize}px`;
+        meteor.style.left = `${x}px`;
+        meteor.style.top = `${y}px`;
+        
+        // 移動方向に合わせて回転
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        meteor.style.transform = `rotate(${angle + 45}deg)`;
+        
+        // 速度に基づいて光の強さを調整
+        const speed = Math.min(150, Math.sqrt(dx * dx + dy * dy) * 5);
+        meteor.style.boxShadow = `0 0 ${meteorSize}px ${meteorSize/2}px rgba(255, 255, 200, 0.8)`;
+        meteor.style.filter = `blur(1px) drop-shadow(0 0 ${speed/10}px #fff)`;
+        
+        this.gameContainer.appendChild(meteor);
+        const duration = 800;
+        
+        // Web Animations APIを使用（setIntervalよりも効率的）
+        meteor.animate([
+            { transform: `rotate(${angle + 45}deg) scale(1)`, opacity: 1 },
+            { transform: `translate(${dx * 10}px, ${dy * 10}px) rotate(${angle + 45}deg) scale(0.1)`, opacity: 0 }
+        ], { duration, easing: 'ease-out', fill: 'forwards' });
+        
+        // アニメーション終了後に要素を削除
+        setTimeout(() => meteor.parentNode && meteor.remove(), duration);
+    }
+
+    /**
+     * マウス/指の軌跡を表現するパーティクルを作成
+     * @param {number} x - パーティクル生成位置X座標
+     * @param {number} y - パーティクル生成位置Y座標
+     * 最適化: 低性能デバイスでは頻度を下げる、プール再利用
+     */
+    createTrailParticle(x, y) {
+        // パフォーマンス最適化: 低性能デバイスでは頻度を下げる
+        if (this.isMobileDevice() && Math.random() > 0.5) return;
+        
+        // オブジェクトプールから再利用または新規作成
+        let particle;
+        if (this.trailParticlePool.length > 0) {
+            particle = this.trailParticlePool.pop();
+        } else {
+            particle = document.createElement('div');
+            particle.className = 'star-particle';
+        }
+        
+        // パーティクルの設定
+        const size = 20 + Math.random() * 40;
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        particle.style.left = `${x - size/2}px`;
+        particle.style.top = `${y - size/2}px`;
+        
+        // ランダムな色相でカラフルに
+        const hue = Math.floor(Math.random() * 360);
+        particle.style.backgroundColor = `hsla(${hue}, 100%, 70%, 0.8)`;
+        particle.style.boxShadow = `0 0 ${size/2}px hsla(${hue}, 100%, 70%, 0.8)`;
+        particle.style.transform = `rotate(${Math.random() * 360}deg)`;
+        particle.style.opacity = '1';
+        
+        this.gameContainer.appendChild(particle);
+        this.mouseTrail.push({ element: particle, createdAt: Date.now() });
+        
+        // 古いパーティクルをクリーンアップ
+        const now = Date.now();
+        const trailLifetime = 600;  // パーティクルの寿命（ミリ秒）
+        
+        // 寿命が切れたパーティクルをフィルタリング
+        this.mouseTrail = this.mouseTrail.filter(particle => {
+            const age = now - particle.createdAt;
+            if (age > trailLifetime) {
+                particle.element.style.opacity = '0';  // フェードアウト
+                if (this.trailParticlePool.length < this.maxPoolSize) {
+                    // プールに戻して再利用
+                    this.trailParticlePool.push(particle.element);
+                } else if (particle.element.parentNode) {
+                    // プールがいっぱいなら削除
+                    particle.element.remove();
+                }
+                return false;
+            }
+            return true;
+        });
+        
+        // 軌跡の最大長を超える場合、古いものから削除
+        while (this.mouseTrail.length > this.maxTrailLength) {
+            const oldest = this.mouseTrail.shift();
+            if (oldest.element.parentNode) {
+                oldest.element.remove();
+                if (this.trailParticlePool.length < this.maxPoolSize) {
+                    this.trailParticlePool.push(oldest.element);
+                }
+            }
+        }
+    }
+
+    /**
+     * 歌詞クリック時のエフェクトを作成
+     * @param {HTMLElement} element - クリックされた歌詞要素
+     * 最適化: デバイス性能に応じたパーティクル数の調整、プール再利用
+     */
+    createClickEffect(element) {
+        const rect = element.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        // パフォーマンス最適化: 低スペックデバイスではパーティクル数を減らす
+        const particleCount = this.isMobileDevice() ? 4 : 6;
+        
+        // パーティクルエフェクト
+        for (let i = 0; i < particleCount; i++) {
+            let particle;
+            if (this.particlePool.length > 0) {
+                particle = this.particlePool.pop();
+            } else {
+                particle = document.createElement('div');
+                particle.className = 'particle';
+            }
+            
+            // パーティクルの設定
+            const size = 10 + Math.random() * 15;
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+            particle.style.opacity = '1';
+            particle.style.left = `${centerX - size / 2 + (Math.random() - 0.5) * 30}px`;
+            particle.style.top = `${centerY - size / 2 + (Math.random() - 0.5) * 30}px`;
+            
+            this.gameContainer.appendChild(particle);
+            
+            // ランダムな方向と速度
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 3;
+            const dx = Math.cos(angle) * speed;
+            const dy = Math.sin(angle) * speed;
+            
+            const startTime = Date.now();
+            const duration = 800;
+            
+            // パーティクルのアニメーション
+            const animateParticle = () => {
+                const elapsed = Date.now() - startTime;
+                if (elapsed >= duration) {
+                    // アニメーション終了時にプールに戻すか削除
+                    if (particle.parentNode) {
+                        particle.remove();
+                        if (this.particlePool.length < this.maxPoolSize) {
+                            this.particlePool.push(particle);
+                        }
+                    }
+                    return;
+                }
+                
+                // パーティクルを移動させる
+                const progress = elapsed / duration;
+                const currentX = parseFloat(particle.style.left) + dx;
+                const currentY = parseFloat(particle.style.top) + dy;
+                
+                particle.style.left = `${currentX}px`;
+                particle.style.top = `${currentY}px`;
+                particle.style.opacity = (1 - progress).toString();  // フェードアウト
+                
+                requestAnimationFrame(animateParticle);
+            };
+            
+            requestAnimationFrame(animateParticle);
+        }
+        
+        // 得点表示テキスト
+        let pointDisplay;
+        if (this.lyricBubblePool.length > 0) {
+            pointDisplay = this.lyricBubblePool.pop();
+        } else {
+            pointDisplay = document.createElement('div');
+            pointDisplay.className = 'lyric-bubble';
+        }
+        
+        // 得点表示の設定
+        pointDisplay.textContent = `+${100 * (Math.floor(this.combo / 5) + 1)}`;  // コンボボーナス表示
+        pointDisplay.style.left = `${centerX}px`;
+        pointDisplay.style.top = `${centerY}px`;
+        pointDisplay.style.color = '#FFFF00';  // 黄色で目立たせる
+        pointDisplay.style.pointerEvents = 'none';  // クリック不可
+        pointDisplay.style.opacity = '1';
+        
+        this.gameContainer.appendChild(pointDisplay);
+        
+        // 上に浮かせながらフェードアウトするアニメーション
+        const startY = parseFloat(pointDisplay.style.top);
+        const startTime = Date.now();
+        const duration = 1200;
+        
+        const animatePointDisplay = () => {
+            const elapsed = Date.now() - startTime;
+            
+            if (elapsed >= duration) {
+                // アニメーション終了時にプールに戻すか削除
+                if (pointDisplay.parentNode) {
+                    pointDisplay.remove();
+                    if (this.lyricBubblePool.length < this.maxPoolSize) {
+                        this.lyricBubblePool.push(pointDisplay);
+                    }
+                }
+                return;
+            }
+            
+            // 上に浮かび上がりながらフェードアウト
+            const progress = elapsed / duration;
+            pointDisplay.style.top = `${startY - 50 * progress}px`;
+            pointDisplay.style.opacity = (1 - progress).toString();
+            
+            requestAnimationFrame(animatePointDisplay);
+        };
+        
+        requestAnimationFrame(animatePointDisplay);
+    }
+
+    /**
+     * 観客を作成
+     * コンサート会場の雰囲気を演出する
+     * 最適化: デバイス性能に応じた観客数と表示の調整、DocumentFragment使用
+     */
     createAudience() {
-        this.audiences = [];
-        
-        const stageCenterX = this.width / 2;
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const stageCenterX = window.innerWidth / 2;
+        const screenHeight = window.innerHeight;
+        const isMobile = this.isMobileDevice();
         const isLowEndDevice = navigator.hardwareConcurrency <= 4 || isMobile;
-        const maxAudience = isLowEndDevice ? 100 : 180;
+        const maxAudience = isLowEndDevice ? 100 : 180;  // 低性能デバイスでは観客数を減らす
         
+        // 観客の配置行（距離、数、縮尺）を定義
         const audienceRows = [
             { distance: 70, count: 14, scale: 0.9 },
             { distance: 130, count: 20, scale: 0.85 },
@@ -603,217 +1208,107 @@ class GameManager {
             { distance: 370, count: 44, scale: 0.65 }
         ];
         
-        !isLowEndDevice && audienceRows.push(
-            { distance: 430, count: 50, scale: 0.6 },
-            { distance: 490, count: 56, scale: 0.55 }
-        );
+        // 高性能デバイスのみ後方の行を追加
+        if (!isLowEndDevice) {
+            audienceRows.push({ distance: 430, count: 50, scale: 0.6 });
+            audienceRows.push({ distance: 490, count: 56, scale: 0.55 });
+        }
         
-        const colors = ['#39C5BB', '#FF69B4', '#FFA500', '#9370DB', '#32CD32', '#00BFFF'];
         let totalAudience = 0;
+        const fragment = document.createDocumentFragment();  // DOM操作の最適化
+        const colors = ['#39C5BB', '#FF69B4', '#FFA500', '#9370DB', '#32CD32', '#00BFFF'];  // ペンライトの色
         
+        // 各行の観客を作成
         for (const row of audienceRows) {
             if (totalAudience >= maxAudience) break;
             
-            const adjustedCount = Math.min(row.count, Math.floor(row.count * this.width / 900));
+            // 画面サイズに応じて観客数を調整
+            const adjustedCount = Math.min(row.count, Math.floor(row.count * window.innerWidth / 900));
             const angleStep = 360 / adjustedCount;
             
             for (let i = 0; i < adjustedCount; i++) {
                 if (totalAudience >= maxAudience) break;
                 
+                // 円周上に配置するための角度計算
                 const angle = angleStep * i;
                 const radians = angle * (Math.PI / 180);
                 const x = Math.cos(radians) * row.distance;
-                const y = Math.sin(radians) * (row.distance * 0.5);
+                const y = Math.sin(radians) * (row.distance * 0.5);  // 楕円形に配置
                 
                 const posX = stageCenterX + x;
                 const posY = 100 - y;
                 
-                if (posX >= -20 && posX <= this.width + 20 && 
-                    posY >= -20 && posY <= this.height + 20) {
+                // 画面内に表示される位置かチェック
+                if (posX >= -20 && posX <= window.innerWidth + 20 && 
+                    posY >= -20 && posY <= screenHeight + 20) {
                     
-                    const hasPenlight = row.distance <= 250 || totalAudience % 2 !== 0;
-                    const penlightColor = colors[Math.floor(Math.random() * colors.length)];
-                    const penlightAngle = Math.random() * 20 - 10;
-                    const isWaving = totalAudience % 3 !== 0 || row.distance <= 190;
+                    const audience = document.createElement('div');
+                    audience.className = 'audience';
+                    audience.style.left = `${posX}px`;
+                    audience.style.bottom = `${posY}px`;
+                    audience.style.transform = `scale(${row.scale})`;
+                    audience.style.opacity = Math.max(0.5, row.scale);  // 遠くの観客は少し透明に
                     
-                    this.audiences.push({
-                        x: posX,
-                        y: this.height - posY,
-                        scale: row.scale,
-                        hasPenlight: hasPenlight,
-                        penlightColor: penlightColor,
-                        penlightAngle: penlightAngle,
-                        isWaving: isWaving,
-                        wavePhase: Math.random() * Math.PI * 2
-                    });
+                    // 後方の観客は単純な形状に（パフォーマンス向上）
+                    if (row.distance > 250 && totalAudience % 2 === 0) {
+                        audience.style.backgroundColor = '#333';
+                        audience.style.height = '12px';
+                        audience.style.width = '8px';
+                    } else {
+                        // ペンライトを持たせる
+                        const penlight = document.createElement('div');
+                        penlight.className = 'penlight';
+                        
+                        if (totalAudience % 3 !== 0 || row.distance <= 190) {
+                            penlight.style.animationDelay = `${Math.random() * 0.8}s`;
+                        } else {
+                            // 一部の観客はアニメーションなし（静止）
+                            penlight.style.animation = 'none';
+                            penlight.style.transform = `rotate(${Math.random() * 20 - 10}deg)`;
+                        }
+                        
+                        // ランダムな色のペンライト
+                        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                        penlight.style.backgroundColor = randomColor;
+                        
+                        // 前方の観客はより明るいペンライト
+                        if (row.distance <= 190) {
+                            penlight.style.boxShadow = `0 0 8px ${randomColor}`;
+                        }
+                        
+                        audience.appendChild(penlight);
+                    }
                     
+                    fragment.appendChild(audience);
                     totalAudience++;
+                }
+            }
+        }
+        
+        // 一度のDOM操作でまとめて追加（パフォーマンス向上）
+        this.gameContainer.appendChild(fragment);
+        
+        // パフォーマンス最適化：観客が多い場合は一部のアニメーションを停止
+        if (totalAudience > 100) {
+            const audiences = document.querySelectorAll('.audience .penlight');
+            for (let i = 0; i < audiences.length; i++) {
+                if (i % 3 === 0) {  // 3分の1のアニメーションを停止
+                    audiences[i].style.animation = 'none';
+                    audiences[i].style.transform = `rotate(${Math.random() * 20 - 10}deg)`;
                 }
             }
         }
     }
 
-    // 照明などの光エフェクトを作成
-    createLightEffects() {
-        this.lightEffects = [];
-        
-        // スポットライト
-        for (let i = 0; i < 3; i++) {
-            this.lightEffects.push({
-                type: 'spotlight',
-                x: (i * 0.3 + 0.2) * this.width,
-                y: this.height,
-                angleOffset: i * -2.5,
-                size: Math.min(this.width * 0.3, 300)
-            });
-        }
-        
-        // 星のような光エフェクト
-        const isLowEndDevice = navigator.hardwareConcurrency <= 4 || 
-                              /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const lightCount = isLowEndDevice ? 15 : 30;
-        
-        for (let i = 0; i < lightCount; i++) {
-            this.lightEffects.push({
-                type: 'light',
-                x: Math.random() * this.width,
-                y: Math.random() * this.height,
-                size: Math.random() > 0.7 ? 6 : 4,
-                twinklePhase: Math.random() * Math.PI * 2,
-                twinkleSpeed: 0.5 + Math.random() * 2
-            });
-        }
-    }
-
-    // タップエフェクトを作成
-    createTapEffect(x, y) {
-        const ripple = {
-            x: x,
-            y: y,
-            radius: 0,
-            maxRadius: 50,
-            opacity: 0.5,
-            color: 'rgba(255, 255, 255, 0.4)',
-            createdAt: Date.now()
-        };
-        
-        this.particles.push(ripple);
-    }
-
-    // 流れ星エフェクトを作成
-    createShooting(x, y, dx, dy) {
-        if (dx === 0 && dy === 0) {
-            const angle = Math.random() * Math.PI * 2;
-            dx = Math.cos(angle) * 5;
-            dy = Math.sin(angle) * 5;
-        }
-        
-        const meteorSize = 15 + Math.random() * 15;
-        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-        
-        const meteor = {
-            x: x,
-            y: y,
-            dx: dx,
-            dy: dy,
-            size: meteorSize,
-            angle: angle,
-            opacity: 1,
-            createdAt: Date.now()
-        };
-        
-        this.particles.push(meteor);
-    }
-
-    // マウス/指の軌跡を表現するパーティクル
-    createTrailParticle(x, y) {
-        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) && Math.random() > 0.5) return;
-        
-        const size = 20 + Math.random() * 40;
-        const hue = Math.floor(Math.random() * 360);
-        
-        const particle = {
-            x: x,
-            y: y,
-            size: size,
-            color: `hsla(${hue}, 100%, 70%, 0.8)`,
-            rotation: Math.random() * 360,
-            opacity: 1,
-            createdAt: Date.now()
-        };
-        
-        this.mouseTrail.push(particle);
-        
-        // 古いパーティクルを削除
-        const now = Date.now();
-        const trailLifetime = 600;
-        
-        this.mouseTrail = this.mouseTrail.filter(p => now - p.createdAt <= trailLifetime);
-        
-        while (this.mouseTrail.length > 10) {
-            this.mouseTrail.shift();
-        }
-    }
-
-    // 曲終了時にリザルト画面を表示
-    checkSongEnd(position) {
-        if (this.player && this.isPlayerInitialized) {
-            if (position >= this.player.video.duration - 1000) {
-                this.showResultsScreen();
-            }
-        } else if (this.lyricsData.length > 0) {
-            const lastLyricTime = this.lyricsData[this.lyricsData.length - 1].time;
-            if (Date.now() - this.startTime > lastLyricTime + 5000 && 
-                this.currentLyricIndex >= this.lyricsData.length - 1) {
-                this.showResultsScreen();
-            }
-        }
-    }
-
-    // リザルト画面を表示
-    showResultsScreen() {
-        if (this.resultsDisplayed) return;
-        this.resultsDisplayed = true;
-        
-        if (this.player && this.isPlayerInitialized && this.player.isPlaying) {
-            this.player.requestPause();
-        }
-        
-        this.maxCombo = Math.max(this.maxCombo || 0, this.combo);
-        
-        let rank = 'C';
-        if (this.score >= 10000) rank = 'S';
-        else if (this.score >= 8000) rank = 'A';
-        else if (this.score >= 6000) rank = 'B';
-        
-        const resultsScreen = document.getElementById('results-screen');
-        const finalScore = document.getElementById('final-score-display');
-        const finalCombo = document.getElementById('final-combo-display');
-        const rankDisplay = document.getElementById('rank-display');
-        
-        finalScore.textContent = this.score;
-        finalCombo.textContent = `最大コンボ: ${this.maxCombo}`;
-        rankDisplay.textContent = `ランク: ${rank}`;
-        
-        setTimeout(() => {
-            resultsScreen.classList.remove('hidden');
-            resultsScreen.classList.add('show');
-            
-            for (let i = 0; i < 15; i++) {
-                setTimeout(() => {
-                    const x = Math.random() * this.width;
-                    const y = Math.random() * this.height;
-                    this.createShooting(x, y, Math.random() * 10 - 5, Math.random() * 10 - 5);
-                }, i * 200);
-            }
-        }, 1500);
-    }
-
-    // ゲームをリスタート
+    /**
+     * ゲームをリスタート（初期状態に戻す）
+     * 最適化: 効率的なクリーンアップ処理、メモリリーク防止
+     */
     restartGame() {
         this.currentLyricIndex = 0;
         this.startTime = Date.now();
         
+        // 停止中なら再開
         if (this.isPaused) {
             this.isPaused = false;
             this.playPauseBtn.textContent = '一時停止';
@@ -823,522 +1318,179 @@ class GameManager {
             }
         }
         
+        // ゲーム状態をリセット
         this.score = 0;
         this.combo = 0;
-        this.maxCombo = 0;
+        this.scoreElement.textContent = '0';
+        this.comboElement.textContent = 'コンボ: 0';
         
-        this.lyricBubbles = [];
-        this.particles = [];
-        this.mouseTrail = [];
+        // 画面上の歌詞要素をすべて削除（オブジェクトプールに戻す）
+        document.querySelectorAll('.lyric-bubble').forEach(lyric => {
+            if (lyric.parentNode) {
+                lyric.remove();
+                if (this.lyricBubblePool.length < this.maxPoolSize) {
+                    this.lyricBubblePool.push(lyric);
+                }
+            }
+        });
+        
+        // 歌詞表示状態をリセット
+        if (this.displayedLyrics) this.displayedLyrics.clear();
         this.displayedLyricsTimestamps.clear();
         
-        this.resultsDisplayed = false;
+        // メモリ最適化: 過剰なオブジェクトプールを整理
+        if (this.trailParticlePool.length > this.maxPoolSize) {
+            this.trailParticlePool.length = this.maxPoolSize;
+        }
+        if (this.particlePool.length > this.maxPoolSize) {
+            this.particlePool.length = this.maxPoolSize;
+        }
+        if (this.lyricBubblePool.length > this.maxPoolSize) {
+            this.lyricBubblePool.length = this.maxPoolSize;
+        }
+        if (this.randomTextPool.length > this.maxPoolSize) {
+            this.randomTextPool.length = this.maxPoolSize;
+        }
     }
 
-    // アニメーションループを開始
-    startAnimationLoop() {
-        // パフォーマンス最適化のためデバイス性能をチェック
-        const isLowEndDevice = navigator.hardwareConcurrency <= 4 || 
-                          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    /**
+     * 曲終了時にリザルト画面を表示
+     * Player API または独自の判定で終了を検出
+     * @param {number} position - 現在の再生位置（ミリ秒）
+     */
+    checkSongEnd(position) {
+        // 曲が終了したかどうかを判定する
+        if (this.player && this.isPlayerInitialized) {
+            // TextAlive API使用時の判定
+            if (position >= this.player.video.duration - 1000) {
+                this.showResultsScreen();
+            }
+        } else if (this.lyricsData.length > 0) {
+            // 代替モードでの判定（すべての歌詞が表示された後、追加で5秒待機）
+            const lastLyricTime = this.lyricsData[this.lyricsData.length - 1].time;
+            if (Date.now() - this.startTime > lastLyricTime + 5000 && 
+                this.currentLyricIndex >= this.lyricsData.length - 1) {
+                this.showResultsScreen();
+            }
+        }
+    }
+
+    /**
+     * リザルト画面を表示
+     */
+    showResultsScreen() {
+        // 既にリザルト画面が表示されている場合は処理をスキップ
+        if (this.resultsDisplayed) return;
+        this.resultsDisplayed = true;
         
-        let lastTimestamp = 0;
-        const targetFPS = isLowEndDevice ? 30 : 60;
-        const frameInterval = 1000 / targetFPS;
+        // 音楽を停止
+        if (this.player && this.isPlayerInitialized && this.player.isPlaying) {
+            this.player.requestPause();
+        }
         
-        const animate = (timestamp) => {
-            const elapsed = timestamp - lastTimestamp;
-            
-            if (elapsed > frameInterval) {
-                lastTimestamp = timestamp - (elapsed % frameInterval);
+        // マックスコンボの計算
+        this.maxCombo = Math.max(this.maxCombo || 0, this.combo);
+        
+        // ランク判定（スコアに基づく）
+        let rank = 'C';
+        if (this.score >= 10000) rank = 'S';
+        else if (this.score >= 8000) rank = 'A';
+        else if (this.score >= 6000) rank = 'B';
+        
+        // リザルト画面の要素を取得
+        const resultsScreen = document.getElementById('results-screen');
+        const finalScore = document.getElementById('final-score-display');
+        const finalCombo = document.getElementById('final-combo-display');
+        const rankDisplay = document.getElementById('rank-display');
+        
+        // 値を設定
+        finalScore.textContent = this.score;
+        finalCombo.textContent = `最大コンボ: ${this.maxCombo}`;
+        rankDisplay.textContent = `ランク: ${rank}`;
+        
+        // 数秒待ってからリザルト画面を表示（演出のため）
+        setTimeout(() => {
+            resultsScreen.classList.remove('hidden');
+            setTimeout(() => {
+                resultsScreen.classList.add('show');
                 
-                this.frameCount++;
-                
-                // フレームスキップ処理
-                if (isLowEndDevice && 
-                    (this.particles.length > 50 || this.lyricBubbles.length > 30) && 
-                    this.frameCount % 2 !== 0) {
-                    requestAnimationFrame(animate);
-                    return;
+                // 特殊効果を追加（星や光のエフェクト）
+                for (let i = 0; i < 15; i++) {
+                    setTimeout(() => {
+                        const x = Math.random() * window.innerWidth;
+                        const y = Math.random() * window.innerHeight;
+                        this.createShooting(x, y, Math.random() * 10 - 5, Math.random() * 10 - 5);
+                    }, i * 200);
                 }
-                
-                this.ctx.clearRect(0, 0, this.width, this.height);
-                
-                if (!this.loadingComplete) {
-                    this.updateLoadingProgress(this.resourcesLoaded / this.totalResources);
-                } else {
-                    this.drawBackground();
-                    this.drawLightEffects();
-                    this.drawAudience();
-                    this.drawStage();
-                    this.drawMiku();
-                    this.drawLyricBubbles();
-                    this.drawRandomTexts();
-                    this.drawParticles();
-                    this.drawMouseTrail();
-                    this.drawUI();
-                }
-            }
-            
-            requestAnimationFrame(animate);
-        };
+            }, 100);
+        }, 1500);
         
-        requestAnimationFrame(animate);
+        // ボタンイベントのセットアップ
+        const backToTitleBtn = document.getElementById('back-to-title');
+        const replayBtn = document.getElementById('replay-song');
+        
+        // タイトルへ戻るボタン
+        backToTitleBtn.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+        
+        // もう一度プレイボタン
+        replayBtn.addEventListener('click', () => {
+            resultsScreen.classList.remove('show');
+            setTimeout(() => {
+                resultsScreen.classList.add('hidden');
+                this.restartGame();
+                this.resultsDisplayed = false;
+            }, 1000);
+        });
     }
 
-    // 背景を描画
-    drawBackground() {
-        // グラデーション背景
-        const bgGradient = this.ctx.createRadialGradient(
-            this.width / 2, this.height,
-            0,
-            this.width / 2, this.height,
-            this.height * 1.5
-        );
-        bgGradient.addColorStop(0, '#1B2735');
-        bgGradient.addColorStop(1, '#090A0F');
-        
-        this.ctx.fillStyle = bgGradient;
-        this.ctx.fillRect(0, 0, this.width, this.height);
-        
-        // アクセントグラデーション - 難易度に関係なく固定色を使用
-        const bgAccent = this.ctx.createRadialGradient(
-            this.width * 0.8, this.height * 0.2,
-            0,
-            this.width * 0.8, this.height * 0.2,
-            this.width * 0.7
-        );
-        bgAccent.addColorStop(0, 'rgba(57, 197, 187, 0.15)'); // 固定色に変更
-        bgAccent.addColorStop(1, 'transparent');
-        
-        this.ctx.fillStyle = bgAccent;
-        this.ctx.fillRect(0, 0, this.width, this.height);
-    }
-
-    // 照明エフェクトを描画
-    drawLightEffects() {
-        // 現在の時間に基づいた回転角度
-        const now = Date.now() / 1000;
-        
-        for (const light of this.lightEffects) {
-            if (light.type === 'spotlight') {
-                // スポットライト
-                const angle = (now * 45 + light.angleOffset) % 360;
-                const radians = angle * Math.PI / 180;
-                
-                this.ctx.save();
-                this.ctx.translate(light.x, light.y);
-                this.ctx.rotate(radians);
-                
-                // スポットライトの光の三角形
-                this.ctx.beginPath();
-                this.ctx.moveTo(0, 0);
-                this.ctx.lineTo(-light.size/2, -light.size);
-                this.ctx.lineTo(light.size/2, -light.size);
-                this.ctx.closePath();
-                
-                const gradient = this.ctx.createLinearGradient(0, 0, 0, -light.size);
-                gradient.addColorStop(0, 'rgba(57, 197, 187, 0.3)');
-                gradient.addColorStop(1, 'rgba(57, 197, 187, 0)');
-                
-                this.ctx.fillStyle = gradient;
-                this.ctx.fill();
-                
-                this.ctx.restore();
-            } else {
-                // 星のような光エフェクト
-                const twinkle = 0.2 + 0.6 * (Math.sin(now * light.twinkleSpeed + light.twinklePhase) + 1) / 2;
-                const size = light.size * (1 + 0.5 * twinkle);
-                
-                this.ctx.beginPath();
-                this.ctx.arc(light.x, light.y, size, 0, Math.PI * 2);
-                this.ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`;
-                this.ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-                this.ctx.shadowBlur = size * 1.5;
-                this.ctx.fill();
-                this.ctx.shadowBlur = 0;
-            }
-        }
-    }
-
-    // 観客を描画
-    drawAudience() {
-        for (const audience of this.audiences) {
-            // 観客の体
-            this.ctx.fillStyle = '#333';
-            this.ctx.beginPath();
-            this.ctx.ellipse(
-                audience.x, 
-                audience.y - 15 * audience.scale, 
-                7.5 * audience.scale, 
-                12.5 * audience.scale, 
-                0, 0, Math.PI, true
-            );
-            this.ctx.fill();
-            
-            // 観客の影
-            this.ctx.fillStyle = '#222';
-            this.ctx.beginPath();
-            this.ctx.ellipse(
-                audience.x, 
-                audience.y, 
-                10 * audience.scale, 
-                4 * audience.scale, 
-                0, 0, Math.PI * 2
-            );
-            this.ctx.fill();
-            
-            // ペンライト
-            if (audience.hasPenlight) {
-                const now = Date.now() / 1000;
-                let penlightAngle = audience.penlightAngle;
-                
-                if (audience.isWaving) {
-                    penlightAngle += Math.sin(now * 5 + audience.wavePhase) * 30;
-                }
-                
-                const radians = penlightAngle * Math.PI / 180;
-                const penlightLength = 15 * audience.scale;
-                const startX = audience.x;
-                const startY = audience.y - 25 * audience.scale;
-                const endX = startX + Math.sin(radians) * penlightLength;
-                const endY = startY - Math.cos(radians) * penlightLength;
-                
-                this.ctx.lineWidth = 4 * audience.scale;
-                this.ctx.strokeStyle = audience.penlightColor;
-                this.ctx.shadowColor = audience.penlightColor;
-                this.ctx.shadowBlur = audience.y < this.height - 200 ? 0 : 10 * audience.scale;
-                
-                this.ctx.beginPath();
-                this.ctx.moveTo(startX, startY);
-                this.ctx.lineTo(endX, endY);
-                this.ctx.stroke();
-                
-                this.ctx.shadowBlur = 0;
-            }
-        }
-    }
-
-    // ステージを描画
-    drawStage() {
-        // ステージの光
-        const stageGlow = this.ctx.createRadialGradient(
-            this.width / 2, this.height, 0,
-            this.width / 2, this.height, 200
-        );
-        stageGlow.addColorStop(0, 'rgba(57, 197, 187, 0.3)');
-        stageGlow.addColorStop(1, 'transparent');
-        
-        this.ctx.fillStyle = stageGlow;
-        this.ctx.beginPath();
-        this.ctx.ellipse(
-            this.width / 2,
-            this.height, 
-            300,
-            200,
-            0, Math.PI, 0, true
-        );
-        this.ctx.fill();
-        
-        // ステージ本体
-        const stageGradient = this.ctx.createRadialGradient(
-            this.width / 2, this.height - 40, 0,
-            this.width / 2, this.height - 40, 150
-        );
-        stageGradient.addColorStop(0, this.primaryColor);
-        stageGradient.addColorStop(1, '#1a1a2e');
-        
-        this.ctx.fillStyle = stageGradient;
-        this.ctx.beginPath();
-        this.ctx.ellipse(
-            this.width / 2,
-            this.height, 
-            150,
-            80,
-            0, Math.PI, 0, true
-        );
-        this.ctx.fill();
-        
-        // ステージの輝き
-        this.ctx.shadowColor = 'rgba(57, 197, 187, 0.8)';
-        this.ctx.shadowBlur = 30;
-        this.ctx.strokeStyle = 'rgba(57, 197, 187, 0.5)';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.ellipse(
-            this.width / 2,
-            this.height, 
-            150,
-            80,
-            0, Math.PI, 0, true
-        );
-        this.ctx.stroke();
-        this.ctx.shadowBlur = 0;
-    }
-
-    // ミクを描画
-    drawMiku() {
-        const now = Date.now();
-        const bounce = Math.sin(now / 500) * 10; // ダンスアニメーション
-        
-        const mikuWidth = 120;
-        const mikuHeight = 160;
-        const mikuX = this.width / 2 - mikuWidth / 2;
-        const mikuY = this.height - 80 - mikuHeight + bounce;
-        
-        // 体 (青緑色の長方形)
-        this.ctx.fillStyle = this.primaryColor;
-        this.ctx.fillRect(mikuX + 30, mikuY + 30, 40, 60);
-        
-        // 頭 (白い円)
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.beginPath();
-        this.ctx.arc(mikuX + 50, mikuY + 20, 20, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        // 左腕 (青緑色の長方形)
-        this.ctx.fillStyle = this.primaryColor;
-        this.ctx.fillRect(mikuX + 20, mikuY + 15, 15, 60);
-        
-        // 右腕 (青緑色の長方形)
-        this.ctx.fillStyle = this.primaryColor;
-        this.ctx.fillRect(mikuX + 65, mikuY + 15, 15, 60);
-        
-        // 左足 (黒い長方形)
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(mikuX + 35, mikuY + 90, 10, 40);
-        
-        // 右足 (黒い長方形)
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(mikuX + 55, mikuY + 90, 10, 40);
-    }
-
-    // 歌詞バブルを描画
-    drawLyricBubbles() {
-        for (const bubble of this.lyricBubbles) {
-            if (bubble.opacity <= 0) continue;
-            
-            this.ctx.font = `bold ${bubble.fontSize}px sans-serif`;
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            
-            // テキストに輝きを追加
-            this.ctx.shadowColor = 'rgba(57, 197, 187, 0.8)';
-            this.ctx.shadowBlur = 10;
-            this.ctx.fillStyle = bubble.color;
-            
-            // 歌詞テキストを描画
-            this.ctx.fillText(bubble.text, bubble.x, bubble.y);
-            this.ctx.shadowBlur = 0;
-            
-            // マウスが近くにある場合、拡大表示
-            if (this.mousePos) {
-                const dx = this.mousePos.x - bubble.x;
-                const dy = this.mousePos.y - bubble.y;
-                const distSquared = dx * dx + dy * dy;
-                
-                if (distSquared < 2500 && bubble.active) {
-                    // マウスホバー効果
-                    this.ctx.font = `bold ${bubble.fontSize * 1.3}px sans-serif`;
-                    this.ctx.shadowColor = 'rgba(57, 197, 187, 1)';
-                    this.ctx.shadowBlur = 15;
-                    this.ctx.fillStyle = this.primaryColor;
-                    this.ctx.fillText(bubble.text, bubble.x, bubble.y);
-                    this.ctx.shadowBlur = 0;
-                }
-            }
-            
-            // アニメーション（上に浮かび上がる）
-            const age = (Date.now() - bubble.createdAt) / 8000;
-            bubble.y -= 0.5;
-            
-            if (age > 0.9) {
-                bubble.opacity = 1 - ((age - 0.9) * 10);
-            }
-        }
-    }
-
-    // ランダムテキストを描画
-    drawRandomTexts() {
-        for (const text of this.randomTexts) {
-            const age = (Date.now() - text.createdAt) / 6000;
-            
-            this.ctx.save();
-            this.ctx.translate(text.x, text.y);
-            this.ctx.rotate(text.rotation * Math.PI / 180);
-            
-            this.ctx.font = `${text.fontSize}px sans-serif`;
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillStyle = `rgba(255, 255, 255, ${text.opacity * (1 - age)})`;
-            
-            this.ctx.fillText(text.text, 0, 0);
-            
-            this.ctx.restore();
-            
-            // 上に浮かび上がる
-            text.y -= 0.8;
-        }
-    }
-
-    // パーティクルを描画
-    drawParticles() {
-        const now = Date.now();
-        
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            const p = this.particles[i];
-            const age = (now - p.createdAt) / 800;
-            
-            if (age >= 1) {
-                this.particles.splice(i, 1);
-                continue;
-            }
-            
-            if (p.text) {
-                // スコア表示パーティクル
-                this.ctx.font = `bold ${p.fontSize}px sans-serif`;
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'middle';
-                this.ctx.fillStyle = p.color.replace('1)', `${1 - age})`);
-                this.ctx.fillText(p.text, p.x, p.y - 50 * age);
-            } else if (p.radius !== undefined) {
-                // 円形のリップルエフェクト
-                const radius = p.radius + (p.maxRadius - p.radius) * age;
-                this.ctx.beginPath();
-                this.ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-                this.ctx.fillStyle = p.color.replace('0.5)', `${0.5 * (1 - age)})`);
-                this.ctx.fill();
-            } else if (p.angle !== undefined) {
-                // 流れ星
-                this.ctx.save();
-                this.ctx.translate(p.x + p.dx * age * 10, p.y + p.dy * age * 10);
-                this.ctx.rotate(p.angle * Math.PI / 180);
-                
-                const gradient = this.ctx.createRadialGradient(
-                    p.size * 0.3, p.size * 0.3, 0,
-                    p.size * 0.3, p.size * 0.3, p.size
-                );
-                gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-                gradient.addColorStop(0.5, 'rgba(255, 255, 220, 0.8)');
-                gradient.addColorStop(0.8, 'transparent');
-                
-                this.ctx.fillStyle = gradient;
-                this.ctx.globalAlpha = 1 - age;
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, p.size * (1 - age * 0.5), 0, Math.PI * 2);
-                this.ctx.fill();
-                
-                this.ctx.shadowColor = 'rgba(255, 255, 220, 0.8)';
-                this.ctx.shadowBlur = 15;
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, p.size * 0.5 * (1 - age * 0.5), 0, Math.PI * 2);
-                this.ctx.fill();
-                this.ctx.shadowBlur = 0;
-                
-                this.ctx.restore();
-            } else {
-                // 通常のパーティクル
-                this.ctx.beginPath();
-                this.ctx.arc(p.x + p.vx * age * 20, p.y + p.vy * age * 20, p.size * (1 - age * 0.5), 0, Math.PI * 2);
-                this.ctx.fillStyle = p.color.replace('1)', `${1 - age})`);
-                this.ctx.fill();
-            }
-        }
-    }
-
-    // マウス軌跡を描画
-    drawMouseTrail() {
-        const now = Date.now();
-        
-        for (const particle of this.mouseTrail) {
-            const age = (now - particle.createdAt) / 600;
-            if (age >= 1) continue;
-            
-            this.ctx.save();
-            this.ctx.translate(particle.x, particle.y);
-            this.ctx.rotate(particle.rotation * Math.PI / 180);
-            
-            // 星型のクリッピングパス
-            this.ctx.beginPath();
-            for (let i = 0; i < 5; i++) {
-                const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
-                const length = particle.size / 2;
-                const x = Math.cos(angle) * length;
-                const y = Math.sin(angle) * length;
-                
-                if (i === 0) {
-                    this.ctx.moveTo(x, y);
-                } else {
-                    this.ctx.lineTo(x, y);
-                }
-                
-                const innerAngle = angle + Math.PI / 5;
-                const innerLength = length * 0.4;
-                const innerX = Math.cos(innerAngle) * innerLength;
-                const innerY = Math.sin(innerAngle) * innerLength;
-                
-                this.ctx.lineTo(innerX, innerY);
-            }
-            this.ctx.closePath();
-            
-            this.ctx.fillStyle = particle.color.replace('0.8)', `${0.8 * (1 - age)})`);
-            this.ctx.shadowColor = particle.color.replace('0.8)', '0.6)');
-            this.ctx.shadowBlur = 12;
-            this.ctx.fill();
-            
-            this.ctx.restore();
-        }
-    }
-
-    // UI要素を描画
-    drawUI() {
-        // スコア表示
-        this.ctx.textAlign = 'right';
-        this.ctx.textBaseline = 'top';
-        this.ctx.shadowColor = this.primaryColor;
-        this.ctx.shadowBlur = 10;
-        
-        // スコア
-        this.ctx.font = 'bold 32px sans-serif';
-        this.ctx.fillStyle = this.textColor;
-        this.ctx.fillText(this.score.toString(), this.width - 20, 20);
-        
-        // コンボ
-        this.ctx.font = 'bold 24px sans-serif';
-        this.ctx.shadowColor = this.accentColor;
-        this.ctx.fillText(`コンボ: ${this.combo}`, this.width - 20, 60);
-        
-        // 曲情報
-        this.ctx.textAlign = 'left';
-        this.ctx.font = 'bold 18px sans-serif';
-        this.ctx.shadowColor = this.primaryColor;
-        this.ctx.fillText(this.songTitle, 20, 20);
-        
-    }
-
-    // リソース解放とクリーンアップ
+    /**
+     * ゲーム終了時のクリーンアップ処理
+     * リソース解放とメモリリーク防止
+     */
     cleanup() {
+        // タイマーやアニメーションをすべて停止
         if (this.randomTextInterval) clearInterval(this.randomTextInterval);
         if (this.comboResetTimer) clearInterval(this.comboResetTimer);
-        if (this.lyricsTimerInterval) clearInterval(this.lyricsTimerInterval);
+        if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         
+        // TextAliveプレーヤーの破棄
         if (this.player && this.isPlayerInitialized) {
             try {
                 this.player.dispose();
-            } catch {}
+            } catch {}  // エラーを無視（空のcatch文で最適化）
         }
         
-        this.lyricBubbles = [];
-        this.randomTexts = [];
-        this.particles = [];
+        // オブジェクトプールをクリア
+        this.trailParticlePool = [];
+        this.particlePool = [];
+        this.lyricBubblePool = [];
+        this.randomTextPool = [];
+        
+        // マウス軌跡要素をクリア
+        this.mouseTrail.forEach(item => {
+            if (item.element?.parentNode) item.element.remove();
+        });
         this.mouseTrail = [];
-        this.audiences = [];
-        this.lightEffects = [];
+        
+        // 歌詞表示状態をクリア
+        this.displayedLyrics = null;
+        this.displayedLyricsTimestamps = null;
     }
 }
 
-// GameManager初期化（ローダースクリプトで行われる）
+/**
+ * ページ読み込み時にゲームを起動
+ */
 window.addEventListener('load', () => {
-    if (!window.gameManager && typeof GameManager === 'function') {
-        window.gameManager = new GameManager();
-    }
+    setTimeout(() => {
+        const gameManager = new GameManager();
+        window.gameManager = gameManager;  // グローバルアクセス用
+        
+        // ページ離脱時のクリーンアップ
+        window.addEventListener('beforeunload', () => {
+            if (gameManager) gameManager.cleanup();
+        });
+    }, 100);  // 少し待ってからゲームを初期化
 });

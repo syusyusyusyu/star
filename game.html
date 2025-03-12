@@ -4,119 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>マジカルミライ - 初音ミクのアリーナライブ</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: #000;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            height: 100vh;
-            width: 100%;
-            touch-action: none;
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="%2339C5BB"><circle cx="12" cy="12" r="10" /></svg>'), auto;
-        }
-        canvas {
-            display: block;
-        }
-        #ui-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            z-index: 100;
-            display: flex;
-            gap: 10px;
-            pointer-events: auto;
-        }
-        #controls button {
-            background-color: rgba(57, 197, 187, 0.8);
-            border: none;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        #controls button:hover {
-            background-color: rgba(57, 197, 187, 1);
-            transform: scale(1.05);
-        }
-        #results-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh;
-            background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 70%);
-            z-index: 2000;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            text-align: center;
-        }
-        .results-buttons {
-            display: flex;
-            gap: 20px;
-            margin-top: 30px;
-        }
-        .results-buttons button {
-            background-color: rgba(57, 197, 187, 0.8);
-            border: none;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        /* プログレスバーのスタイル */
-        .progress-bar {
-            background-color: rgba(255, 255, 255, 0.2);
-            height: 20px;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .progress-bar-inner {
-            background-color: #39C5BB;
-            height: 100%;
-            transition: width 0.3s ease;
-            border-radius: 10px;
-        }
-        .hidden { display: none; }
-        .show { display: flex; }
-    </style>
+    <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="https://unpkg.com/textalive-app-api/dist/index.js"></script>
+    <script src="game-loader.js"></script>
+    <script src="script.js"></script>
 </head>
-<body>
-    <canvas id="gameCanvas"></canvas>
-    <div id="ui-container">
+<body class="browser-bar-adjust">
+    <div id="game-container">
+        <div id="stage"></div>
+        <div id="stage-light"></div>
+        <div id="miku"></div>
+        <div id="song-info">
+            <div id="song-title">マジカルミライ2025</div>
+            <div id="loading">初音ミクのアリーナライブ</div>
+        </div>
+        <div id="score-container">
+            <div id="score">0</div>
+            <div id="combo">コンボ: 0</div>
+        </div> 
+        <div id="instructions">歌詞の文字にマウスを当ててポイントを獲得しよう！</div>
         <div id="controls">
             <button id="play-pause">一時停止</button>
             <button id="restart">最初から</button>
         </div>
     </div>
     <div id="results-screen" class="hidden">
-        <h2>リザルト</h2>
-        <div id="final-score-display" style="font-size: 72px; margin: 20px 0;">0</div>
-        <div id="final-combo-display">最大コンボ: 0</div>
-        <div id="rank-display" style="font-size: 48px; color: gold; margin-top: 20px;">ランク: S</div>
+        <div class="results-container">
+            <div class="results-score-section">
+                <h2>リザルト</h2>
+                <div id="final-score-display">0</div>
+                <div id="final-combo-display">最大コンボ: 0</div>
+                <div id="rank-display">ランク: S</div>
+            </div>
+            <div class="results-miku-section">
+                <div id="results-miku"></div>
+            </div>
+        </div>
         <div class="results-buttons">
             <button id="back-to-title">タイトルへ戻る</button>
             <button id="replay-song">もう一度プレイ</button>
         </div>
     </div>
-    <script src="game-loader.js"></script>
-    <script src="script.js"></script>
 </body>
 </html>

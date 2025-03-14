@@ -36,25 +36,17 @@ class GameManager {
       this.initGame();
       this.initPlayer();
       
-      // 初回クリック/タップでゲーム開始する指示表示
-      this.showStartPrompt();
-    }   
+      // 初回インタラクション検出を設定
+      this.setupFirstInteraction();
+    }
   
     /**
      * 初回クリック/タップイベントを設定する
      */
     setupFirstInteraction() {
       const startGame = (e) => {
-        e.preventDefault();
-        
         if (!this.isFirstInteraction) return; // 既に開始している場合は何もしない
         this.isFirstInteraction = false;
-        
-        // 開始プロンプトを非表示
-        if (this.startPrompt) {
-          this.startPrompt.style.animation = 'fadeOut 0.5s forwards';
-          setTimeout(() => this.startPrompt.remove(), 500);
-        }
         
         // 音楽を再生
         this.playMusic();
@@ -146,7 +138,6 @@ class GameManager {
         if (this.isFirstInteraction) {
           this.playMusic();
           this.isFirstInteraction = false;
-          if (this.startPrompt) this.startPrompt.remove();
           return;
         }
         this.togglePlay();
@@ -288,7 +279,7 @@ class GameManager {
           },
           onVideoReady: (video) => {
             if (video?.firstPhrase) this.processLyrics(video);
-            if (this.loading) this.loading.textContent = "準備完了！タップして開始";
+            if (this.loading) this.loading.textContent = "準備完了";
           },
           onTimeUpdate: (pos) => {
             if (!this.isPaused) this.updateLyrics(pos);
@@ -323,7 +314,7 @@ class GameManager {
     fallback() {
       this.isPlayerInit = false;
       this.player = null;
-      if (this.loading) this.loading.textContent = "APIエラー。タップして代替モードで開始";
+      if (this.loading) this.loading.textContent = "APIエラー。代替モードで起動中...";
       this.lyricsData = this.fallbackLyricsData;
     }
     

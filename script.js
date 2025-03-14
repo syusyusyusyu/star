@@ -300,7 +300,7 @@ class GameManager {
           },
           onVideoReady: (video) => {
             if (video?.firstPhrase) this.processLyrics(video);
-            if (this.loading) this.loading.textContent = "準備完了";
+            if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
           },
           onTimeUpdate: (pos) => {
             if (!this.isPaused) this.updateLyrics(pos);

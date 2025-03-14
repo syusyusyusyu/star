@@ -19,7 +19,6 @@ class GameManager {
       this.apiToken = window.songConfig?.apiToken || "wifkp8ak1TEhQ8pI";
       this.songUrl = window.songConfig?.songUrl || "https://piapro.jp/t/hZ35/20240130103028";
       this.score = this.combo = this.maxCombo = 0;
-      this.frameCount = 0;
       this.startTime = Date.now();
       this.isPaused = this.isPlaying = this.isPlayerInit = false;
       this.player = null;
@@ -27,7 +26,7 @@ class GameManager {
       this.activeChars = new Set();
       this.displayedLyrics = new Set();
       this.mouseTrail = [];
-      this.maxTrailLength = 10; // 全デバイスで同じ値
+      this.maxTrailLength = 15; // 星の数を増やす
       this.lastMousePos = { x: 0, y: 0 };
       [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
         ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
@@ -49,12 +48,12 @@ class GameManager {
         if (now - lastTime < 16) return;
         lastTime = now;
         const dx = x - lastX, dy = y - lastY;
-        if (Math.sqrt(dx*dx + dy*dy) >= 5) {
+        if (Math.sqrt(dx*dx + dy*dy) >= 3) { // より小さな動きでも認識するよう閾値を下げる
           lastX = x; lastY = y;
           this.lastMousePos = { x, y };
           this.checkLyrics(x, y, isTouch ? 45 : 35);
           
-          // フレームカウントを使わず、常に星を生成する
+          // 星を常に生成する
           this.createTrailParticle(x, y);
           if (Math.random() < (isTouch ? 0.03 : 0.01)) {
             this.createShooting(x, y, dx, dy);
@@ -211,7 +210,9 @@ class GameManager {
             if (video?.firstPhrase) this.processLyrics(video);
             if (this.loading) this.loading.textContent = "準備完了！クリックして開始";
           },
-          onTimeUpdate: (pos) => !this.isPaused && this.updateLyrics(pos),
+          onTimeUpdate: (pos) => {
+            if (!this.isPaused) this.updateLyrics(pos);
+          },
           onPlay: () => {
             this.isPaused = false;
             this.playpause.textContent = '一時停止';
@@ -479,10 +480,11 @@ class GameManager {
      * マウス/指の軌跡を表現するパーティクルを作成
      */
     createTrailParticle(x, y) {
+      // 曲の再生状態に関わらず常に同じパーティクルを生成
+      // パーティクルサイズと密度を調整
+      const size = 25 + Math.random() * 40; // サイズを少し大きくする
       const particle = document.createElement('div');
       particle.className = 'star-particle';
-      
-      const size = 20 + Math.random() * 40;
       particle.style.width = `${size}px`;
       particle.style.height = `${size}px`;
       particle.style.left = `${x - size/2}px`;
@@ -496,10 +498,10 @@ class GameManager {
       this.gamecontainer.appendChild(particle);
       this.mouseTrail.push({ element: particle, createdAt: Date.now() });
       
-      // 古いパーティクルを削除
+      // 古いパーティクルを削除（同じに保つ）
       const now = Date.now();
       this.mouseTrail = this.mouseTrail.filter(p => {
-        if (now - p.createdAt > 600) {
+        if (now - p.createdAt > 800) { // 寿命を長くする（元は600）
           p.element.remove();
           return false;
         }

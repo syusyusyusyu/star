@@ -36,25 +36,31 @@ class GameManager {
       this.initGame();
       this.initPlayer();
       
-      // 初回インタラクション検出を設定
-      this.setupFirstInteraction();
-    }
-  
-    /**
-     * 初回クリック/タップイベントを設定する
-     */
-    setupFirstInteraction() {
-      const startGame = (e) => {
-        if (!this.isFirstInteraction) return; // 既に開始している場合は何もしない
-        this.isFirstInteraction = false;
+      // 自動再生の問題を解決するため、一度全ての要素にクリックイベントを設定
+      this.gamecontainer.style.cursor = 'pointer';
+      this.gamecontainer.style.userSelect = 'none';
+      document.body.style.cursor = 'pointer';
+      
+      // 最初のクリック/タップを待つ構造
+      const startGame = () => {
+        if (!this.isFirstInteraction) return;
         
-        // 音楽を再生
+        // 重複実行防止
+        this.isFirstInteraction = false;
+        this.gamecontainer.style.cursor = '';
+        document.body.style.cursor = '';
+        
+        // ゲーム初期化
         this.playMusic();
+        
+        // イベントリスナーを削除
+        document.body.removeEventListener('click', startGame);
+        document.body.removeEventListener('touchend', startGame);
       };
       
-      // 画面全体のタップ/クリックで開始
-      this.gamecontainer.addEventListener('click', startGame);
-      this.gamecontainer.addEventListener('touchstart', startGame, { passive: false });
+      // document全体にイベント設定（より確実にキャプチャ）
+      document.body.addEventListener('click', startGame);
+      document.body.addEventListener('touchend', startGame);
     }
   
     /**
@@ -68,17 +74,25 @@ class GameManager {
         this.isPaused = false;
         this.playpause.textContent = '一時停止';
         
+        // テキストアライブプレーヤーを使用
         if (this.player && this.isPlayerInit) {
-          await this.player.requestPlay().catch(e => {
+          try {
+            await this.player.requestPlay();
+          } catch (e) {
             console.error("Player play error:", e);
+            // エラー発生時はフォールバックモードへ
             this.fallback();
-          });
-        } else {
-          // フォールバックモード
-          this.startTime = Date.now();
-          if (!this.randomTextInterval) {
-            this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
+            this.startLyricsTimer(); // 歌詞タイマー開始を明示的に呼び出し
           }
+        } else {
+          // フォールバックモードですでに初期化済みの場合
+          this.startTime = Date.now();
+          this.startLyricsTimer(); // 明示的に歌詞タイマー開始
+        }
+        
+        // ランダムテキスト表示開始
+        if (!this.randomTextInterval) {
+          this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
         }
         
         // 最初のロード表示を非表示にする
@@ -112,19 +126,24 @@ class GameManager {
           this.lastMousePos = { x, y };
           this.checkLyrics(x, y, isTouch ? 45 : 35);
           
-          // 星を常に生成する
-          this.createTrailParticle(x, y);
-          if (Math.random() < (isTouch ? 0.03 : 0.01)) {
-            this.createShooting(x, y, dx, dy);
+          // 星を常に生成する（初回インタラクション後のみ）
+          if (!this.isFirstInteraction) {
+            this.createTrailParticle(x, y);
+            if (Math.random() < (isTouch ? 0.03 : 0.01)) {
+              this.createShooting(x, y, dx, dy);
+            }
           }
         }
       };
       
       this.gamecontainer.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY, false));
       this.gamecontainer.addEventListener('touchmove', e => {
-        e.preventDefault();
+        if (!this.isFirstInteraction) {
+          e.preventDefault(); // 初回インタラクション後のみスクロール防止
+        }
         handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
-      }, {passive: false});
+      }, {passive: true}); // パッシブをtrueに変更（初回タップを妨げない）
+      
       this.gamecontainer.addEventListener('click', e => {
         if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
         
@@ -134,6 +153,7 @@ class GameManager {
           this.createShooting(e.clientX, e.clientY, Math.cos(angle) * 5, Math.sin(angle) * 5);
         }
       });
+      
       this.playpause.addEventListener('click', () => {
         if (this.isFirstInteraction) {
           this.playMusic();
@@ -142,6 +162,7 @@ class GameManager {
         }
         this.togglePlay();
       });
+      
       this.restart.addEventListener('click', () => this.restartGame());
     }
   

@@ -46,7 +46,6 @@ class GameManager {
     showStartPrompt() {
       const prompt = document.createElement('div');
       prompt.className = 'start-prompt';
-      prompt.textContent = 'タップして始める';
       prompt.style.position = 'absolute';
       prompt.style.top = '50%';
       prompt.style.left = '50%';

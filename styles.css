@@ -7,9 +7,9 @@
     --accent-color: #FF69B4;
     --lyric-speed: 10s;
     --bg-accent-color: rgba(57, 197, 187, 0.1);
-    --vh: 1vh; /* 動的な高さ単位 */
-    --browser-header-height: 0px; /* ブラウザUIの高さ調整用 */
-    --browser-footer-height: 0px; /* モバイルブラウザフッター用 */
+    --vh: 1vh;
+    --browser-header-height: 0px;
+    --browser-footer-height: 0px;
 }
 
 /* 基本スタイル */
@@ -20,8 +20,8 @@ body {
     background-color: #000;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="%2339C5BB"><circle cx="12" cy="12" r="10" /></svg>'), auto;
-    height: 100vh; /* フォールバック */
-    height: calc(var(--vh, 1vh) * 100); /* 動的調整 */
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
     position: fixed;
     width: 100%;
     top: 0;
@@ -31,7 +31,7 @@ body {
 /* ゲームコンテナ */
 #game-container {
     width: 100%;
-    height: 100vh; /* フォールバック */
+    height: 100vh;
     height: calc(var(--vh, 1vh) * 100);
     position: relative;
     background: radial-gradient(ellipse at bottom, var(--bg-gradient-start) 0%, var(--bg-dark) 70%),
@@ -277,26 +277,14 @@ body {
     pointer-events: none;
 }
 
-/* 特殊効果要素 */
 .star-particle {
-    position: absolute;
-    pointer-events: none;
     width: 30px;  
     height: 30px; 
     background-color: rgba(255, 255, 255, 0.8);
     clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
     animation: twinkle 0.8s linear forwards;
     z-index: 900;
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.6); /* 光の輝きも強化 (元: 8px) */
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 768px) {
-    /* 他のスタイル... */
-    .star-particle { 
-        width: 20px;  
-        height: 20px; 
-    }
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
 }
 
 .shooting-star {
@@ -326,139 +314,13 @@ body {
     z-index: 1000;
 }
 
-/* 戻るボタン */
-.back-button {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    background-color: rgba(0, 0, 0, 0.6);
-    color: white;
-    border: 1px solid rgba(57, 197, 187, 0.5);
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 1000;
-    transition: all 0.3s;
-}
-
-.back-button:hover {
-    background-color: rgba(57, 197, 187, 0.8);
-    transform: scale(1.1);
-}
-
-/* アニメーション定義 */
-@keyframes dance {
-    0% { transform: translateX(-50%) translateY(0); }
-    100% { transform: translateX(-50%) translateY(-20px); }
-}
-
-@keyframes wave {
-    0% { transform: translateX(-50%) rotate(-30deg); }
-    100% { transform: translateX(-50%) rotate(30deg); }
-}
-
-@keyframes float {
-    0% { transform: translateY(0) scale(1); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: translateY(-700px) scale(0.5); opacity: 0; }
-}
-
-@keyframes floatRandom {
-    0% { transform: translateY(0); opacity: 0; }
-    10% { opacity: 0.5; }
-    100% { transform: translateY(-500px); opacity: 0; }
-}
-
-@keyframes explode {
-    0% { transform: scale(0); opacity: 1; }
-    100% { transform: scale(1.5); opacity: 0; }
-}
-
-@keyframes fadeOut {
-    0% { opacity: 0.9; }
-    70% { opacity: 0.9; }
-    100% { opacity: 0; }
-}
-
-@keyframes rotateLights {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-@keyframes lightTwinkle {
-    0% { opacity: 0.2; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.5); }
-    100% { opacity: 0.2; transform: scale(1); }
-}
-
-@keyframes twinkle {
-    0% { transform: scale(1) rotate(0deg); opacity: 0.8; }
-    100% { transform: scale(0.2) rotate(180deg); opacity: 0; }
-}
-
-@keyframes ripple {
-    to { transform: scale(2.5); opacity: 0; }
-}
-
-@keyframes flash {
-    0% { opacity: 0.7; }
-    100% { opacity: 0; }
-}
-
-/* モバイル用スタイル */
-.mobile-controls {
-    position: fixed;
-    bottom: 20px;
-    left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    z-index: 100;
-}
-
-.mobile-controls button {
-    min-width: 100px;
-    min-height: 50px;
-    font-size: 18px;
-    padding: 10px 15px;
-    border-radius: 30px;
-    background-color: rgba(0, 0, 0, 0.7);
-    border: 2px solid #39C5BB;
-    color: white;
-    box-shadow: 0 0 10px rgba(57, 197, 187, 0.7);
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 768px) {
-    #score { font-size: 2rem; }
-    #combo { font-size: 1rem; }
-    #instructions { font-size: 0.9rem; padding: 5px; }
-    .lyric-bubble { font-size: 22px; }
-    .light-effect { opacity: 0.7; }
-    .penlight { box-shadow: 0 0 5px currentColor; }
-    .star-particle { width: 8px; height: 8px; }
-    .tap-ripple { animation-duration: 0.5s; }
-}
-
-@media (max-width: 480px) {
-    #score { font-size: 1.8rem; }
-    .lyric-bubble { font-size: 20px; padding: 6px 12px; }
-    .mobile-controls button { min-width: 80px; min-height: 40px; font-size: 16px; }
-}
-
 /* Results Screen Styles */
 #results-screen {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100vh; /* フォールバック */
+    height: 100vh;
     height: calc(var(--vh, 1vh) * 100);
     background: radial-gradient(ellipse at bottom, var(--bg-gradient-start) 0%, var(--bg-dark) 70%),
                 radial-gradient(ellipse at top right, var(--bg-accent-color) 0%, transparent 70%);
@@ -571,7 +433,66 @@ body {
     display: none;
 }
 
-/* Animation keyframes */
+/* アニメーション定義 */
+@keyframes dance {
+    0% { transform: translateX(-50%) translateY(0); }
+    100% { transform: translateX(-50%) translateY(-20px); }
+}
+
+@keyframes wave {
+    0% { transform: translateX(-50%) rotate(-30deg); }
+    100% { transform: translateX(-50%) rotate(30deg); }
+}
+
+@keyframes float {
+    0% { transform: translateY(0) scale(1); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-700px) scale(0.5); opacity: 0; }
+}
+
+@keyframes floatRandom {
+    0% { transform: translateY(0); opacity: 0; }
+    10% { opacity: 0.5; }
+    100% { transform: translateY(-500px); opacity: 0; }
+}
+
+@keyframes explode {
+    0% { transform: scale(0); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes fadeOut {
+    0% { opacity: 0.9; }
+    70% { opacity: 0.9; }
+    100% { opacity: 0; }
+}
+
+@keyframes rotateLights {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes lightTwinkle {
+    0% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.5); }
+    100% { opacity: 0.2; transform: scale(1); }
+}
+
+@keyframes twinkle {
+    0% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+    100% { transform: scale(0.2) rotate(180deg); opacity: 0; }
+}
+
+@keyframes ripple {
+    to { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes flash {
+    0% { opacity: 0.7; }
+    100% { opacity: 0; }
+}
+
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -587,7 +508,7 @@ body {
     100% { transform: translateY(-20px); }
 }
 
-/* Responsive styles */
+/* レスポンシブ対応 */
 @media (max-width: 992px) {
     .results-container {
         width: 95%;
@@ -603,6 +524,15 @@ body {
 }
 
 @media (max-width: 768px) {
+    #score { font-size: 2rem; }
+    #combo { font-size: 1rem; }
+    #instructions { font-size: 0.9rem; padding: 5px; }
+    .lyric-bubble { font-size: 22px; }
+    .light-effect { opacity: 0.7; }
+    .penlight { box-shadow: 0 0 5px currentColor; }
+    .star-particle { width: 8px; height: 8px; }
+    .tap-ripple { animation-duration: 0.5s; }
+    
     .results-container {
         flex-direction: column;
     }
@@ -620,9 +550,17 @@ body {
         padding: 10px 25px;
         font-size: 16px;
     }
+    
+    .spotlight {
+        width: 250px;
+        height: 500px;
+    }
 }
 
 @media (max-width: 480px) {
+    #score { font-size: 1.8rem; }
+    .lyric-bubble { font-size: 20px; padding: 6px 12px; }
+    
     .results-score-section h2 {
         font-size: 28px;
     }
@@ -650,31 +588,6 @@ body {
     }
 }
 
-/* ブラウザバー対応用の追加スタイル */
-.browser-bar-adjust {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* iPhone X以降のノッチ対応 */
-@supports (padding: max(0px)) {
-    body {
-        padding-left: max(0px, env(safe-area-inset-left));
-        padding-right: max(0px, env(safe-area-inset-right));
-    }
-    
-    #game-container, #results-screen {
-        padding-top: max(var(--browser-header-height), env(safe-area-inset-top));
-        padding-bottom: max(var(--browser-footer-height), env(safe-area-inset-bottom));
-    }
-    
-    /* コントロール調整 */
-    .mobile-controls {
-        padding-bottom: max(20px, env(safe-area-inset-bottom));
-    }
-}
-
-/* ブラウザバーでの高さ変更時のコントロール位置調整 */
 @media screen and (max-height: 600px) {
     #controls {
         bottom: 10px;
@@ -691,5 +604,24 @@ body {
     #miku {
         bottom: 60px;
         height: 140px;
+    }
+}
+
+/* ブラウザバー対応用の追加スタイル */
+.browser-bar-adjust {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* iPhone X以降のノッチ対応 */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+    }
+    
+    #game-container, #results-screen {
+        padding-top: max(var(--browser-header-height), env(safe-area-inset-top));
+        padding-bottom: max(var(--browser-footer-height), env(safe-area-inset-bottom));
     }
 }

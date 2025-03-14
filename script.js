@@ -38,45 +38,7 @@ class GameManager {
       
       // 初回クリック/タップでゲーム開始する指示表示
       this.showStartPrompt();
-    }
-  
-    /**
-     * 画面をクリックして開始する指示を表示
-     */
-    showStartPrompt() {
-      const prompt = document.createElement('div');
-      prompt.className = 'start-prompt';
-      prompt.style.position = 'absolute';
-      prompt.style.top = '50%';
-      prompt.style.left = '50%';
-      prompt.style.transform = 'translate(-50%, -50%)';
-      prompt.style.color = '#fff';
-      prompt.style.fontSize = '32px';
-      prompt.style.fontWeight = 'bold';
-      prompt.style.textShadow = '0 0 10px rgba(57, 197, 187, 0.8)';
-      prompt.style.zIndex = '1000';
-      prompt.style.animation = 'pulse 1.5s infinite alternate';
-      prompt.style.padding = '20px 40px';
-      prompt.style.background = 'rgba(0, 0, 0, 0.5)';
-      prompt.style.borderRadius = '10px';
-      prompt.style.cursor = 'pointer';
-      
-      // スタイルシートにアニメーションを追加
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes pulse {
-          0% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
-          100% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-        }
-      `;
-      document.head.appendChild(style);
-      
-      this.gamecontainer.appendChild(prompt);
-      this.startPrompt = prompt;
-      
-      // 初回クリック/タップイベントを設定
-      this.setupFirstInteraction();
-    }
+    }   
   
     /**
      * 初回クリック/タップイベントを設定する

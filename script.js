@@ -356,13 +356,34 @@ class GameManager {
       bubble.style.pointerEvents = 'auto';
       bubble.style.opacity = '1';
       
-      const x = 100 + Math.random() * (window.innerWidth - 300);
-      const y = window.innerHeight - 300 - Math.random() * 100;
+      // 画面サイズに応じて位置とフォントサイズを調整
+      const screenWidth = window.innerWidth;
+      const isSmallScreen = screenWidth <= 768;
+      
+      let x, y, fontSize;
+      
+      if (isSmallScreen) {
+        // モバイル・小さな画面：横幅15%～85%の範囲に収める
+        x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
+        y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
+        
+        // 画面サイズに応じたフォントサイズ調整
+        if (screenWidth <= 480) {
+          fontSize = '18px'; // スマホサイズ
+        } else {
+          fontSize = '22px'; // タブレットサイズ
+        }
+      } else {
+        // PC・大きな画面
+        x = 100 + Math.random() * (screenWidth - 300);
+        y = window.innerHeight - 300 - Math.random() * 100;
+        fontSize = '30px';
+      }
       
       bubble.style.left = `${x}px`;
       bubble.style.top = `${y}px`;
       bubble.style.color = '#39C5BB';
-      bubble.style.fontSize = '30px';
+      bubble.style.fontSize = fontSize;
       
       bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
       this.gamecontainer.appendChild(bubble);

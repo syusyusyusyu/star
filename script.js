@@ -21,6 +21,7 @@ class GameManager {
       this.score = this.combo = this.maxCombo = 0;
       this.startTime = Date.now();
       this.isPaused = this.isPlaying = this.isPlayerInit = false;
+      this.isFirstInteraction = true; // 初回インタラクション追跡用
       this.player = null;
       this.isMobile = /Android|iPhone/.test(navigator.userAgent);
       this.activeChars = new Set();
@@ -34,6 +35,111 @@ class GameManager {
       this.createLightEffects();
       this.initGame();
       this.initPlayer();
+      
+      // 初回クリック/タップでゲーム開始する指示表示
+      this.showStartPrompt();
+    }
+  
+    /**
+     * 画面をクリックして開始する指示を表示
+     */
+    showStartPrompt() {
+      const prompt = document.createElement('div');
+      prompt.className = 'start-prompt';
+      prompt.textContent = 'タップして始める';
+      prompt.style.position = 'absolute';
+      prompt.style.top = '50%';
+      prompt.style.left = '50%';
+      prompt.style.transform = 'translate(-50%, -50%)';
+      prompt.style.color = '#fff';
+      prompt.style.fontSize = '32px';
+      prompt.style.fontWeight = 'bold';
+      prompt.style.textShadow = '0 0 10px rgba(57, 197, 187, 0.8)';
+      prompt.style.zIndex = '1000';
+      prompt.style.animation = 'pulse 1.5s infinite alternate';
+      prompt.style.padding = '20px 40px';
+      prompt.style.background = 'rgba(0, 0, 0, 0.5)';
+      prompt.style.borderRadius = '10px';
+      prompt.style.cursor = 'pointer';
+      
+      // スタイルシートにアニメーションを追加
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes pulse {
+          0% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      this.gamecontainer.appendChild(prompt);
+      this.startPrompt = prompt;
+      
+      // 初回クリック/タップイベントを設定
+      this.setupFirstInteraction();
+    }
+  
+    /**
+     * 初回クリック/タップイベントを設定する
+     */
+    setupFirstInteraction() {
+      const startGame = (e) => {
+        e.preventDefault();
+        
+        if (!this.isFirstInteraction) return; // 既に開始している場合は何もしない
+        this.isFirstInteraction = false;
+        
+        // 開始プロンプトを非表示
+        if (this.startPrompt) {
+          this.startPrompt.style.animation = 'fadeOut 0.5s forwards';
+          setTimeout(() => this.startPrompt.remove(), 500);
+        }
+        
+        // 音楽を再生
+        this.playMusic();
+      };
+      
+      // 画面全体のタップ/クリックで開始
+      this.gamecontainer.addEventListener('click', startGame);
+      this.gamecontainer.addEventListener('touchstart', startGame, { passive: false });
+    }
+  
+    /**
+     * 音楽再生を開始する
+     */
+    async playMusic() {
+      if (this._processing) return;
+      this._processing = true;
+      
+      try {
+        this.isPaused = false;
+        this.playpause.textContent = '一時停止';
+        
+        if (this.player && this.isPlayerInit) {
+          await this.player.requestPlay().catch(e => {
+            console.error("Player play error:", e);
+            this.fallback();
+          });
+        } else {
+          // フォールバックモード
+          this.startTime = Date.now();
+          if (!this.randomTextInterval) {
+            this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
+          }
+        }
+        
+        // 最初のロード表示を非表示にする
+        if (this.loading) {
+          this.loading.style.opacity = '0';
+          setTimeout(() => {
+            if (this.loading && this.loading.parentNode) {
+              this.loading.parentNode.removeChild(this.loading);
+            }
+          }, 1000);
+        }
+      } finally {
+        setTimeout(() => this._processing = false, 800);
+      }
     }
   
     /**
@@ -67,13 +173,23 @@ class GameManager {
         handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
       }, {passive: false});
       this.gamecontainer.addEventListener('click', e => {
+        if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
+        
         this.checkLyrics(e.clientX, e.clientY, 35);
         if (Math.random() < 0.2) {
           const angle = Math.random() * Math.PI * 2;
           this.createShooting(e.clientX, e.clientY, Math.cos(angle) * 5, Math.sin(angle) * 5);
         }
       });
-      this.playpause.addEventListener('click', () => this.togglePlay());
+      this.playpause.addEventListener('click', () => {
+        if (this.isFirstInteraction) {
+          this.playMusic();
+          this.isFirstInteraction = false;
+          if (this.startPrompt) this.startPrompt.remove();
+          return;
+        }
+        this.togglePlay();
+      });
       this.restart.addEventListener('click', () => this.restartGame());
     }
   
@@ -84,10 +200,13 @@ class GameManager {
     initGame() {
       this.createStars();
       this.createAudience();
-      this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
       this.lyricsData = [];
       this.fallbackLyricsData = "マジカルミライ初音ミク".split('').map((c, i) => ({time: 1000 + i * 500, text: c}));
       this.randomTexts = ["ミク！", "かわいい！", "最高！", "39！", "イェーイ！"];
+      
+      // 初回インタラクション前はランダムテキストを表示しない
+      // 初回クリック後に開始する
+      this.randomTextInterval = null;
       
       this.comboResetTimer = setInterval(() => {
         if (Date.now() - (this.lastScoreTime || 0) > 30000 && this.combo > 0) {
@@ -208,7 +327,7 @@ class GameManager {
           },
           onVideoReady: (video) => {
             if (video?.firstPhrase) this.processLyrics(video);
-            if (this.loading) this.loading.textContent = "準備完了！クリックして開始";
+            if (this.loading) this.loading.textContent = "準備完了！タップして開始";
           },
           onTimeUpdate: (pos) => {
             if (!this.isPaused) this.updateLyrics(pos);
@@ -216,7 +335,9 @@ class GameManager {
           onPlay: () => {
             this.isPaused = false;
             this.playpause.textContent = '一時停止';
-            if (!this.randomTextInterval) this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
+            if (!this.randomTextInterval) {
+              this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
+            }
           },
           onPause: () => {
             this.isPaused = true;
@@ -241,9 +362,8 @@ class GameManager {
     fallback() {
       this.isPlayerInit = false;
       this.player = null;
-      if (this.loading) this.loading.textContent = "APIエラー。代替モードで起動中...";
+      if (this.loading) this.loading.textContent = "APIエラー。タップして代替モードで開始";
       this.lyricsData = this.fallbackLyricsData;
-      this.startLyricsTimer();
     }
     
     /**
@@ -281,7 +401,7 @@ class GameManager {
       this.startTime = Date.now();
       
       const checkLyrics = () => {
-        if ((this.isPlayerInit && this.player) || this.isPaused) {
+        if ((this.isPlayerInit && this.player) || this.isPaused || this.isFirstInteraction) {
           requestAnimationFrame(checkLyrics);
           return;
         }
@@ -321,7 +441,7 @@ class GameManager {
      * @param {number} position - 現在の再生位置（ミリ秒）
      */
     updateLyrics(position) {
-      if (this.isPaused) return;
+      if (this.isPaused || this.isFirstInteraction) return;
       if (!this.displayedLyrics) this.displayedLyrics = new Set();
       
       for (let i = 0; i < this.lyricsData.length; i++) {
@@ -395,6 +515,8 @@ class GameManager {
      * 指定された座標を中心とする円形の領域内にある歌詞要素をチェック
      */
     checkLyrics(x, y, radius) {
+      if (this.isFirstInteraction) return false; // 初回インタラクション前は何もしない
+      
       const lyrics = document.querySelectorAll('.lyric-bubble');
       const radiusSquared = radius * radius;
       
@@ -420,7 +542,7 @@ class GameManager {
      * 歌詞要素がクリックされた時の処理
      */
     clickLyric(element) {
-      if (element.style.pointerEvents === 'none') return;
+      if (element.style.pointerEvents === 'none' || this.isFirstInteraction) return;
       
       this.combo++;
       this.maxCombo = Math.max(this.maxCombo, this.combo);
@@ -501,6 +623,8 @@ class GameManager {
      * マウス/指の軌跡を表現するパーティクルを作成
      */
     createTrailParticle(x, y) {
+      if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
+      
       // 曲の再生状態に関わらず常に同じパーティクルを生成
       // パーティクルサイズと密度を調整
       const size = 25 + Math.random() * 40; // サイズを少し大きくする
@@ -540,6 +664,8 @@ class GameManager {
      * 流れ星エフェクトを作成
      */
     createShooting(x, y, dx, dy) {
+      if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
+      
       if (!dx && !dy) {
         const angle = Math.random() * Math.PI * 2;
         dx = Math.cos(angle) * 5;
@@ -575,7 +701,7 @@ class GameManager {
      * ランダムテキストを作成して表示
      */
     createRandomText() {
-      if (this.isPaused) return;
+      if (this.isPaused || this.isFirstInteraction) return;
       
       const text = document.createElement('div');
       text.className = 'random-text';
@@ -760,4 +886,3 @@ class GameManager {
       });
     }, 100);
   });
-  

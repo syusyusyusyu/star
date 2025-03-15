@@ -115,34 +115,24 @@ class GameManager {
      * 最適化: 重複するイベント処理を統合
      */
     setupEvents() {
-      let lastTime = 0, lastX = 0, lastY = 0;
       const handleMove = (x, y, isTouch) => {
-        const now = Date.now();
-        if (now - lastTime < 16) return;
-        lastTime = now;
-        const dx = x - lastX, dy = y - lastY;
-        if (Math.sqrt(dx*dx + dy*dy) >= 3) { // より小さな動きでも認識するよう閾値を下げる
-          lastX = x; lastY = y;
+        const dx = x - this.lastMousePos.x, dy = y - this.lastMousePos.y;
+        if (Math.hypot(dx, dy) >= 3) {
           this.lastMousePos = { x, y };
           this.checkLyrics(x, y, isTouch ? 45 : 35);
           
-          // 星を常に生成する（初回インタラクション後のみ）
           if (!this.isFirstInteraction) {
             this.createTrailParticle(x, y);
-            if (Math.random() < (isTouch ? 0.03 : 0.01)) {
-              this.createShooting(x, y, dx, dy);
-            }
+            Math.random() < (isTouch ? 0.03 : 0.01) && this.createShooting(x, y, dx, dy);
           }
         }
       };
-      
+
       this.gamecontainer.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY, false));
       this.gamecontainer.addEventListener('touchmove', e => {
-        if (!this.isFirstInteraction) {
-          e.preventDefault(); // 初回インタラクション後のみスクロール防止
-        }
+        !this.isFirstInteraction && e.preventDefault();
         handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
-      }, {passive: true}); // パッシブをtrueに変更（初回タップを妨げない）
+      }, { passive: true });
       
       this.gamecontainer.addEventListener('click', e => {
         if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
@@ -193,21 +183,17 @@ class GameManager {
      * 星空背景を作成
      */
     createStars() {
-      // 星の数を減らす
+      const fragment = document.createDocumentFragment();
       const starCount = Math.min(60, Math.floor(window.innerWidth * window.innerHeight / 10000));
+      
       for (let i = 0; i < starCount; i++) {
         const star = document.createElement('div');
         star.className = 'light-effect';
-        star.style.left = `${Math.random() * 100}%`;
-        star.style.top = `${Math.random() * 100}%`;
-        star.style.animationDelay = `${Math.random() * 3}s`;
-        if (Math.random() > 0.7) {
-          star.style.width = '6px';
-          star.style.height = '6px';
-          star.style.boxShadow = '0 0 10px #fff';
-        }
-        this.gamecontainer.appendChild(star);
+        star.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${Math.random()*3}s;${Math.random()>.7?'width:6px;height:6px;box-shadow:0 0 10px #fff':''}`;
+        fragment.appendChild(star);
       }
+      
+      this.gamecontainer.appendChild(fragment);
     }
   
     /**
@@ -596,76 +582,51 @@ class GameManager {
      * マウス/指の軌跡を表現するパーティクルを作成
      */
     createTrailParticle(x, y) {
-      if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
+      if (this.isFirstInteraction) return;
       
-      // 曲の再生状態に関わらず常に同じパーティクルを生成
-      // パーティクルサイズと密度を調整
-      const size = 25 + Math.random() * 40; // サイズを少し大きくする
-      const particle = document.createElement('div');
-      particle.className = 'star-particle';
-      particle.style.width = `${size}px`;
-      particle.style.height = `${size}px`;
-      particle.style.left = `${x - size/2}px`;
-      particle.style.top = `${y - size/2}px`;
-      
+      const size = 25 + Math.random() * 40;
       const hue = Math.floor(Math.random() * 360);
-      particle.style.backgroundColor = `hsla(${hue}, 100%, 70%, 0.8)`;
-      particle.style.boxShadow = `0 0 ${size/2}px hsla(${hue}, 100%, 70%, 0.8)`;
-      particle.style.transform = `rotate(${Math.random() * 360}deg)`;
+      const particle = document.createElement('div');
+      
+      particle.className = 'star-particle';
+      particle.style.cssText = `width:${size}px;height:${size}px;left:${x-size/2}px;top:${y-size/2}px;background-color:hsla(${hue},100%,70%,.8);box-shadow:0 0 ${size/2}px hsla(${hue},100%,70%,.8);transform:rotate(${Math.random()*360}deg)`;
       
       this.gamecontainer.appendChild(particle);
       this.mouseTrail.push({ element: particle, createdAt: Date.now() });
       
-      // 古いパーティクルを削除（同じに保つ）
-      const now = Date.now();
-      this.mouseTrail = this.mouseTrail.filter(p => {
-        if (now - p.createdAt > 800) { // 寿命を長くする（元は600）
-          p.element.remove();
-          return false;
-        }
-        return true;
-      });
-      
-      // 軌跡の最大長を超える場合、古いものから削除
       while (this.mouseTrail.length > this.maxTrailLength) {
         const oldest = this.mouseTrail.shift();
         oldest.element.remove();
       }
+      
+      setTimeout(() => {
+        const index = this.mouseTrail.findIndex(p => p.element === particle);
+        index !== -1 && (this.mouseTrail.splice(index, 1), particle.remove());
+      }, 800);
     }
   
     /**
      * 流れ星エフェクトを作成
      */
-    createShooting(x, y, dx, dy) {
-      if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
+    createShooting(x, y, dx = 0, dy = 0) {
+      if (this.isFirstInteraction) return;
       
       if (!dx && !dy) {
         const angle = Math.random() * Math.PI * 2;
         dx = Math.cos(angle) * 5;
         dy = Math.sin(angle) * 5;
       }
-  
+
       const size = 15 + Math.random() * 15;
       const meteor = document.createElement('div');
       meteor.className = 'shooting-star';
-      meteor.style.width = `${size}px`;
-      meteor.style.height = `${size}px`;
-      meteor.style.left = `${x}px`;
-      meteor.style.top = `${y}px`;
-      
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-      meteor.style.transform = `rotate(${angle + 45}deg)`;
-      
-      const speed = Math.min(150, Math.sqrt(dx * dx + dy * dy) * 5);
-      meteor.style.boxShadow = `0 0 ${size}px ${size/2}px rgba(255, 255, 200, 0.8)`;
-      meteor.style.filter = `blur(1px) drop-shadow(0 0 ${speed/10}px #fff)`;
+      meteor.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px;transform:rotate(${Math.atan2(dy,dx)*180/Math.PI+45}deg);box-shadow:0 0 ${size}px ${size/2}px rgba(255,255,200,.8);filter:blur(1px) drop-shadow(0 0 ${Math.min(150,Math.hypot(dx,dy)*5)/10}px #fff)`;
       
       this.gamecontainer.appendChild(meteor);
-      
       meteor.animate([
-        { transform: `rotate(${angle + 45}deg) scale(1)`, opacity: 1 },
-        { transform: `translate(${dx * 10}px, ${dy * 10}px) rotate(${angle + 45}deg) scale(0.1)`, opacity: 0 }
-      ], { duration: 800, easing: 'ease-out', fill: 'forwards' });
+        { transform: `rotate(${Math.atan2(dy,dx)*180/Math.PI+45}deg) scale(1)`, opacity: 1 },
+        { transform: `translate(${dx*10}px,${dy*10}px) rotate(${Math.atan2(dy,dx)*180/Math.PI+45}deg) scale(.1)`, opacity: 0 }
+      ], { duration: 800, easing: 'ease-out' });
       
       setTimeout(() => meteor.remove(), 800);
     }

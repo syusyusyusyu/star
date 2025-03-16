@@ -17,8 +17,8 @@ class GameManager {
      */
     constructor() {
       Object.assign(this, {
-        apiToken: window.songConfig?.apiToken || "wifkp8ak1TEhQ8pI",
-        songUrl: window.songConfig?.songUrl || "https://piapro.jp/t/hZ35/20240130103028",
+        apiToken: window.songConfig?.apiToken,
+        songUrl: window.songConfig?.songUrl ,
         score: 0, combo: 0, maxCombo: 0,
         startTime: Date.now(),
         isPaused: false, isPlaying: false, isPlayerInit: false,

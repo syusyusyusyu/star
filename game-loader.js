@@ -1,3 +1,19 @@
+// デフォルトの曲データ
+const defaultSong = {
+    id: 1,
+    title: "SUPERHERO",
+    artist: "めろくる",
+    apiToken: "wifkp8ak1TEhQ8pI",
+    songUrl: "https://piapro.jp/t/hZ35/20240130103028"
+};
+
+// 色のバリエーション
+const colorVariations = {
+    easy: 'rgba(57, 197, 187, 0.1)',
+    normal: 'rgba(255, 165, 0, 0.1)',
+    hard: 'rgba(255, 105, 180, 0.1)'
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     // 曲情報の取得と設定
     const selectedSongData = JSON.parse(localStorage.getItem('selectedSong') || 'null');
@@ -19,7 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
         apiToken: songData.apiToken,
         songUrl: songData.songUrl
     };
-    
 });
 
 // GameManager初期化

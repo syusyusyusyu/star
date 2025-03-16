@@ -2,43 +2,38 @@
 const songsData = [
     {
         id: 1,
-        title: "メルト",
-        artist: "ryo (supercell)",
-        difficulty: "EASY",
+        title: "SUPERHERO",
+        artist: "めろくる",
+        apiToken: "wifkp8ak1TEhQ8pI",
+        songUrl: "https://piapro.jp/t/hZ35/20240130103028"
+    },
+    {
+        id: 2,
+        title: "いつか君と話したミライは",
+        artist: "タケノコ少年",
         apiToken: "x0ogHDnqRB8hjnrf",
         songUrl: "https://piapro.jp/t/--OD/20240202150903"
     },
     {
-        id: 2,
-        title: "千本桜",
-        artist: "黒うさP",
-        difficulty: "NORMAL",
-        apiToken: "dJcf3DnRT5hjnsu2",
-        songUrl: "https://piapro.jp/t/--SE/20240202150903"
-    },
-    {
         id: 3,
-        title: "ワールドイズマイン",
-        artist: "ryo (supercell)",
-        difficulty: "HARD",
-        apiToken: "hJ4gKcnSF6rmd6t9",
-        songUrl: "https://piapro.jp/t/--MI/20240202150903"
+        title: "フューチャーノーツ",
+        artist: "shikisai",
+        apiToken: "ZneYLNtDFF7FMsai",
+        songUrl: "https://piapro.jp/t/XiaI/20240201203346"
     },
     {
         id: 4,
-        title: "ローリンガール",
-        artist: "wowaka",
-        difficulty: "HARD",
-        apiToken: "pL7hVbnRG3dke9a1",
-        songUrl: "https://piapro.jp/t/--WW/20240202150903"
+        title: "未来交響曲",
+        artist: "ヤマギシコージ",
+        apiToken: "Dwi8uWkUIHQQGCtF",
+        songUrl: "https://piapro.jp/t/Rejk/20240202164429"
     },
     {
         id: 5,
-        title: "マジカルミライ 2025",
-        artist: "Mitchie M",
-        difficulty: "SPECIAL",
-        apiToken: "rT8jKvmSL2pqe3z4",
-        songUrl: "https://piapro.jp/t/--MM/20240202150903"
+        title: "リアリティ",
+        artist: "歩く人 & sober bear",
+        apiToken: "QTPx3Xr44KcwmYbL",
+        songUrl: "https://piapro.jp/t/ELIC/20240130010349"
     }
 ];
 

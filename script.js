@@ -322,7 +322,17 @@ class GameManager {
       this.isPlayerInit = false;
       this.player = null;
       if (this.loading) this.loading.textContent = "APIエラー。代替モードで起動中...";
-      this.lyricsData = this.fallbackLyricsData;
+      
+      const text = "マジカルミライ初音ミク";
+      this.lyricsData = [];
+      
+      // 2文字ずつ処理
+      for (let i = 0; i < text.length; i += 2) {
+        this.lyricsData.push({
+          time: 1000 + (i/2) * 500, // タイミングも半分に
+          text: text.slice(i, i + 2).padEnd(2, text[i]) // 足りない場合は同じ文字で埋める
+        });
+      }
     }
     
     /**
@@ -339,8 +349,21 @@ class GameManager {
           while (word) {
             let char = word.firstChar;
             while (char) {
-              this.lyricsData.push({time: char.startTime, text: char.text});
-              char = char.next;
+              // 2文字目がある場合のみ追加
+              if (char.next) {
+                this.lyricsData.push({
+                  time: char.startTime,
+                  text: char.text + char.next.text
+                });
+                char = char.next.next; // 2文字スキップ
+              } else {
+                // 最後の1文字の場合
+                this.lyricsData.push({
+                  time: char.startTime,
+                  text: char.text + char.text // 同じ文字を2回
+                });
+                char = char.next;
+              }
             }
             word = word.next;
           }
@@ -422,52 +445,42 @@ class GameManager {
      * @param {string} text - 表示する歌詞テキスト
      */
     displayLyric(text) {
-      if (!text) return;
+      if (!text || text.length < 2) return;
   
-      const existingBubbles = document.querySelectorAll('.lyric-bubble');
-      for (let bubble of existingBubbles) {
-        if (bubble.textContent === text) return;
-      }
-  
-      const bubble = document.createElement('div');
-      bubble.className = 'lyric-bubble';
-      bubble.textContent = text;
-      bubble.style.pointerEvents = 'auto';
-      bubble.style.opacity = '1';
-      
-      // 画面サイズに応じて位置とフォントサイズを調整
-      const screenWidth = window.innerWidth;
-      const isSmallScreen = screenWidth <= 768;
-      
-      let x, y, fontSize;
-      
-      if (isSmallScreen) {
-        // モバイル・小さな画面：横幅15%～85%の範囲に収める
-        x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
-        y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
-        
-        // 画面サイズに応じたフォントサイズ調整
-        if (screenWidth <= 480) {
-          fontSize = '18px'; // スマホサイズ
-        } else {
-          fontSize = '22px'; // タブレットサイズ
+      // 2文字を別々に表示
+      for (let i = 0; i < 2; i++) {
+        const char = text[i];
+        const existingBubbles = document.querySelectorAll('.lyric-bubble');
+        for (let bubble of existingBubbles) {
+          if (bubble.textContent === char) return;
         }
-      } else {
-        // PC・大きな画面
-        x = 100 + Math.random() * (screenWidth - 300);
-        y = window.innerHeight - 300 - Math.random() * 100;
-        fontSize = '30px';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'lyric-bubble';
+        bubble.textContent = char;
+        bubble.style.pointerEvents = 'auto';
+        bubble.style.opacity = '1';
+        
+        const screenWidth = window.innerWidth;
+        const isSmallScreen = screenWidth <= 768;
+        
+        // それぞれの文字に別々のランダムな位置を設定
+        let x = isSmallScreen 
+          ? screenWidth * 0.15 + Math.random() * (screenWidth * 0.7)
+          : 100 + Math.random() * (screenWidth - 300);
+        let y = isSmallScreen
+          ? window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55)
+          : window.innerHeight - 300 - Math.random() * 100;
+        
+        bubble.style.left = `${x}px`;
+        bubble.style.top = `${y}px`;
+        bubble.style.color = '#39C5BB';
+        
+        bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
+        this.gamecontainer.appendChild(bubble);
+        
+        setTimeout(() => bubble.remove(), 8000);
       }
-      
-      bubble.style.left = `${x}px`;
-      bubble.style.top = `${y}px`;
-      bubble.style.color = '#39C5BB';
-      bubble.style.fontSize = fontSize;
-      
-      bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
-      this.gamecontainer.appendChild(bubble);
-      
-      setTimeout(() => bubble.remove(), 8000);
     }
   
     /**

@@ -16,49 +16,36 @@ class GameManager {
      * 各コンポーネントの初期化と設定を行う
      */
     constructor() {
-      this.apiToken = window.songConfig?.apiToken || "wifkp8ak1TEhQ8pI";
-      this.songUrl = window.songConfig?.songUrl || "https://piapro.jp/t/hZ35/20240130103028";
-      this.score = this.combo = this.maxCombo = 0;
-      this.startTime = Date.now();
-      this.isPaused = this.isPlaying = this.isPlayerInit = false;
-      this.isFirstInteraction = true; // 初回インタラクション追跡用
-      this.player = null;
-      this.isMobile = /Android|iPhone/.test(navigator.userAgent);
-      this.activeChars = new Set();
-      this.displayedLyrics = new Set();
-      this.mouseTrail = [];
-      this.maxTrailLength = 15; // 星の数を増やす
-      this.lastMousePos = { x: 0, y: 0 };
+      Object.assign(this, {
+        apiToken: window.songConfig?.apiToken || "wifkp8ak1TEhQ8pI",
+        songUrl: window.songConfig?.songUrl || "https://piapro.jp/t/hZ35/20240130103028",
+        score: 0, combo: 0, maxCombo: 0,
+        startTime: Date.now(),
+        isPaused: false, isPlaying: false, isPlayerInit: false,
+        isFirstInteraction: true,
+        player: null,
+        isMobile: /Android|iPhone/.test(navigator.userAgent),
+        activeChars: new Set,
+        displayedLyrics: new Set,
+        mouseTrail: [],
+        maxTrailLength: 15,
+        lastMousePos: {x:0, y:0}
+      });
       [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
-        ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
+        ['game-container','score','combo','play-pause','restart','loading'].map(id => document.getElementById(id));
       this.setupEvents();
       this.createLightEffects();
       this.initGame();
       this.initPlayer();
-      
-      // 自動再生の問題を解決するため、一度全ての要素にクリックイベントを設定
-      this.gamecontainer.style.cursor = 'pointer';
-      this.gamecontainer.style.userSelect = 'none';
-      document.body.style.cursor = 'pointer';
-      
-      // 最初のクリック/タップを待つ構造
+      this.gamecontainer.style.cursor = document.body.style.cursor = 'pointer';
       const startGame = () => {
-        if (!this.isFirstInteraction) return;
-        
-        // 重複実行防止
+        if(!this.isFirstInteraction) return;
         this.isFirstInteraction = false;
-        this.gamecontainer.style.cursor = '';
-        document.body.style.cursor = '';
-        
-        // ゲーム初期化
+        this.gamecontainer.style.cursor = document.body.style.cursor = '';
         this.playMusic();
-        
-        // イベントリスナーを削除
         document.body.removeEventListener('click', startGame);
         document.body.removeEventListener('touchend', startGame);
       };
-      
-      // document全体にイベント設定（より確実にキャプチャ）
       document.body.addEventListener('click', startGame);
       document.body.addEventListener('touchend', startGame);
     }
@@ -808,28 +795,18 @@ class GameManager {
      * ゲーム終了時のクリーンアップ処理
      */
     cleanup() {
-      if (this.randomTextInterval) clearInterval(this.randomTextInterval);
-      if (this.comboResetTimer) clearInterval(this.comboResetTimer);
-      
-      this.mouseTrail.forEach(item => {
-        if (item.element?.parentNode) item.element.remove();
-      });
+      this.randomTextInterval && clearInterval(this.randomTextInterval);
+      this.comboResetTimer && clearInterval(this.comboResetTimer);
+      this.mouseTrail.forEach(({element}) => element?.parentNode && element.remove());
       this.mouseTrail = [];
-      
-      if (this.player) {
-        try { this.player.dispose(); } catch {}
-      }
+      this.player?.dispose?.();
     }
   }
   
   /**
    * ページ読み込み時にゲームを起動
    */
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      window.gameManager = new GameManager();
-      window.addEventListener('beforeunload', () => {
-        if (window.gameManager) window.gameManager.cleanup();
-      });
-    }, 100);
-  });
+  window.addEventListener('load', () => setTimeout(() => {
+    window.gameManager = new GameManager();
+    window.addEventListener('beforeunload', () => window.gameManager?.cleanup());
+  }, 100));

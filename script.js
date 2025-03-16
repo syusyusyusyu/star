@@ -347,7 +347,7 @@ class GameManager {
                 // 最後の1文字の場合
                 this.lyricsData.push({
                   time: char.startTime,
-                  text: char.text + char.text // 同じ文字を2回
+                  text: char.text 
                 });
                 char = char.next;
               }

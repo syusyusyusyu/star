@@ -21,7 +21,9 @@ class GameManager {
         songUrl: window.songConfig?.songUrl ,
         score: 0, combo: 0, maxCombo: 0,
         startTime: Date.now(),
-        isPaused: false, isPlaying: false, isPlayerInit: false,
+        isPaused: true,
+        isPlaying: false,
+        isPlayerInit: false,
         isFirstInteraction: true,
         player: null,
         isMobile: /Android|iPhone/.test(navigator.userAgent),
@@ -38,16 +40,6 @@ class GameManager {
       this.initGame();
       this.initPlayer();
       this.gamecontainer.style.cursor = document.body.style.cursor = 'pointer';
-      const startGame = () => {
-        if(!this.isFirstInteraction) return;
-        this.isFirstInteraction = false;
-        this.gamecontainer.style.cursor = document.body.style.cursor = '';
-        this.playMusic();
-        document.body.removeEventListener('click', startGame);
-        document.body.removeEventListener('touchend', startGame);
-      };
-      document.body.addEventListener('click', startGame);
-      document.body.addEventListener('touchend', startGame);
     }
   
     /**
@@ -133,9 +125,8 @@ class GameManager {
       
       this.playpause.addEventListener('click', () => {
         if (this.isFirstInteraction) {
-          this.playMusic();
           this.isFirstInteraction = false;
-          return;
+          this.gamecontainer.style.cursor = document.body.style.cursor = '';
         }
         this.togglePlay();
       });

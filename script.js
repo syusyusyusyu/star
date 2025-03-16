@@ -313,11 +313,11 @@ class GameManager {
       const text = "マジカルミライ初音ミク";
       this.lyricsData = [];
       
-      // 2文字ずつ処理
-      for (let i = 0; i < text.length; i += 2) {
+      // 3文字ずつ処理（余りはそのまま）
+      for (let i = 0; i < text.length; i += 3) {
         this.lyricsData.push({
-          time: 1000 + (i/2) * 500, // タイミングも半分に
-          text: text.slice(i, i + 2).padEnd(2, text[i]) // 足りない場合は同じ文字で埋める
+          time: 1000 + (i/3) * 500,
+          text: text.slice(i, Math.min(i + 3, text.length))
         });
       }
     }
@@ -336,21 +336,22 @@ class GameManager {
           while (word) {
             let char = word.firstChar;
             while (char) {
-              // 2文字目がある場合のみ追加
-              if (char.next) {
-                this.lyricsData.push({
-                  time: char.startTime,
-                  text: char.text + char.next.text
-                });
-                char = char.next.next; // 2文字スキップ
-              } else {
-                // 最後の1文字の場合
-                this.lyricsData.push({
-                  time: char.startTime,
-                  text: char.text 
-                });
-                char = char.next;
+              let text = char.text;
+              let currentChar = char;
+              
+              // 最大3文字まで追加
+              for (let i = 1; i < 3 && currentChar.next; i++) {
+                currentChar = currentChar.next;
+                text += currentChar.text;
               }
+              
+              this.lyricsData.push({
+                time: char.startTime,
+                text: text
+              });
+              
+              // 次の処理開始位置へ
+              char = currentChar.next;
             }
             word = word.next;
           }
@@ -432,16 +433,16 @@ class GameManager {
      * @param {string} text - 表示する歌詞テキスト
      */
     displayLyric(text) {
-      if (!text || text.length < 2) return;
+      if (!text) return;
   
-      // 2文字を別々に表示
-      for (let i = 0; i < 2; i++) {
+      // 実際の文字数分だけ表示
+      for (let i = 0; i < text.length; i++) {
         const char = text[i];
         const existingBubbles = document.querySelectorAll('.lyric-bubble');
         for (let bubble of existingBubbles) {
           if (bubble.textContent === char) return;
         }
-
+  
         const bubble = document.createElement('div');
         bubble.className = 'lyric-bubble';
         bubble.textContent = char;
@@ -451,7 +452,6 @@ class GameManager {
         const screenWidth = window.innerWidth;
         const isSmallScreen = screenWidth <= 768;
         
-        // それぞれの文字に別々のランダムな位置を設定
         let x = isSmallScreen 
           ? screenWidth * 0.15 + Math.random() * (screenWidth * 0.7)
           : 100 + Math.random() * (screenWidth - 300);

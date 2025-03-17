@@ -16,8 +16,8 @@ class GameManager {
    * 各コンポーネントの初期化と設定を行う
    */
   constructor() {
-    this.apiToken = window.songConfig?.apiToken || "wifkp8ak1TEhQ8pI";
-    this.songUrl = window.songConfig?.songUrl || "https://piapro.jp/t/hZ35/20240130103028";
+    this.apiToken = window.songConfig?.apiToken ;
+    this.songUrl = window.songConfig?.songUrl ;
     this.score = this.combo = this.maxCombo = 0;
     this.startTime = Date.now();
     this.isPlaying = this.isPlayerInit = false;

@@ -216,6 +216,7 @@ body {
     cursor: pointer;
     font-size: 14px;
     transition: all 0.3s;
+    box-shadow: 0 0 10px rgba(57, 197, 187, 0.4);
 }
 
 #controls button:hover {
@@ -521,6 +522,14 @@ body {
     #rank-display {
         font-size: 42px;
     }
+    
+    /* コントロールボタンを中央下部に移動 */
+    #controls {
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 30px;
+    }
 }
 
 @media (max-width: 768px) {
@@ -532,6 +541,23 @@ body {
     .penlight { box-shadow: 0 0 5px currentColor; }
     .star-particle { width: 8px; height: 8px; }
     .tap-ripple { animation-duration: 0.5s; }
+    
+    /* コントロールボタンをより大きく、見やすく */
+    #controls {
+        width: 90%;
+        max-width: 400px;
+        justify-content: center;
+        bottom: 25px;
+    }
+    
+    #controls button {
+        flex: 1;
+        padding: 12px 5px;
+        font-size: 16px;
+        font-weight: bold;
+        min-width: 0;
+        text-align: center;
+    }
     
     .results-container {
         flex-direction: column;
@@ -561,6 +587,17 @@ body {
     #score { font-size: 1.8rem; }
     .lyric-bubble { font-size: 20px; padding: 6px 12px; }
     
+    /* さらに小さい画面用のコントロール調整 */
+    #controls {
+        bottom: 20px;
+        width: 95%;
+    }
+    
+    #controls button {
+        padding: 10px 5px;
+        font-size: 14px;
+    }
+    
     .results-score-section h2 {
         font-size: 28px;
     }
@@ -589,8 +626,14 @@ body {
 }
 
 @media screen and (max-height: 600px) {
+    /* 画面高さが低い場合の調整 */
     #controls {
-        bottom: 10px;
+        bottom: 15px;
+        padding: 5px 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: 20px;
+        width: 90%;
+        max-width: 350px;
     }
     
     #instructions {
@@ -623,5 +666,10 @@ body {
     #game-container, #results-screen {
         padding-top: max(var(--browser-header-height), env(safe-area-inset-top));
         padding-bottom: max(var(--browser-footer-height), env(safe-area-inset-bottom));
+    }
+    
+    /* ノッチのあるデバイス向けのボタン配置調整 */
+    #controls {
+        bottom: max(20px, env(safe-area-inset-bottom));
     }
 }

@@ -96,27 +96,18 @@ class GameManager {
     
     // モバイルデバイスの場合、より慎重に対応
     if (this.isMobile) {
-      // モバイル向けにさらに調整（ステージ領域を拡大）
-      document.documentElement.style.setProperty('--mobile-adjustment', '1');
-      
       // iPhoneなどのノッチがあるデバイス向け
       if (window.navigator.userAgent.includes('iPhone') && window.screen.height >= 812) {
-        topInset = 50; // ノッチ領域の高さ（調整）
-        bottomInset = 40; // ホームインジケータの高さ（調整）
+        topInset = 44; // ノッチ領域の高さ（推定）
+        bottomInset = 34; // ホームインジケータの高さ（推定）
       } else {
         // その他のモバイルデバイス
         const difference = screenHeight - windowHeight;
         if (difference > 0) {
-          topInset = Math.min(difference / 2, 45); // 上部の余白を増加
-          bottomInset = Math.min(difference / 2, 45); // 下部の余白を増加
-        } else {
-          // 差がない場合も適切な余白を設定
-          topInset = 20;
-          bottomInset = 30;
+          topInset = Math.min(difference / 2, 40);
+          bottomInset = Math.min(difference / 2, 40);
         }
       }
-    } else {
-      document.documentElement.style.setProperty('--mobile-adjustment', '0');
     }
     
     // ステージやコントロール位置を調整するためのCSS変数
@@ -508,11 +499,7 @@ class GameManager {
         while (word) {
           let char = word.firstChar;
           while (char) {
-            // 各文字を個別に追加
-            this.lyricsData.push({
-              time: char.startTime,
-              text: char.text
-            });
+            this.lyricsData.push({time: char.startTime, text: char.text});
             char = char.next;
           }
           word = word.next;
@@ -521,19 +508,7 @@ class GameManager {
       }
       
       this.lyricsData.sort((a, b) => a.time - b.time);
-      
-      // フォールバック用の歌詞データも1文字ずつに設定
-      this.fallbackLyricsData = "マジカルミライ初音ミク".split('').map((c, i) => ({
-        time: 1000 + i * 500,
-        text: c
-      }));
-    } catch {
-      // エラー時はフォールバックデータを使用
-      this.fallbackLyricsData = "マジカルミライ初音ミク".split('').map((c, i) => ({
-        time: 1000 + i * 500,
-        text: c
-      }));
-    }
+    } catch {}
   }
 
   /**
@@ -620,37 +595,28 @@ class GameManager {
     bubble.style.pointerEvents = 'auto';
     bubble.style.opacity = '1';
     
-    // 画面サイズと向きに応じて位置とフォントサイズを調整
+    // 画面サイズに応じて位置とフォントサイズを調整
     const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-    const isLandscape = screenWidth > screenHeight;
     const isSmallScreen = screenWidth <= 768;
     
     let x, y, fontSize;
     
-    if (this.isMobile) {
-      // モバイルデバイス向け調整
-      if (isLandscape) {
-        // 横向き
-        x = screenWidth * 0.1 + Math.random() * (screenWidth * 0.8);
-        y = screenHeight * 0.2 + Math.random() * (screenHeight * 0.5);
-        fontSize = screenWidth <= 667 ? '16px' : '20px';
-      } else {
-        // 縦向き
-        x = screenWidth * 0.1 + Math.random() * (screenWidth * 0.8);
-        y = screenHeight * 0.25 + Math.random() * (screenHeight * 0.45);
-        fontSize = screenWidth <= 375 ? '18px' : '22px';
-      }
+    if (isSmallScreen) {
+      // モバイル・小さな画面：横幅15%～85%の範囲に収める
+      x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
+      y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
       
-      // モバイルでは要素をより大きくタップしやすくする
-      bubble.style.padding = '8px 12px';
-      bubble.style.borderRadius = '20px';
+      // 画面サイズに応じたフォントサイズ調整
+      if (screenWidth <= 480) {
+        fontSize = '18px'; // スマホサイズ
+      } else {
+        fontSize = '22px'; // タブレットサイズ
+      }
     } else {
       // PC・大きな画面
       x = 100 + Math.random() * (screenWidth - 300);
-      y = screenHeight - 300 - Math.random() * 100;
+      y = window.innerHeight - 300 - Math.random() * 100;
       fontSize = '30px';
-      bubble.style.padding = '10px 15px';
     }
     
     bubble.style.left = `${x}px`;
@@ -659,12 +625,6 @@ class GameManager {
     bubble.style.fontSize = fontSize;
     
     bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
-    // モバイル用にタッチイベントも追加
-    bubble.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      this.clickLyric(bubble);
-    });
-    
     this.gamecontainer.appendChild(bubble);
     
     setTimeout(() => bubble.remove(), 8000);

@@ -1,34 +1,24 @@
 /**
- * ボイスアイドル・ミュージックゲーム
- * 
- * このゲームは歌詞が画面上に表示され、プレイヤーがそれらをクリックまたはスワイプして
- * ポイントを獲得する音楽リズムゲームです。TextAlivePlayerを使用して歌詞と音楽を同期させています。
- * 
- * 最適化ポイント:
- * - デバイス性能に応じた処理の調整
- * - オブジェクトプールとメモリ管理の強化
- * - イベント処理の統合とスロットリング
- * - 数学計算の簡略化
+ * ボイスアイドル・ミュージックゲーム - 内部処理のみ最適化版
  */
 class GameManager {
-  /**
-   * ゲームマネージャーの初期化
-   * 各コンポーネントの初期化と設定を行う
-   */
   constructor() {
     this.apiToken = window.songConfig?.apiToken;
     this.songUrl = window.songConfig?.songUrl;
     this.score = this.combo = this.maxCombo = 0;
     this.startTime = Date.now();
     this.isPlaying = this.isPlayerInit = false;
-    this.isFirstInteraction = true; // 初回インタラクション追跡用
+    this.isFirstInteraction = true;
     this.player = null;
     this.isMobile = /Android|iPhone/.test(navigator.userAgent);
     this.activeChars = new Set();
     this.displayedLyrics = new Set();
     this.mouseTrail = [];
-    this.maxTrailLength = 15; // 星の数を増やす
+    this.maxTrailLength = 15;
     this.lastMousePos = { x: 0, y: 0 };
+    
+    // 内部処理用のグループサイズを設定
+    this.groupSize = 5;
     
     // モバイルブラウザのビューポート処理
     this.updateViewportHeight();
@@ -41,7 +31,7 @@ class GameManager {
       ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
     
     // 初期状態では再生ボタンに設定
-    this.isPaused = true;  // 初期状態は一時停止中として扱う
+    this.isPaused = true;
     if (this.playpause) {
       this.playpause.textContent = '再生';
     }
@@ -78,17 +68,11 @@ class GameManager {
     document.body.addEventListener('touchend', startGame);
   }
 
-  /**
-   * モバイルブラウザのための100vhの修正
-   */
   updateViewportHeight() {
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
   }
 
-  /**
-   * 音楽再生を開始する
-   */
   async playMusic() {
     if (this._processing) return;
     this._processing = true;
@@ -105,12 +89,12 @@ class GameManager {
           console.error("Player play error:", e);
           // エラー発生時はフォールバックモードへ
           this.fallback();
-          this.startLyricsTimer(); // 歌詞タイマー開始を明示的に呼び出し
+          this.startLyricsTimer();
         }
       } else {
         // フォールバックモードですでに初期化済みの場合
         this.startTime = Date.now();
-        this.startLyricsTimer(); // 明示的に歌詞タイマー開始
+        this.startLyricsTimer();
       }
       
       // ランダムテキスト表示開始
@@ -132,11 +116,6 @@ class GameManager {
     }
   }
 
-  /**
-   * イベントリスナーの設定
-   * ユーザー入力とシステムイベントの処理を設定
-   * モバイル対応を強化
-   */
   setupEvents() {
     let lastTime = 0, lastX = 0, lastY = 0;
     let touched = false;
@@ -146,7 +125,7 @@ class GameManager {
       if (now - lastTime < 16) return;
       lastTime = now;
       const dx = x - lastX, dy = y - lastY;
-      if (Math.sqrt(dx*dx + dy*dy) >= 3) { // より小さな動きでも認識するよう閾値を下げる
+      if (Math.sqrt(dx*dx + dy*dy) >= 3) {
         lastX = x; lastY = y;
         this.lastMousePos = { x, y };
         this.checkLyrics(x, y, isTouch ? 45 : 35);
@@ -179,15 +158,15 @@ class GameManager {
         e.preventDefault();
         handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
       }
-    }, {passive: false}); // preventDefaultを使うためpassive: falseが必要
+    }, {passive: false});
     
     this.gamecontainer.addEventListener('touchend', () => {
-      setTimeout(() => { touched = false; }, 300); // タッチ後の余計なマウスイベント防止
+      setTimeout(() => { touched = false; }, 300);
     }, {passive: true});
     
     // クリック/タップイベント
     this.gamecontainer.addEventListener('click', e => {
-      if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
+      if (this.isFirstInteraction) return;
       
       this.checkLyrics(e.clientX, e.clientY, 35);
       if (Math.random() < 0.2) {
@@ -197,8 +176,6 @@ class GameManager {
     });
     
     // ボタンのクリックイベント
-    // タッチデバイスでのダブルタップズームを防止するために、
-    // 'touchend'イベントを追加
     const handleButtonClick = (event) => {
       if (event) {
         event.preventDefault();
@@ -226,19 +203,28 @@ class GameManager {
     this.restart.addEventListener('touchend', handleRestartClick, {passive: false});
   }
 
-  /**
-   * ゲームの初期化処理
-   * 観客生成、タイマー開始などの初期設定
-   */
   initGame() {
     this.createStars();
     this.createAudience();
     this.lyricsData = [];
-    this.fallbackLyricsData = "マジカルミライ初音ミク".split('').map((c, i) => ({time: 1000 + i * 500, text: c}));
-    this.randomTexts = ["ミク！", "かわいい！", "最高！", "39！", "イェーイ！"];
     
-    // 初回インタラクション前はランダムテキストを表示しない
-    // 初回クリック後に開始する
+    // フォールバック用のデータ
+    const fallbackText = "マジカルミライ初音ミク";
+    // 内部管理用にグループ化（表示時に分解）
+    this.fallbackLyricsData = [];
+    for (let i = 0; i < fallbackText.length; i += this.groupSize) {
+      const group = fallbackText.substring(i, Math.min(i + this.groupSize, fallbackText.length));
+      this.fallbackLyricsData.push({
+        time: 1000 + Math.floor(i / this.groupSize) * 1500, // 時間間隔を広げる
+        text: group,
+        originalChars: Array.from(group).map((c, idx) => ({
+          text: c,
+          timeOffset: idx * 100 // 各文字に少しずつオフセットを付ける
+        }))
+      });
+    }
+    
+    this.randomTexts = ["ミク！", "かわいい！", "最高！", "39！", "イェーイ！"];
     this.randomTextInterval = null;
     
     this.comboResetTimer = setInterval(() => {
@@ -249,11 +235,7 @@ class GameManager {
     }, 1000);
   }
 
-  /**
-   * 星空背景を作成
-   */
   createStars() {
-    // 星の数を減らす
     const starCount = Math.min(30, Math.floor(window.innerWidth * window.innerHeight / 10000));
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
@@ -270,11 +252,7 @@ class GameManager {
     }
   }
 
-  /**
-   * 舞台照明などの光エフェクトを作成
-   */
   createLightEffects() {
-    // スポットライト
     for (let i = 0; i < 3; i++) {
       const spotlight = document.createElement('div');
       spotlight.className = 'spotlight';
@@ -284,9 +262,6 @@ class GameManager {
     }
   }
 
-  /**
-   * 再生/一時停止の切り替え
-   */
   async togglePlay() {
     if (this._processing) return;
     this._processing = true;
@@ -308,9 +283,6 @@ class GameManager {
     }
   }
 
-  /**
-   * ゲームをリスタート
-   */
   async restartGame() {
     if (this._processing) return;
     this._processing = true;
@@ -335,10 +307,6 @@ class GameManager {
     }
   }
 
-  /**
-   * TextAlivePlayerを初期化
-   * 歌詞と音楽の同期を行うAPIを使用
-   */
   initPlayer() {
     if (typeof TextAliveApp === 'undefined') {
       if (this.loading) this.loading.textContent = "TextAliveが見つかりません。代替モードで起動中...";
@@ -389,9 +357,6 @@ class GameManager {
     }
   }
 
-  /**
-   * API接続に失敗した場合の代替モードに切り替え
-   */
   fallback() {
     this.isPlayerInit = false;
     this.player = null;
@@ -399,13 +364,11 @@ class GameManager {
     this.lyricsData = this.fallbackLyricsData;
   }
   
-  /**
-   * ビデオデータから歌詞情報を更新
-   * @param {Object} video - TextAliveから取得したビデオデータ
-   */
+  // 内部処理では5文字ずつグループ化、表示時には1文字ずつ
   processLyrics(video) {
     try {
-      this.lyricsData = [];
+      // まず全ての文字データを収集
+      const allCharData = [];
       let phrase = video.firstPhrase;
       
       while (phrase) {
@@ -413,7 +376,10 @@ class GameManager {
         while (word) {
           let char = word.firstChar;
           while (char) {
-            this.lyricsData.push({time: char.startTime, text: char.text});
+            allCharData.push({
+              time: char.startTime,
+              text: char.text
+            });
             char = char.next;
           }
           word = word.next;
@@ -421,14 +387,38 @@ class GameManager {
         phrase = phrase.next;
       }
       
-      this.lyricsData.sort((a, b) => a.time - b.time);
-    } catch {}
+      // 時間順にソート
+      allCharData.sort((a, b) => a.time - b.time);
+      
+      // 内部処理用に5文字ずつグループ化
+      this.lyricsData = [];
+      for (let i = 0; i < allCharData.length; i += this.groupSize) {
+        const group = allCharData.slice(i, Math.min(i + this.groupSize, allCharData.length));
+        if (group.length > 0) {
+          // グループの最初の文字の時間を基準に
+          const baseTime = group[0].time;
+          
+          // 各文字の元のデータを保持する
+          const originalChars = group.map((item, idx) => ({
+            text: item.text,
+            timeOffset: item.time - baseTime // 表示タイミングのオフセットを保持
+          }));
+          
+          // グループテキストは連結
+          const groupText = group.map(item => item.text).join('');
+          
+          this.lyricsData.push({
+            time: baseTime,
+            text: groupText,
+            originalChars: originalChars
+          });
+        }
+      }
+    } catch (e) {
+      console.error("歌詞処理エラー:", e);
+    }
   }
 
-  /**
-   * 歌詞表示タイマーを開始
-   * APIが使用できない場合のフォールバックモード用
-   */
   startLyricsTimer() {
     this.currentLyricIndex = 0;
     this.startTime = Date.now();
@@ -444,14 +434,35 @@ class GameManager {
       
       while (this.currentLyricIndex < this.lyricsData.length && 
              this.lyricsData[this.currentLyricIndex].time <= now && 
-             processed < 3) {
+             processed < 2) { // グループ処理なので1回の処理量を減らす
         
-        const lyric = this.lyricsData[this.currentLyricIndex];
-        if (!this.displayedLyrics.has(lyric.time)) {
-          this.displayLyric(lyric.text);
-          this.displayedLyrics.add(lyric.time);
-          setTimeout(() => this.displayedLyrics.delete(lyric.time), 8000);
+        const lyricGroup = this.lyricsData[this.currentLyricIndex];
+        
+        if (!this.displayedLyrics.has(lyricGroup.time)) {
+          // グループ内の各文字を個別に表示（時間差で）
+          lyricGroup.originalChars.forEach((charData, idx) => {
+            // 各文字の表示時間にオフセットを適用
+            setTimeout(() => {
+              // 既に表示済み判定がついていない場合のみ表示
+              if (!this.displayedLyrics.has(lyricGroup.time + "-" + idx)) {
+                this.displayLyric(charData.text);
+                this.displayedLyrics.add(lyricGroup.time + "-" + idx);
+                
+                // しばらくしたら削除フラグを消す
+                setTimeout(() => {
+                  this.displayedLyrics.delete(lyricGroup.time + "-" + idx);
+                }, 8000);
+              }
+            }, charData.timeOffset || (idx * 50)); // オフセットがなければ50msずつずらす
+          });
+          
+          this.displayedLyrics.add(lyricGroup.time);
           processed++;
+          
+          // グループ全体のフラグを一定時間後に削除
+          setTimeout(() => {
+            this.displayedLyrics.delete(lyricGroup.time);
+          }, 8000 + (lyricGroup.originalChars.length * 100)); // 最後の文字の表示終了から8秒後
         }
         
         this.currentLyricIndex++;
@@ -469,20 +480,40 @@ class GameManager {
     requestAnimationFrame(checkLyrics);
   }
 
-  /**
-   * 現在の再生位置に応じて歌詞を表示
-   * @param {number} position - 現在の再生位置（ミリ秒）
-   */
   updateLyrics(position) {
     if (this.isPaused || this.isFirstInteraction) return;
     if (!this.displayedLyrics) this.displayedLyrics = new Set();
     
+    // グループ単位で表示判定
     for (let i = 0; i < this.lyricsData.length; i++) {
-      const lyric = this.lyricsData[i];
-      if (lyric.time <= position && lyric.time > position - 500 && !this.displayedLyrics.has(lyric.time)) {
-        this.displayLyric(lyric.text);
-        this.displayedLyrics.add(lyric.time);
-        setTimeout(() => this.displayedLyrics.delete(lyric.time), 10000);
+      const lyricGroup = this.lyricsData[i];
+      // グループの基準時間が表示範囲内にある場合
+      if (lyricGroup.time <= position && lyricGroup.time > position - 500 && 
+          !this.displayedLyrics.has(lyricGroup.time)) {
+        
+        // グループ内の各文字を個別に表示（時間差で）
+        lyricGroup.originalChars.forEach((charData, idx) => {
+          // 各文字の表示時間にオフセットを適用
+          setTimeout(() => {
+            // 既に表示済み判定がついていない場合のみ表示
+            if (!this.displayedLyrics.has(lyricGroup.time + "-" + idx)) {
+              this.displayLyric(charData.text);
+              this.displayedLyrics.add(lyricGroup.time + "-" + idx);
+              
+              // しばらくしたら削除フラグを消す
+              setTimeout(() => {
+                this.displayedLyrics.delete(lyricGroup.time + "-" + idx);
+              }, 10000);
+            }
+          }, charData.timeOffset || (idx * 50)); // オフセットがなければ50msずつずらす
+        });
+        
+        this.displayedLyrics.add(lyricGroup.time);
+        
+        // グループ全体のフラグを一定時間後に削除
+        setTimeout(() => {
+          this.displayedLyrics.delete(lyricGroup.time);
+        }, 10000);
       }
     }
     
@@ -491,13 +522,11 @@ class GameManager {
     }
   }
 
-  /**
-   * 歌詞バブルを表示
-   * @param {string} text - 表示する歌詞テキスト
-   */
+  // 1文字ずつの表示は元のままに
   displayLyric(text) {
     if (!text) return;
 
+    // 既に同じテキストが表示されていないか確認
     const existingBubbles = document.querySelectorAll('.lyric-bubble');
     for (let bubble of existingBubbles) {
       if (bubble.textContent === text) return;
@@ -549,11 +578,9 @@ class GameManager {
     setTimeout(() => bubble.remove(), 8000);
   }
 
-  /**
-   * 指定された座標を中心とする円形の領域内にある歌詞要素をチェック
-   */
+  // 以下のメソッドは基本的に変更なし
   checkLyrics(x, y, radius) {
-    if (this.isFirstInteraction) return false; // 初回インタラクション前は何もしない
+    if (this.isFirstInteraction) return false;
     
     const lyrics = document.querySelectorAll('.lyric-bubble');
     const radiusSquared = radius * radius;
@@ -576,9 +603,6 @@ class GameManager {
     }
   }
 
-  /**
-   * 歌詞要素がクリックされた時の処理
-   */
   clickLyric(element) {
     if (element.style.pointerEvents === 'none' || this.isFirstInteraction) return;
     
@@ -598,9 +622,6 @@ class GameManager {
     this.lastScoreTime = Date.now();
   }
 
-  /**
-   * 歌詞クリック時のエフェクトを作成
-   */
   createClickEffect(element) {
     const rect = element.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
@@ -644,9 +665,6 @@ class GameManager {
     requestAnimationFrame(animate);
   }
 
-  /**
-   * ヒットエフェクトを作成
-   */
   createHitEffect(x, y) {
     const ripple = document.createElement('div');
     ripple.className = 'tap-ripple';
@@ -657,15 +675,10 @@ class GameManager {
     setTimeout(() => ripple.remove(), 500);
   }
 
-  /**
-   * マウス/指の軌跡を表現するパーティクルを作成
-   */
   createTrailParticle(x, y) {
-    if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
+    if (this.isFirstInteraction) return;
     
-    // 曲の再生状態に関わらず常に同じパーティクルを生成
-    // パーティクルサイズと密度を調整
-    const size = 25 + Math.random() * 40; // サイズを少し大きくする
+    const size = 25 + Math.random() * 40;
     const particle = document.createElement('div');
     particle.className = 'star-particle';
     particle.style.width = `${size}px`;
@@ -681,28 +694,23 @@ class GameManager {
     this.gamecontainer.appendChild(particle);
     this.mouseTrail.push({ element: particle, createdAt: Date.now() });
     
-    // 古いパーティクルを削除（同じに保つ）
     const now = Date.now();
     this.mouseTrail = this.mouseTrail.filter(p => {
-      if (now - p.createdAt > 800) { // 寿命を長くする（元は600）
+      if (now - p.createdAt > 800) {
         p.element.remove();
         return false;
       }
       return true;
     });
     
-    // 軌跡の最大長を超える場合、古いものから削除
     while (this.mouseTrail.length > this.maxTrailLength) {
       const oldest = this.mouseTrail.shift();
       oldest.element.remove();
     }
   }
 
-  /**
-   * 流れ星エフェクトを作成
-   */
   createShooting(x, y, dx, dy) {
-    if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
+    if (this.isFirstInteraction) return;
     
     if (!dx && !dy) {
       const angle = Math.random() * Math.PI * 2;
@@ -735,9 +743,6 @@ class GameManager {
     setTimeout(() => meteor.remove(), 800);
   }
 
-  /**
-   * ランダムテキストを作成して表示
-   */
   createRandomText() {
     if (this.isPaused || this.isFirstInteraction) return;
     
@@ -758,9 +763,6 @@ class GameManager {
     setTimeout(() => text.remove(), 6000);
   }
 
-  /**
-   * 観客を作成
-   */
   createAudience() {
     const centerX = window.innerWidth / 2;
     const maxAudience = 180;
@@ -845,9 +847,6 @@ class GameManager {
     }
   }
 
-  /**
-   * リザルト画面を表示
-   */
   showResults() {
     if (this.resultsDisplayed) return;
     this.resultsDisplayed = true;
@@ -911,9 +910,6 @@ class GameManager {
     setupResultsButtons();
   }
 
-  /**
-   * ゲーム終了時のクリーンアップ処理
-   */
   cleanup() {
     if (this.randomTextInterval) clearInterval(this.randomTextInterval);
     if (this.comboResetTimer) clearInterval(this.comboResetTimer);
@@ -929,11 +925,7 @@ class GameManager {
   }
 }
 
-/**
- * ページ読み込み時にゲームを起動
- */
 window.addEventListener('load', () => {
-  // モバイルブラウザのビューポート高さを更新
   const vh = window.innerHeight * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
   

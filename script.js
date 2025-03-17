@@ -493,30 +493,17 @@ class GameManager {
     try {
       this.lyricsData = [];
       let phrase = video.firstPhrase;
-      let currentChars = [];
-      let currentTime = null;
       
       while (phrase) {
         let word = phrase.firstWord;
         while (word) {
           let char = word.firstChar;
           while (char) {
-            if (currentTime === null) {
-              currentTime = char.startTime;
-            }
-            
-            currentChars.push(char.text);
-            
-            // 4文字たまったら、または次の文字がない場合にグループを作成
-            if (currentChars.length === 4 || (!char.next && currentChars.length > 0)) {
-              this.lyricsData.push({
-                time: currentTime,
-                text: currentChars.join('')
-              });
-              currentChars = [];
-              currentTime = null;
-            }
-            
+            // 各文字を個別に追加
+            this.lyricsData.push({
+              time: char.startTime,
+              text: char.text
+            });
             char = char.next;
           }
           word = word.next;
@@ -526,22 +513,17 @@ class GameManager {
       
       this.lyricsData.sort((a, b) => a.time - b.time);
       
-      // フォールバック用の歌詞データも4文字ずつに調整
-      this.fallbackLyricsData = [];
-      const fallbackText = "マジカルミライ初音ミク";
-      for (let i = 0; i < fallbackText.length; i += 4) {
-        this.fallbackLyricsData.push({
-          time: 1000 + i * 500,
-          text: fallbackText.slice(i, Math.min(i + 4, fallbackText.length))
-        });
-      }
+      // フォールバック用の歌詞データも1文字ずつに設定
+      this.fallbackLyricsData = "マジカルミライ初音ミク".split('').map((c, i) => ({
+        time: 1000 + i * 500,
+        text: c
+      }));
     } catch {
       // エラー時はフォールバックデータを使用
-      this.fallbackLyricsData = [
-        { time: 1000, text: "マジカル" },
-        { time: 2000, text: "ミライ初" },
-        { time: 3000, text: "音ミク" }
-      ];
+      this.fallbackLyricsData = "マジカルミライ初音ミク".split('').map((c, i) => ({
+        time: 1000 + i * 500,
+        text: c
+      }));
     }
   }
 

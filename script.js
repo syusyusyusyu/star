@@ -20,7 +20,7 @@ class GameManager {
     this.songUrl = window.songConfig?.songUrl || "https://piapro.jp/t/hZ35/20240130103028";
     this.score = this.combo = this.maxCombo = 0;
     this.startTime = Date.now();
-    this.isPaused = this.isPlaying = this.isPlayerInit = false;
+    this.isPlaying = this.isPlayerInit = false;
     this.isFirstInteraction = true; // 初回インタラクション追跡用
     this.player = null;
     this.isMobile = /Android|iPhone/.test(navigator.userAgent);
@@ -31,6 +31,13 @@ class GameManager {
     this.lastMousePos = { x: 0, y: 0 };
     [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
       ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
+    
+    // 初期状態では再生ボタンに設定
+    this.isPaused = true;  // 初期状態は一時停止中として扱う
+    if (this.playpause) {
+        this.playpause.textContent = '再生';
+    }
+    
     this.setupEvents();
     this.createLightEffects();
     this.initGame();

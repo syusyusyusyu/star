@@ -254,7 +254,7 @@ class GameManager {
    */
   createStars() {
     // 星の数を減らす
-    const starCount = Math.min(60, Math.floor(window.innerWidth * window.innerHeight / 10000));
+    const starCount = Math.min(30, Math.floor(window.innerWidth * window.innerHeight / 10000));
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
       star.className = 'light-effect';

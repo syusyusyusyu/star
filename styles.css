@@ -609,8 +609,11 @@ body {
 
 /* ブラウザバー対応用の追加スタイル */
 .browser-bar-adjust {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
+    /* 個別のプロパティで指定 */
+    padding-top: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* iPhone X以降のノッチ対応 */
@@ -638,7 +641,11 @@ body {
     }
     
     .browser-bar-adjust {
-        padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+        /* 個別のプロパティで指定 */
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-right: env(safe-area-inset-right, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        padding-left: env(safe-area-inset-left, 0px);
     }
 }
 

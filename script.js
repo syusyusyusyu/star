@@ -12,6 +12,79 @@
  */
 
 /**
+ * iOS用オーディオ初期化（サイレントトラックを再生して音声APIをアンロック）
+ */
+function setupiOSAudio() {
+  // iOSデバイス検出
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (!isIOS) return;
+  
+  // サイレントオーディオトラックを作成
+  const unlockAudio = () => {
+    const audioElement = document.createElement('audio');
+    audioElement.setAttribute('playsinline', '');
+    audioElement.setAttribute('webkit-playsinline', '');
+    audioElement.src = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABBwBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGD///////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAYAAAAAAAAABweVxzoO//sUZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+    audioElement.loop = true;
+    audioElement.currentTime = 0;
+    
+    // 音量を最小に設定
+    audioElement.volume = 0.001;
+    
+    // 自動再生開始するが音は聞こえない
+    const playPromise = audioElement.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        // 再生成功
+        console.log("iOS audio initialized");
+      }).catch(error => {
+        // 再生失敗
+        console.warn("iOS audio initialization failed:", error);
+      });
+    }
+    
+    // クリーンアップ関数
+    const cleanup = () => {
+      document.body.removeEventListener('click', unlock);
+      document.body.removeEventListener('touchstart', unlock);
+    };
+    
+    // アンロック関数
+    const unlock = () => {
+      audioElement.play().then(() => {
+        // 成功したら一度停止
+        setTimeout(() => {
+          audioElement.pause();
+          audioElement.remove();
+        }, 1000);
+        cleanup();
+      }).catch(error => {
+        console.warn("Could not unlock audio:", error);
+      });
+    };
+    
+    // イベントリスナーをセットアップ
+    document.body.addEventListener('click', unlock, { once: true });
+    document.body.addEventListener('touchstart', unlock, { once: true });
+    
+    // クリーンアップ
+    setTimeout(() => {
+      cleanup();
+      if (audioElement.parentNode) {
+        audioElement.pause();
+        audioElement.remove();
+      }
+    }, 5000);
+  };
+  
+  // ユーザーインタラクション後に初期化
+  document.addEventListener('DOMContentLoaded', () => {
+    document.body.addEventListener('click', unlockAudio, { once: true });
+    document.body.addEventListener('touchstart', unlockAudio, { once: true });
+  });
+}
+
+/**
  * iPhoneのセットアップを行う
  * iOSの特殊な動作に対応する調整
  */
@@ -205,7 +278,15 @@ class GameManager {
         // テキストアライブプレーヤーを使用
         if (this.player && this.isPlayerInit) {
           try {
-            await this.player.requestPlay();
+            // play()メソッドの呼び出しに200msの遅延を追加
+            await new Promise(resolve => setTimeout(resolve, 200));
+            // 状態が変わっていないか再確認
+            if (!this.isPaused) {
+              await this.player.requestPlay().catch(e => {
+                console.error("Player play error:", e);
+                this.fallback();
+              });
+            }
           } catch (e) {
             console.error("Player play error:", e);
             // エラー発生時はフォールバックモードへ
@@ -219,7 +300,7 @@ class GameManager {
         }
         
         // ランダムテキスト表示開始
-        if (!this.randomTextInterval) {
+        if (!this.randomTextInterval && !this.isPaused) {
           this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
         }
         
@@ -233,6 +314,7 @@ class GameManager {
           }, 1000);
         }
       } finally {
+        // 処理完了フラグの解除までを遅延
         setTimeout(() => this._processing = false, 800);
       }
     }
@@ -328,8 +410,14 @@ class GameManager {
         isTap = false;
       }, {passive: true});
       
-      // 再生/一時停止ボタン処理
+      // 再生/一時停止ボタン処理（デバウンス処理追加）
+      let lastButtonClick = 0;
       this.playpause.addEventListener('click', () => {
+        // クリックの間隔を確認（500ms未満の連続クリックを防止）
+        const now = Date.now();
+        if (now - lastButtonClick < 500) return;
+        lastButtonClick = now;
+        
         if (this.isFirstInteraction) {
           this.playMusic();
           this.isFirstInteraction = false;
@@ -431,20 +519,51 @@ class GameManager {
     async togglePlay() {
       if (this._processing) return;
       this._processing = true;
+      
       try {
         this.isPaused = !this.isPaused;
         this.playpause.textContent = this.isPaused ? '再生' : '一時停止';
         
         if (this.isPaused) {
-          if (this.player?.isPlaying) await this.player.requestPause().catch(() => {});
+          // 一時停止処理
+          if (this.player?.isPlaying) {
+            try {
+              await this.player.requestPause();
+            } catch (e) {
+              console.warn("Pause error:", e);
+              // エラーを無視してUI状態を更新
+            }
+          }
+          
           clearInterval(this.randomTextInterval);
           this.randomTextInterval = null;
         } else {
-          if (this.player?.isPlaying === false) await this.player.requestPlay().catch(() => this.fallback());
-          else if (!this.player) this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
-          if (!this.randomTextInterval) this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
+          // 再生処理
+          if (this.player?.isPlaying === false) {
+            try {
+              // 遅延を追加
+              await new Promise(resolve => setTimeout(resolve, 200));
+              // 状態が変わっていないか再確認
+              if (!this.isPaused) {
+                await this.player.requestPlay().catch(e => {
+                  console.warn("Play error:", e);
+                  this.fallback();
+                });
+              }
+            } catch (e) {
+              this.fallback();
+            }
+          }
+          else if (!this.player) {
+            this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
+          }
+          
+          if (!this.randomTextInterval && !this.isPaused) {
+            this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
+          }
         }
       } finally {
+        // 処理完了フラグの解除を遅延
         setTimeout(() => this._processing = false, 800);
       }
     }
@@ -466,9 +585,25 @@ class GameManager {
       
       try {
         if (this.player) {
-          if (this.player.isPlaying) await this.player.requestPause();
-          await this.player.requestStop();
-          await this.player.requestPlay().catch(() => this.fallback());
+          try {
+            if (this.player.isPlaying) {
+              await this.player.requestPause().catch(() => {});
+            }
+            
+            await this.player.requestStop().catch(() => {});
+            
+            // 少し待機してから再生
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            if (!this.isPaused) {
+              await this.player.requestPlay().catch(() => {
+                this.fallback();
+              });
+            }
+          } catch (e) {
+            console.error("Restart error:", e);
+            this.fallback();
+          }
         }
         this.playpause.textContent = '一時停止';
       } finally {
@@ -488,16 +623,38 @@ class GameManager {
       }
       
       try {
+        // プレーヤーを作成する前に前のインスタンスをクリーンアップ
+        if (this.player) {
+          try {
+            this.player.dispose();
+          } catch (e) {
+            console.warn("Could not dispose previous player:", e);
+          }
+          this.player = null;
+        }
+        
+        // プレーヤーを作成
+        const audioElement = document.createElement('audio');
+        audioElement.id = 'player-audio';
+        audioElement.setAttribute('playsinline', '');
+        audioElement.setAttribute('webkit-playsinline', '');
+        
         this.player = new TextAliveApp.Player({
           app: { token: this.apiToken },
-          mediaElement: document.createElement('audio')
+          mediaElement: audioElement
         });
+        
         document.body.appendChild(this.player.mediaElement);
         this.isPlayerInit = true;
         
+        // イベントリスナーを設定
         this.player.addListener({
           onAppReady: (app) => {
-            if (app && !app.managed) this.player.createFromSongUrl(this.songUrl).catch(() => this.fallback());
+            if (app && !app.managed) {
+              this.player.createFromSongUrl(this.songUrl).catch(() => {
+                this.fallback();
+              });
+            }
           },
           onVideoReady: (video) => {
             if (video?.firstPhrase) this.processLyrics(video);
@@ -516,16 +673,23 @@ class GameManager {
           onPause: () => {
             this.isPaused = true;
             this.playpause.textContent = '再生';
-            clearInterval(this.randomTextInterval);
+            if (this.randomTextInterval) {
+              clearInterval(this.randomTextInterval);
+              this.randomTextInterval = null;
+            }
           },
           onStop: () => {
             this.isPaused = true;
             this.playpause.textContent = '再生';
             this.restartGame();
           },
-          onError: () => this.fallback()
+          onError: (e) => {
+            console.error("TextAlive error:", e);
+            this.fallback();
+          }
         });
-      } catch {
+      } catch (e) {
+        console.error("Player initialization error:", e);
         this.fallback();
       }
     }
@@ -1053,6 +1217,9 @@ class GameManager {
    * ページ読み込み時にゲームを起動
    */
   window.addEventListener('load', () => {
+    // iOS用に初期化
+    setupiOSAudio();
+    
     setTimeout(() => {
       window.gameManager = new GameManager();
       window.addEventListener('beforeunload', () => {

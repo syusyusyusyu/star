@@ -625,3 +625,135 @@ body {
         padding-bottom: max(var(--browser-footer-height), env(safe-area-inset-bottom));
     }
 }
+
+/* 基本変数定義に追加 */
+:root {
+    --primary-color: #39C5BB;
+    --text-color: #FFFFFF;
+    --bg-dark: #090A0F;
+    --bg-gradient-start: #1B2735;
+    --accent-color: #FF69B4;
+    --lyric-speed: 10s;
+    --bg-accent-color: rgba(57, 197, 187, 0.1);
+    --vh: 1vh;
+    --browser-header-height: 0px;
+    --browser-footer-height: 0px;
+}
+
+/* ビューポート高さをJSで設定するためのルール */
+#game-container, #results-screen {
+    height: calc(var(--vh, 1vh) * 100);
+}
+
+/* iOS Safari向けに特に対応 */
+@supports (-webkit-touch-callout: none) {
+    #game-container, #results-screen {
+        height: -webkit-fill-available;
+    }
+    
+    .browser-bar-adjust {
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+}
+
+/* 超小型画面向けの調整 */
+@media screen and (max-width: 360px) {
+    :root {
+        --lyric-speed: 8s; /* 小さな画面では歌詞の移動速度を少し速く */
+    }
+    
+    #controls button {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    #score-container {
+        top: 10px;
+        right: 10px;
+    }
+    
+    #song-info {
+        top: 10px;
+        left: 10px;
+        font-size: 14px;
+    }
+    
+    .lyric-bubble {
+        font-size: 16px !important;
+        padding: 4px 8px !important;
+    }
+
+    /* スマホでの操作性向上 */
+    #controls {
+        bottom: max(10px, env(safe-area-inset-bottom));
+    }
+}
+
+/* iPhone固有の調整 (ノッチ対応) */
+@supports (padding: max(0px)) {
+    .browser-bar-adjust {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+    }
+    
+    #game-container, #results-screen {
+        padding-top: max(var(--browser-header-height), env(safe-area-inset-top));
+        padding-bottom: max(var(--browser-footer-height), env(safe-area-inset-bottom));
+    }
+    
+    #score-container {
+        right: max(20px, env(safe-area-inset-right) + 10px);
+        top: max(20px, env(safe-area-inset-top) + 10px);
+    }
+    
+    #song-info {
+        left: max(20px, env(safe-area-inset-left) + 10px);
+        top: max(20px, env(safe-area-inset-top) + 10px);
+    }
+    
+    #controls {
+        right: max(20px, env(safe-area-inset-right) + 10px);
+        bottom: max(20px, env(safe-area-inset-bottom) + 10px);
+    }
+}
+
+/* ノッチがある端末での回転対応 */
+@media screen and (orientation: landscape) and (max-height: 450px) {
+    #stage {
+        height: 60px;
+    }
+    
+    #miku {
+        bottom: 60px;
+        height: 120px;
+    }
+    
+    #controls {
+        bottom: 10px;
+    }
+    
+    .spotlight {
+        width: 150px;
+        height: 300px;
+    }
+    
+    /* 歌詞のテキストが少し見やすくなるように */
+    .lyric-bubble {
+        text-shadow: 0 0 15px rgba(57, 197, 187, 1);
+    }
+}
+
+/* タッチデバイス向け最適化 */
+@media (hover: none) {
+    /* タッチデバイスではホバーを無効 */
+    .lyric-bubble:hover {
+        transform: scale(1.2);
+    }
+    
+    /* タップ領域を広げる */
+    #controls button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}

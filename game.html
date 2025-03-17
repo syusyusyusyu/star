@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- 以下の行を追加 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>マジカルミライ - 初音ミクのアリーナライブ</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="https://unpkg.com/textalive-app-api/dist/index.js"></script>
-    <script src="index-scripts.js"></script>
     <script src="game-loader.js"></script>
     <script src="script.js"></script>
 </head>
@@ -26,7 +28,7 @@
         </div> 
         <div id="instructions">歌詞の文字にマウスを当ててポイントを獲得しよう！</div>
         <div id="controls">
-            <button id="play-pause">一時停止</button>
+            <button id="play-pause">再生</button>
             <button id="restart">最初から</button>
         </div>
     </div>
@@ -47,5 +49,19 @@
             <button id="replay-song">もう一度プレイ</button>
         </div>
     </div>
+    <script>
+        // ビューポート高さを設定するための初期化処理
+        function setVh() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+        
+        // 初期化時と画面サイズ変更時に実行
+        setVh();
+        window.addEventListener('resize', setVh);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(setVh, 100);
+        });
+    </script>
 </body>
 </html>

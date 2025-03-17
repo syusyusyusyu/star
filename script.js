@@ -16,54 +16,132 @@ class GameManager {
    * 各コンポーネントの初期化と設定を行う
    */
   constructor() {
-    Object.assign(this, {
-      apiToken: window.songConfig?.apiToken,
-      songUrl: window.songConfig?.songUrl,
-      score: 0, combo: 0, maxCombo: 0,
-      startTime: Date.now(),
-      isPaused: true,
-      isPlaying: false,
-      isPlayerInit: false,
-      isFirstInteraction: true,
-      player: null,
-      isMobile: /Android|iPhone/.test(navigator.userAgent),
-      activeChars: new Set,
-      displayedLyrics: new Set,
-      mouseTrail: [],
-      maxTrailLength: 15,
-      lastMousePos: {x:0, y:0},
-      _playingOperation: false // 再生操作中フラグの追加
-    });
+    this.apiToken = window.songConfig?.apiToken || "wifkp8ak1TEhQ8pI";
+    this.songUrl = window.songConfig?.songUrl || "https://piapro.jp/t/hZ35/20240130103028";
+    this.score = this.combo = this.maxCombo = 0;
+    this.startTime = Date.now();
+    this.isPaused = true; // 初期状態は一時停止とみなす
+    this.isPlaying = this.isPlayerInit = false;
+    this.isFirstInteraction = true; // 初回インタラクション追跡用
+    this.player = null;
+    this.isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    this.activeChars = new Set();
+    this.displayedLyrics = new Set();
+    this.mouseTrail = [];
+    this.maxTrailLength = 15; // 星の数を増やす
+    this.lastMousePos = { x: 0, y: 0 };
+    [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
+      ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
     
-    // DOM要素取得（エラー回避のためnull確認を追加）
-    this.gamecontainer = document.getElementById('game-container');
-    this.scoreEl = document.getElementById('score');
-    this.comboEl = document.getElementById('combo');
-    this.playpause = document.getElementById('play-pause');
-    this.restart = document.getElementById('restart');
-    this.loading = document.getElementById('loading');
-    
-    // 必須要素のチェック
-    if (!this.gamecontainer) {
-      console.error("Error: game-container element not found");
-      return;
+    // 初期テキストを「再生」に設定（最初は停止状態のため）
+    if (this.playpause) {
+      this.playpause.textContent = '再生';
     }
+
+    // ビューポートの調整
+    this.adjustViewport();
+    window.addEventListener('resize', () => this.adjustViewport());
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => this.adjustViewport(), 100);
+    });
     
     this.setupEvents();
     this.createLightEffects();
     this.initGame();
     this.initPlayer();
-    this.setupResizeHandler(); // レスポンシブ対応のためのハンドラーを追加
-    this.gamecontainer.style.cursor = document.body.style.cursor = 'pointer';
+    
+    // 自動再生の問題を解決するため、一度全ての要素にクリックイベントを設定
+    this.gamecontainer.style.cursor = 'pointer';
+    this.gamecontainer.style.userSelect = 'none';
+    document.body.style.cursor = 'pointer';
+    
+    // 最初のクリック/タップを待つ構造
+    const startGame = () => {
+      if (!this.isFirstInteraction) return;
+      
+      // 重複実行防止
+      this.isFirstInteraction = false;
+      this.gamecontainer.style.cursor = '';
+      document.body.style.cursor = '';
+      
+      // ゲーム初期化
+      this.playMusic();
+      
+      // イベントリスナーを削除
+      document.body.removeEventListener('click', startGame);
+      document.body.removeEventListener('touchend', startGame);
+    };
+    
+    // document全体にイベント設定（より確実にキャプチャ）
+    document.body.addEventListener('click', startGame);
+    document.body.addEventListener('touchend', startGame);
+  }
+
+  /**
+   * ビューポートを調整する
+   * ブラウザごとの違いに対応
+   */
+  adjustViewport() {
+    // ビューポートの高さを設定
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+    
+    // アドレスバーとツールバーの高さを推定
+    const windowHeight = window.innerHeight;
+    const screenHeight = window.screen.height;
+    
+    // 上部と下部の安全領域を計算
+    let topInset = 0;
+    let bottomInset = 0;
+    
+    // モバイルデバイスの場合、より慎重に対応
+    if (this.isMobile) {
+      // iPhoneなどのノッチがあるデバイス向け
+      if (window.navigator.userAgent.includes('iPhone') && window.screen.height >= 812) {
+        topInset = 44; // ノッチ領域の高さ（推定）
+        bottomInset = 34; // ホームインジケータの高さ（推定）
+      } else {
+        // その他のモバイルデバイス
+        const difference = screenHeight - windowHeight;
+        if (difference > 0) {
+          topInset = Math.min(difference / 2, 40);
+          bottomInset = Math.min(difference / 2, 40);
+        }
+      }
+    }
+    
+    // ステージやコントロール位置を調整するためのCSS変数
+    document.documentElement.style.setProperty('--browser-header-height', `${topInset}px`);
+    document.documentElement.style.setProperty('--browser-footer-height', `${bottomInset}px`);
+    
+    // 画面サイズに応じて星やエフェクトの数を調整
+    this.adjustEffectsForScreenSize();
+  }
+  
+  /**
+   * 画面サイズに応じてエフェクトを調整
+   */
+  adjustEffectsForScreenSize() {
+    // 既存の星を削除
+    document.querySelectorAll('.light-effect').forEach(el => el.remove());
+    
+    // 新しい星を作成
+    this.createStars();
+    
+    // モバイルの場合はパーティクル数を減らす
+    if (this.isMobile) {
+      this.maxTrailLength = 8;
+    } else {
+      this.maxTrailLength = 15;
+    }
   }
 
   /**
    * 音楽再生を開始する
    */
   async playMusic() {
-    if (this._processing || this._playingOperation) return;
+    if (this._processing) return;
     this._processing = true;
-    this._playingOperation = true;
     
     try {
       this.isPaused = false;
@@ -73,8 +151,6 @@ class GameManager {
       if (this.player && this.isPlayerInit) {
         try {
           await this.player.requestPlay();
-          // 連続操作によるエラー防止のため少し待機
-          await new Promise(resolve => setTimeout(resolve, 100));
         } catch (e) {
           console.error("Player play error:", e);
           // エラー発生時はフォールバックモードへ
@@ -102,7 +178,6 @@ class GameManager {
         }, 1000);
       }
     } finally {
-      this._playingOperation = false;
       setTimeout(() => this._processing = false, 800);
     }
   }
@@ -113,54 +188,115 @@ class GameManager {
    * 最適化: 重複するイベント処理を統合
    */
   setupEvents() {
+    let lastTime = 0, lastX = 0, lastY = 0;
     const handleMove = (x, y, isTouch) => {
-      const dx = x - this.lastMousePos.x, dy = y - this.lastMousePos.y;
-      if (Math.hypot(dx, dy) >= 3) {
+      const now = Date.now();
+      if (now - lastTime < 16) return;
+      lastTime = now;
+      const dx = x - lastX, dy = y - lastY;
+      if (Math.sqrt(dx*dx + dy*dy) >= 3) { // より小さな動きでも認識するよう閾値を下げる
+        lastX = x; lastY = y;
         this.lastMousePos = { x, y };
         this.checkLyrics(x, y, isTouch ? 45 : 35);
         
+        // 星を常に生成する（初回インタラクション後のみ）
         if (!this.isFirstInteraction) {
           this.createTrailParticle(x, y);
-          Math.random() < (isTouch ? 0.03 : 0.01) && this.createShooting(x, y, dx, dy);
+          if (Math.random() < (isTouch ? 0.03 : 0.01)) {
+            this.createShooting(x, y, dx, dy);
+          }
         }
       }
     };
-
-    if (this.gamecontainer) {
-      this.gamecontainer.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY, false));
-      this.gamecontainer.addEventListener('touchmove', e => {
-        if (!this.isFirstInteraction && e.preventDefault) {
+    
+    // PC用のマウス処理
+    this.gamecontainer.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY, false));
+    
+    // モバイル用のタッチ処理
+    this.gamecontainer.addEventListener('touchmove', e => {
+      if (!this.isFirstInteraction) {
+        // モバイルでのスクロール防止（ただし初回インタラクション後のみ）
+        try {
           e.preventDefault();
+        } catch (err) {
+          // passive: trueの場合は無視
         }
-        if (e.touches && e.touches.length > 0) {
-          handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
-        }
-      }, { passive: true });
+      }
       
-      this.gamecontainer.addEventListener('click', e => {
-        if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
-        
-        this.checkLyrics(e.clientX, e.clientY, 35);
-        if (Math.random() < 0.2) {
-          const angle = Math.random() * Math.PI * 2;
-          this.createShooting(e.clientX, e.clientY, Math.cos(angle) * 5, Math.sin(angle) * 5);
-        }
-      });
-    }
+      if (e.touches && e.touches[0]) {
+        handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
+      }
+    }, {passive: false}); // スクロール防止のためfalseに変更
     
-    if (this.playpause) {
-      this.playpause.addEventListener('click', () => {
-        if (this.isFirstInteraction) {
-          this.isFirstInteraction = false;
-          this.gamecontainer.style.cursor = document.body.style.cursor = '';
+    // クリック処理を統一
+    const handleClick = (x, y, radius) => {
+      if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
+      
+      this.checkLyrics(x, y, radius || 35);
+      if (Math.random() < 0.2) {
+        const angle = Math.random() * Math.PI * 2;
+        this.createShooting(x, y, Math.cos(angle) * 5, Math.sin(angle) * 5);
+      }
+    };
+    
+    // クリックイベント処理
+    this.gamecontainer.addEventListener('click', e => {
+      handleClick(e.clientX, e.clientY);
+    });
+    
+    // タップイベント処理（タップとドラッグを識別）
+    let tapStartX = 0, tapStartY = 0, isTap = false;
+    
+    this.gamecontainer.addEventListener('touchstart', e => {
+      if (e.touches && e.touches[0]) {
+        tapStartX = e.touches[0].clientX;
+        tapStartY = e.touches[0].clientY;
+        isTap = true;
+      }
+    }, {passive: true});
+    
+    this.gamecontainer.addEventListener('touchmove', e => {
+      if (isTap && e.touches && e.touches[0]) {
+        const dx = e.touches[0].clientX - tapStartX;
+        const dy = e.touches[0].clientY - tapStartY;
+        // 少し動いたらタップではなくドラッグと判定
+        if (Math.sqrt(dx*dx + dy*dy) > 10) {
+          isTap = false;
         }
+      }
+    }, {passive: true});
+    
+    this.gamecontainer.addEventListener('touchend', e => {
+      if (isTap && e.changedTouches && e.changedTouches[0]) {
+        handleClick(e.changedTouches[0].clientX, e.changedTouches[0].clientY, 45);
+      }
+      isTap = false;
+    }, {passive: true});
+    
+    // 再生/一時停止ボタン処理
+    this.playpause.addEventListener('click', () => {
+      if (this.isFirstInteraction) {
+        this.playMusic();
+        this.isFirstInteraction = false;
+        return;
+      }
+      this.togglePlay();
+    });
+    
+    // リスタートボタン処理
+    this.restart.addEventListener('click', () => this.restartGame());
+    
+    // ウィンドウのフォーカス変更イベント
+    window.addEventListener('focus', () => {
+      // フォーカスを取り戻した時に必要な処理
+    });
+    
+    window.addEventListener('blur', () => {
+      // フォーカスを失った時は一時停止を検討
+      if (!this.isPaused && !this.isFirstInteraction) {
         this.togglePlay();
-      });
-    }
-    
-    if (this.restart) {
-      this.restart.addEventListener('click', () => this.restartGame());
-    }
+      }
+    });
   }
 
   /**
@@ -181,9 +317,7 @@ class GameManager {
     this.comboResetTimer = setInterval(() => {
       if (Date.now() - (this.lastScoreTime || 0) > 30000 && this.combo > 0) {
         this.combo = 0;
-        if (this.comboEl) {
-          this.comboEl.textContent = `コンボ: 0`;
-        }
+        this.comboEl.textContent = `コンボ: 0`;
       }
     }, 1000);
   }
@@ -192,27 +326,40 @@ class GameManager {
    * 星空背景を作成
    */
   createStars() {
-    if (!this.gamecontainer) return;
+    // 星の数を画面サイズに合わせて最適化
+    const screenSize = window.innerWidth * window.innerHeight;
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    let starCount = Math.min(60, Math.floor(screenSize / 10000));
     
-    const fragment = document.createDocumentFragment();
-    const starCount = Math.min(30, Math.floor(window.innerWidth * window.innerHeight / 10000));
+    // 高解像度ディスプレイではより少なく（パフォーマンス向上）
+    if (devicePixelRatio > 1) {
+      starCount = Math.floor(starCount * 0.8);
+    }
+    
+    // 低スペックデバイスでは星の数をさらに調整
+    if (this.isMobile && window.navigator.hardwareConcurrency && window.navigator.hardwareConcurrency < 4) {
+      starCount = Math.floor(starCount * 0.6);
+    }
     
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
       star.className = 'light-effect';
-      star.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${Math.random()*3}s;${Math.random()>.7?'width:6px;height:6px;box-shadow:0 0 10px #fff':''}`;
-      fragment.appendChild(star);
+      star.style.left = `${Math.random() * 100}%`;
+      star.style.top = `${Math.random() * 100}%`;
+      star.style.animationDelay = `${Math.random() * 3}s`;
+      if (Math.random() > 0.7) {
+        star.style.width = '6px';
+        star.style.height = '6px';
+        star.style.boxShadow = '0 0 10px #fff';
+      }
+      this.gamecontainer.appendChild(star);
     }
-    
-    this.gamecontainer.appendChild(fragment);
   }
 
   /**
    * 舞台照明などの光エフェクトを作成
    */
   createLightEffects() {
-    if (!this.gamecontainer) return;
-    
     // スポットライト
     for (let i = 0; i < 3; i++) {
       const spotlight = document.createElement('div');
@@ -227,46 +374,22 @@ class GameManager {
    * 再生/一時停止の切り替え
    */
   async togglePlay() {
-    if (this._processing || this._playingOperation) return;
+    if (this._processing) return;
     this._processing = true;
-    this._playingOperation = true;
-    
     try {
       this.isPaused = !this.isPaused;
-      if (this.playpause) {
-        this.playpause.textContent = this.isPaused ? '再生' : '一時停止';
-      }
+      this.playpause.textContent = this.isPaused ? '再生' : '一時停止';
       
       if (this.isPaused) {
-        if (this.player && this.player.isPlaying) {
-          try {
-            await this.player.requestPause();
-          } catch (e) {
-            console.warn("Pause error:", e);
-          }
-        }
+        if (this.player?.isPlaying) await this.player.requestPause().catch(() => {});
         clearInterval(this.randomTextInterval);
         this.randomTextInterval = null;
       } else {
-        if (this.player && this.player.isPlaying === false) {
-          try {
-            await this.player.requestPlay();
-            // 連続操作エラー防止のため待機
-            await new Promise(resolve => setTimeout(resolve, 100));
-          } catch (e) {
-            console.error("Play error:", e);
-            this.fallback();
-          }
-        } else if (!this.player) {
-          this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
-        }
-        
-        if (!this.randomTextInterval) {
-          this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
-        }
+        if (this.player?.isPlaying === false) await this.player.requestPlay().catch(() => this.fallback());
+        else if (!this.player) this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
+        if (!this.randomTextInterval) this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
       }
     } finally {
-      this._playingOperation = false;
       setTimeout(() => this._processing = false, 800);
     }
   }
@@ -275,55 +398,25 @@ class GameManager {
    * ゲームをリスタート
    */
   async restartGame() {
-    if (this._processing || this._playingOperation) return;
+    if (this._processing) return;
     this._processing = true;
-    this._playingOperation = true;
-    
     this.score = this.combo = this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.isPaused = false;
-    
-    if (this.scoreEl) {
-      this.scoreEl.textContent = '0';
-    }
-    if (this.comboEl) {
-      this.comboEl.textContent = 'コンボ: 0';
-    }
+    this.scoreEl.textContent = '0';
+    this.comboEl.textContent = 'コンボ: 0';
     
     document.querySelectorAll('.lyric-bubble').forEach(l => l.remove());
     this.displayedLyrics.clear();
     
     try {
       if (this.player) {
-        if (this.player.isPlaying) {
-          try {
-            await this.player.requestPause();
-          } catch (e) {
-            console.warn("Pause error during restart:", e);
-          }
-        }
-        
-        try {
-          await this.player.requestStop();
-          await new Promise(resolve => setTimeout(resolve, 300)); // 状態安定のため待機
-          
-          try {
-            await this.player.requestPlay();
-          } catch (e) {
-            console.error("Play error during restart:", e);
-            this.fallback();
-          }
-        } catch (e) {
-          console.error("Stop error during restart:", e);
-          this.fallback();
-        }
+        if (this.player.isPlaying) await this.player.requestPause();
+        await this.player.requestStop();
+        await this.player.requestPlay().catch(() => this.fallback());
       }
-      
-      if (this.playpause) {
-        this.playpause.textContent = '一時停止';
-      }
+      this.playpause.textContent = '一時停止';
     } finally {
-      this._playingOperation = false;
       setTimeout(() => this._processing = false, 1500);
     }
   }
@@ -334,9 +427,7 @@ class GameManager {
    */
   initPlayer() {
     if (typeof TextAliveApp === 'undefined') {
-      if (this.loading) {
-        this.loading.textContent = "TextAliveが見つかりません。代替モードで起動中...";
-      }
+      if (this.loading) this.loading.textContent = "TextAliveが見つかりません。代替モードで起動中...";
       this.fallback();
       return;
     }
@@ -346,72 +437,40 @@ class GameManager {
         app: { token: this.apiToken },
         mediaElement: document.createElement('audio')
       });
+      document.body.appendChild(this.player.mediaElement);
+      this.isPlayerInit = true;
       
-      if (this.player && this.player.mediaElement) {
-        document.body.appendChild(this.player.mediaElement);
-        this.isPlayerInit = true;
-        
-        this.player.addListener({
-          onAppReady: (app) => {
-            if (app && !app.managed) {
-              try {
-                this.player.createFromSongUrl(this.songUrl)
-                  .catch(err => {
-                    console.error("Error creating from song URL:", err);
-                    this.fallback();
-                  });
-              } catch (e) {
-                console.error("Error in song creation:", e);
-                this.fallback();
-              }
-            }
-          },
-          onVideoReady: (video) => {
-            if (video?.firstPhrase) {
-              this.processLyrics(video);
-            }
-            if (this.loading) {
-              this.loading.textContent = "準備完了 - クリックして開始";
-            }
-          },
-          onTimeUpdate: (pos) => {
-            if (!this.isPaused) {
-              this.updateLyrics(pos);
-            }
-          },
-          onPlay: () => {
-            this.isPaused = false;
-            if (this.playpause) {
-              this.playpause.textContent = '一時停止';
-            }
-            if (!this.randomTextInterval) {
-              this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
-            }
-          },
-          onPause: () => {
-            this.isPaused = true;
-            if (this.playpause) {
-              this.playpause.textContent = '再生';
-            }
-            clearInterval(this.randomTextInterval);
-          },
-          onStop: () => {
-            this.isPaused = true;
-            if (this.playpause) {
-              this.playpause.textContent = '再生';
-            }
-            this.restartGame();
-          },
-          onError: (e) => {
-            console.error("TextAlive error:", e);
-            this.fallback();
+      this.player.addListener({
+        onAppReady: (app) => {
+          if (app && !app.managed) this.player.createFromSongUrl(this.songUrl).catch(() => this.fallback());
+        },
+        onVideoReady: (video) => {
+          if (video?.firstPhrase) this.processLyrics(video);
+          if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
+        },
+        onTimeUpdate: (pos) => {
+          if (!this.isPaused) this.updateLyrics(pos);
+        },
+        onPlay: () => {
+          this.isPaused = false;
+          this.playpause.textContent = '一時停止';
+          if (!this.randomTextInterval) {
+            this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
           }
-        });
-      } else {
-        this.fallback();
-      }
-    } catch (e) {
-      console.error("Error initializing player:", e);
+        },
+        onPause: () => {
+          this.isPaused = true;
+          this.playpause.textContent = '再生';
+          clearInterval(this.randomTextInterval);
+        },
+        onStop: () => {
+          this.isPaused = true;
+          this.playpause.textContent = '再生';
+          this.restartGame();
+        },
+        onError: () => this.fallback()
+      });
+    } catch {
       this.fallback();
     }
   }
@@ -422,24 +481,8 @@ class GameManager {
   fallback() {
     this.isPlayerInit = false;
     this.player = null;
-    
-    if (this.loading) {
-      this.loading.textContent = "APIエラー。代替モードで起動中...";
-    }
-    
-    const text = "マジカルミライ初音ミク";
-    this.lyricsData = [];
-    
-    // 3文字ずつ処理（余りはそのまま）
-    for (let i = 0; i < text.length; i += 3) {
-      this.lyricsData.push({
-        time: 1000 + (i/3) * 500,
-        text: text.slice(i, Math.min(i + 3, text.length))
-      });
-    }
-    
-    // フォールバックモード開始
-    this.startLyricsTimer();
+    if (this.loading) this.loading.textContent = "APIエラー。代替モードで起動中...";
+    this.lyricsData = this.fallbackLyricsData;
   }
   
   /**
@@ -450,28 +493,31 @@ class GameManager {
     try {
       this.lyricsData = [];
       let phrase = video.firstPhrase;
+      let currentChars = [];
+      let currentTime = null;
       
       while (phrase) {
         let word = phrase.firstWord;
         while (word) {
           let char = word.firstChar;
           while (char) {
-            let text = char.text;
-            let currentChar = char;
-            
-            // 最大3文字まで追加
-            for (let i = 1; i < 3 && currentChar.next; i++) {
-              currentChar = currentChar.next;
-              text += currentChar.text;
+            if (currentTime === null) {
+              currentTime = char.startTime;
             }
             
-            this.lyricsData.push({
-              time: char.startTime,
-              text: text
-            });
+            currentChars.push(char.text);
             
-            // 次の処理開始位置へ
-            char = currentChar.next;
+            // 4文字たまったら、または次の文字がない場合にグループを作成
+            if (currentChars.length === 4 || (!char.next && currentChars.length > 0)) {
+              this.lyricsData.push({
+                time: currentTime,
+                text: currentChars.join('')
+              });
+              currentChars = [];
+              currentTime = null;
+            }
+            
+            char = char.next;
           }
           word = word.next;
         }
@@ -479,8 +525,23 @@ class GameManager {
       }
       
       this.lyricsData.sort((a, b) => a.time - b.time);
-    } catch (e) {
-      console.error("Error processing lyrics:", e);
+      
+      // フォールバック用の歌詞データも4文字ずつに調整
+      this.fallbackLyricsData = [];
+      const fallbackText = "マジカルミライ初音ミク";
+      for (let i = 0; i < fallbackText.length; i += 4) {
+        this.fallbackLyricsData.push({
+          time: 1000 + i * 500,
+          text: fallbackText.slice(i, Math.min(i + 4, fallbackText.length))
+        });
+      }
+    } catch {
+      // エラー時はフォールバックデータを使用
+      this.fallbackLyricsData = [
+        { time: 1000, text: "マジカル" },
+        { time: 2000, text: "ミライ初" },
+        { time: 3000, text: "音ミク" }
+      ];
     }
   }
 
@@ -555,41 +616,52 @@ class GameManager {
    * @param {string} text - 表示する歌詞テキスト
    */
   displayLyric(text) {
-    if (!text || !this.gamecontainer) return;
+    if (!text) return;
 
-    // 実際の文字数分だけ表示
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      const existingBubbles = document.querySelectorAll('.lyric-bubble');
-      for (let bubble of existingBubbles) {
-        if (bubble.textContent === char) return;
-      }
-
-      const bubble = document.createElement('div');
-      bubble.className = 'lyric-bubble';
-      bubble.textContent = char;
-      bubble.style.pointerEvents = 'auto';
-      bubble.style.opacity = '1';
-      
-      const screenWidth = window.innerWidth;
-      const isSmallScreen = screenWidth <= 768;
-      
-      let x = isSmallScreen 
-        ? screenWidth * 0.15 + Math.random() * (screenWidth * 0.7)
-        : 100 + Math.random() * (screenWidth - 300);
-      let y = isSmallScreen
-        ? window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55)
-        : window.innerHeight - 300 - Math.random() * 100;
-      
-      bubble.style.left = `${x}px`;
-      bubble.style.top = `${y}px`;
-      bubble.style.color = '#39C5BB';
-      
-      bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
-      this.gamecontainer.appendChild(bubble);
-      
-      setTimeout(() => bubble.remove(), 8000);
+    const existingBubbles = document.querySelectorAll('.lyric-bubble');
+    for (let bubble of existingBubbles) {
+      if (bubble.textContent === text) return;
     }
+
+    const bubble = document.createElement('div');
+    bubble.className = 'lyric-bubble';
+    bubble.textContent = text;
+    bubble.style.pointerEvents = 'auto';
+    bubble.style.opacity = '1';
+    
+    // 画面サイズに応じて位置とフォントサイズを調整
+    const screenWidth = window.innerWidth;
+    const isSmallScreen = screenWidth <= 768;
+    
+    let x, y, fontSize;
+    
+    if (isSmallScreen) {
+      // モバイル・小さな画面：横幅15%～85%の範囲に収める
+      x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
+      y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
+      
+      // 画面サイズに応じたフォントサイズ調整
+      if (screenWidth <= 480) {
+        fontSize = '18px'; // スマホサイズ
+      } else {
+        fontSize = '22px'; // タブレットサイズ
+      }
+    } else {
+      // PC・大きな画面
+      x = 100 + Math.random() * (screenWidth - 300);
+      y = window.innerHeight - 300 - Math.random() * 100;
+      fontSize = '30px';
+    }
+    
+    bubble.style.left = `${x}px`;
+    bubble.style.top = `${y}px`;
+    bubble.style.color = '#39C5BB';
+    bubble.style.fontSize = fontSize;
+    
+    bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
+    this.gamecontainer.appendChild(bubble);
+    
+    setTimeout(() => bubble.remove(), 8000);
   }
 
   /**
@@ -630,12 +702,8 @@ class GameManager {
     const points = 100 * (Math.floor(this.combo / 5) + 1);
     this.score += points;
     
-    if (this.scoreEl) {
-      this.scoreEl.textContent = this.score;
-    }
-    if (this.comboEl) {
-      this.comboEl.textContent = `コンボ: ${this.combo}`;
-    }
+    this.scoreEl.textContent = this.score;
+    this.comboEl.textContent = `コンボ: ${this.combo}`;
     
     element.style.color = '#FF69B4';
     this.createClickEffect(element);
@@ -649,8 +717,6 @@ class GameManager {
    * 歌詞クリック時のエフェクトを作成
    */
   createClickEffect(element) {
-    if (!this.gamecontainer) return;
-    
     const rect = element.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;
@@ -697,8 +763,6 @@ class GameManager {
    * ヒットエフェクトを作成
    */
   createHitEffect(x, y) {
-    if (!this.gamecontainer) return;
-    
     const ripple = document.createElement('div');
     ripple.className = 'tap-ripple';
     ripple.style.left = `${x - 20}px`;
@@ -712,39 +776,48 @@ class GameManager {
    * マウス/指の軌跡を表現するパーティクルを作成
    */
   createTrailParticle(x, y) {
-    if (this.isFirstInteraction || !this.gamecontainer) return;
+    if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
     
-    const size = 25 + Math.random() * 40;
-    const hue = Math.floor(Math.random() * 360);
+    // 曲の再生状態に関わらず常に同じパーティクルを生成
+    // パーティクルサイズと密度を調整
+    const size = 25 + Math.random() * 40; // サイズを少し大きくする
     const particle = document.createElement('div');
-    
     particle.className = 'star-particle';
-    particle.style.cssText = `width:${size}px;height:${size}px;left:${x-size/2}px;top:${y-size/2}px;background-color:hsla(${hue},100%,70%,.8);box-shadow:0 0 ${size/2}px hsla(${hue},100%,70%,.8);transform:rotate(${Math.random()*360}deg)`;
+    particle.style.width = `${size}px`;
+    particle.style.height = `${size}px`;
+    particle.style.left = `${x - size/2}px`;
+    particle.style.top = `${y - size/2}px`;
+    
+    const hue = Math.floor(Math.random() * 360);
+    particle.style.backgroundColor = `hsla(${hue}, 100%, 70%, 0.8)`;
+    particle.style.boxShadow = `0 0 ${size/2}px hsla(${hue}, 100%, 70%, 0.8)`;
+    particle.style.transform = `rotate(${Math.random() * 360}deg)`;
     
     this.gamecontainer.appendChild(particle);
     this.mouseTrail.push({ element: particle, createdAt: Date.now() });
     
+    // 古いパーティクルを削除（同じに保つ）
+    const now = Date.now();
+    this.mouseTrail = this.mouseTrail.filter(p => {
+      if (now - p.createdAt > 800) { // 寿命を長くする（元は600）
+        p.element.remove();
+        return false;
+      }
+      return true;
+    });
+    
+    // 軌跡の最大長を超える場合、古いものから削除
     while (this.mouseTrail.length > this.maxTrailLength) {
       const oldest = this.mouseTrail.shift();
-      if (oldest && oldest.element) {
-        oldest.element.remove();
-      }
+      oldest.element.remove();
     }
-    
-    setTimeout(() => {
-      const index = this.mouseTrail.findIndex(p => p.element === particle);
-      if (index !== -1) {
-        this.mouseTrail.splice(index, 1);
-        particle.remove();
-      }
-    }, 800);
   }
 
   /**
    * 流れ星エフェクトを作成
    */
-  createShooting(x, y, dx = 0, dy = 0) {
-    if (this.isFirstInteraction || !this.gamecontainer) return;
+  createShooting(x, y, dx, dy) {
+    if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
     
     if (!dx && !dy) {
       const angle = Math.random() * Math.PI * 2;
@@ -755,23 +828,24 @@ class GameManager {
     const size = 15 + Math.random() * 15;
     const meteor = document.createElement('div');
     meteor.className = 'shooting-star';
-    meteor.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px;transform:rotate(${Math.atan2(dy,dx)*180/Math.PI+45}deg);box-shadow:0 0 ${size}px ${size/2}px rgba(255,255,200,.8);filter:blur(1px) drop-shadow(0 0 ${Math.min(150,Math.hypot(dx,dy)*5)/10}px #fff)`;
+    meteor.style.width = `${size}px`;
+    meteor.style.height = `${size}px`;
+    meteor.style.left = `${x}px`;
+    meteor.style.top = `${y}px`;
+    
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    meteor.style.transform = `rotate(${angle + 45}deg)`;
+    
+    const speed = Math.min(150, Math.sqrt(dx * dx + dy * dy) * 5);
+    meteor.style.boxShadow = `0 0 ${size}px ${size/2}px rgba(255, 255, 200, 0.8)`;
+    meteor.style.filter = `blur(1px) drop-shadow(0 0 ${speed/10}px #fff)`;
     
     this.gamecontainer.appendChild(meteor);
     
-    try {
-      meteor.animate([
-        { transform: `rotate(${Math.atan2(dy,dx)*180/Math.PI+45}deg) scale(1)`, opacity: 1 },
-        { transform: `translate(${dx*10}px,${dy*10}px) rotate(${Math.atan2(dy,dx)*180/Math.PI+45}deg) scale(.1)`, opacity: 0 }
-      ], { duration: 800, easing: 'ease-out' });
-    } catch (e) {
-      // Web Animation APIに対応していないブラウザの場合はシンプルに表示
-      meteor.style.opacity = '1';
-      setTimeout(() => {
-        meteor.style.opacity = '0';
-        meteor.style.transform = `translate(${dx*10}px,${dy*10}px) rotate(${Math.atan2(dy,dx)*180/Math.PI+45}deg) scale(.1)`;
-      }, 10);
-    }
+    meteor.animate([
+      { transform: `rotate(${angle + 45}deg) scale(1)`, opacity: 1 },
+      { transform: `translate(${dx * 10}px, ${dy * 10}px) rotate(${angle + 45}deg) scale(0.1)`, opacity: 0 }
+    ], { duration: 800, easing: 'ease-out', fill: 'forwards' });
     
     setTimeout(() => meteor.remove(), 800);
   }
@@ -780,7 +854,7 @@ class GameManager {
    * ランダムテキストを作成して表示
    */
   createRandomText() {
-    if (this.isPaused || this.isFirstInteraction || !this.gamecontainer) return;
+    if (this.isPaused || this.isFirstInteraction) return;
     
     const text = document.createElement('div');
     text.className = 'random-text';
@@ -803,8 +877,6 @@ class GameManager {
    * 観客を作成
    */
   createAudience() {
-    if (!this.gamecontainer) return;
-    
     const centerX = window.innerWidth / 2;
     const maxAudience = 180;
     
@@ -895,13 +967,7 @@ class GameManager {
     if (this.resultsDisplayed) return;
     this.resultsDisplayed = true;
     
-    if (this.player?.isPlaying) {
-      try {
-        this.player.requestPause().catch(e => console.warn("Pause error in results:", e));
-      } catch (e) {
-        console.warn("Error pausing player in results:", e);
-      }
-    }
+    if (this.player?.isPlaying) this.player.requestPause();
     
     this.maxCombo = Math.max(this.maxCombo || 0, this.combo);
     
@@ -911,18 +977,9 @@ class GameManager {
     else if (this.score >= 6000) rank = 'B';
     
     const resultsScreen = document.getElementById('results-screen');
-    if (!resultsScreen) {
-      console.error("Results screen element not found");
-      return;
-    }
-    
-    const finalScoreEl = document.getElementById('final-score-display');
-    const finalComboEl = document.getElementById('final-combo-display');
-    const rankDisplayEl = document.getElementById('rank-display');
-    
-    if (finalScoreEl) finalScoreEl.textContent = this.score;
-    if (finalComboEl) finalComboEl.textContent = `最大コンボ: ${this.maxCombo}`;
-    if (rankDisplayEl) rankDisplayEl.textContent = `ランク: ${rank}`;
+    document.getElementById('final-score-display').textContent = this.score;
+    document.getElementById('final-combo-display').textContent = `最大コンボ: ${this.maxCombo}`;
+    document.getElementById('rank-display').textContent = `ランク: ${rank}`;
     
     setTimeout(() => {
       resultsScreen.classList.remove('hidden');
@@ -939,171 +996,34 @@ class GameManager {
       }, 100);
     }, 1500);
     
-    const backBtn = document.getElementById('back-to-title');
-    if (backBtn) {
-      backBtn.addEventListener('click', () => {
-        window.location.href = 'index.html';
-      });
-    }
-    
-    const replayBtn = document.getElementById('replay-song');
-    if (replayBtn) {
-      replayBtn.addEventListener('click', () => {
-        resultsScreen.classList.remove('show');
-        setTimeout(() => {
-          resultsScreen.classList.add('hidden');
-          this.restartGame();
-          this.resultsDisplayed = false;
-        }, 1000);
-      });
-    }
-  }
-  
-  /**
-   * ウィンドウサイズ変更対応
-   * レスポンシブ対応のためのハンドラーを設定
-   */
-  setupResizeHandler() {
-    // デバウンス用変数
-    let resizeTimeout;
-    
-    // 実際のリサイズハンドラ
-    const handleResize = () => {
-      // ビューポート高さの設定（モバイルブラウザのアドレスバー対策）
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
-      
-      // 画面サイズに応じた要素配置の調整
-      this.adjustElementsForScreenSize();
-      
-      // 星の数を画面サイズに合わせて調整
-      this.updateStarsForScreenSize();
-    };
-    
-    // リサイズイベントリスナー（デバウンス処理付き）
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(handleResize, 250);
+    document.getElementById('back-to-title').addEventListener('click', () => {
+      window.location.href = 'index.html';
     });
     
-    // 初回実行
-    handleResize();
-    
-    // 画面の向き変更検出
-    window.addEventListener('orientationchange', () => {
-      // 向きが変わった直後と少し遅延させて2回実行（信頼性向上）
-      handleResize();
-      setTimeout(handleResize, 300);
+    document.getElementById('replay-song').addEventListener('click', () => {
+      resultsScreen.classList.remove('show');
+      setTimeout(() => {
+        resultsScreen.classList.add('hidden');
+        this.restartGame();
+        this.resultsDisplayed = false;
+      }, 1000);
     });
-  }
-  
-  /**
-   * 画面サイズに合わせた要素調整
-   */
-  adjustElementsForScreenSize() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const isSmallScreen = width < 768;
-    const isShortScreen = height < 600;
-    
-    // ステージサイズ調整
-    const stage = document.getElementById('stage');
-    if (stage) {
-      const stageWidth = isSmallScreen ? 250 : 300;
-      stage.style.width = `${stageWidth}px`;
-      stage.style.height = isShortScreen ? '60px' : '80px';
-    }
-    
-    // ミクのサイズ調整
-    const miku = document.getElementById('miku');
-    if (miku) {
-      miku.style.width = `${isSmallScreen ? 100 : 120}px`;
-      miku.style.height = `${isSmallScreen ? 140 : 160}px`;
-      miku.style.bottom = isShortScreen ? '60px' : '80px';
-    }
-    
-    // UIコントロールの位置調整
-    const controls = document.getElementById('controls');
-    if (controls) {
-      controls.style.bottom = `${isShortScreen ? 10 : 20}px`;
-    }
-    
-    // フォントサイズ調整
-    document.documentElement.classList.toggle('small-screen', isSmallScreen);
-    document.documentElement.classList.toggle('short-screen', isShortScreen);
-  }
-  
-  /**
-   * 星の数を画面サイズに合わせて調整
-   */
-  updateStarsForScreenSize() {
-    if (!this.gamecontainer) return;
-    
-    const currentStars = document.querySelectorAll('.light-effect');
-    const optimalCount = this.calculateOptimalStarCount();
-    
-    // 星が少なすぎる場合は追加
-    if (currentStars.length < optimalCount) {
-      const fragment = document.createDocumentFragment();
-      
-      for (let i = currentStars.length; i < optimalCount; i++) {
-        const star = document.createElement('div');
-        star.className = 'light-effect';
-        star.style.cssText = `
-            left:${Math.random()*100}%;
-            top:${Math.random()*100}%;
-            animation-delay:${Math.random()*3}s;
-            ${Math.random() > 0.7 ? 'width:6px;height:6px;box-shadow:0 0 10px #fff' : ''}
-        `;
-        fragment.appendChild(star);
-      }
-      
-      this.gamecontainer.appendChild(fragment);
-    } 
-    // 星が多すぎる場合は削除
-    else if (currentStars.length > optimalCount + 10) {
-      // 一部の星を削除（すべてではなく徐々に）
-      for (let i = optimalCount; i < currentStars.length; i++) {
-        if (Math.random() < 0.5) { // 50%の確率で削除（急激な変化を避ける）
-          currentStars[i].remove();
-        }
-      }
-    }
-  }
-  
-  /**
-   * 最適な星の数を計算
-   */
-  calculateOptimalStarCount() {
-    // 画面サイズと性能に基づいて計算
-    const screenArea = window.innerWidth * window.innerHeight;
-    const baseDensity = this.isMobile ? 15000 : 10000;
-    
-    return Math.min(60, Math.max(15, Math.floor(screenArea / baseDensity)));
   }
 
   /**
    * ゲーム終了時のクリーンアップ処理
    */
   cleanup() {
-    this.randomTextInterval && clearInterval(this.randomTextInterval);
-    this.comboResetTimer && clearInterval(this.comboResetTimer);
+    if (this.randomTextInterval) clearInterval(this.randomTextInterval);
+    if (this.comboResetTimer) clearInterval(this.comboResetTimer);
     
-    if (this.mouseTrail) {
-      this.mouseTrail.forEach(item => {
-        if (item && item.element && item.element.parentNode) {
-          item.element.remove();
-        }
-      });
-      this.mouseTrail = [];
-    }
+    this.mouseTrail.forEach(item => {
+      if (item.element?.parentNode) item.element.remove();
+    });
+    this.mouseTrail = [];
     
-    if (this.player && typeof this.player.dispose === 'function') {
-      try {
-        this.player.dispose();
-      } catch (e) {
-        console.warn("Error disposing player:", e);
-      }
+    if (this.player) {
+      try { this.player.dispose(); } catch {}
     }
   }
 }
@@ -1111,28 +1031,11 @@ class GameManager {
 /**
  * ページ読み込み時にゲームを起動
  */
-window.addEventListener('load', () => setTimeout(() => {
-  try {
+window.addEventListener('load', () => {
+  setTimeout(() => {
     window.gameManager = new GameManager();
     window.addEventListener('beforeunload', () => {
-      if (window.gameManager) {
-        window.gameManager.cleanup();
-      }
+      if (window.gameManager) window.gameManager.cleanup();
     });
-  } catch (e) {
-    console.error("Error initializing game:", e);
-    // エラー回復のための基本的なUI表示
-    const loadingEl = document.getElementById('loading');
-    if (loadingEl) {
-      loadingEl.textContent = "ゲームの初期化中にエラーが発生しました。再読み込みしてください。";
-    }
-  }
-}, 100));
-
-// ページのヘッド部分にファビコンを追加
-(() => {
-  const link = document.createElement('link');
-  link.rel = 'icon';
-  link.href = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎵</text></svg>';
-  document.head.appendChild(link);
-})();
+  }, 100);
+});

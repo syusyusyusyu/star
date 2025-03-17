@@ -29,13 +29,21 @@ class GameManager {
     this.mouseTrail = [];
     this.maxTrailLength = 15; // 星の数を増やす
     this.lastMousePos = { x: 0, y: 0 };
+    
+    // モバイルブラウザのビューポート処理
+    this.updateViewportHeight();
+    window.addEventListener('resize', () => this.updateViewportHeight());
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => this.updateViewportHeight(), 100);
+    });
+    
     [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
       ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
     
     // 初期状態では再生ボタンに設定
     this.isPaused = true;  // 初期状態は一時停止中として扱う
     if (this.playpause) {
-        this.playpause.textContent = '再生';
+      this.playpause.textContent = '再生';
     }
     
     this.setupEvents();
@@ -68,6 +76,14 @@ class GameManager {
     // document全体にイベント設定（より確実にキャプチャ）
     document.body.addEventListener('click', startGame);
     document.body.addEventListener('touchend', startGame);
+  }
+
+  /**
+   * モバイルブラウザのための100vhの修正
+   */
+  updateViewportHeight() {
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
   }
 
   /**
@@ -119,10 +135,12 @@ class GameManager {
   /**
    * イベントリスナーの設定
    * ユーザー入力とシステムイベントの処理を設定
-   * 最適化: 重複するイベント処理を統合
+   * モバイル対応を強化
    */
   setupEvents() {
     let lastTime = 0, lastX = 0, lastY = 0;
+    let touched = false;
+    
     const handleMove = (x, y, isTouch) => {
       const now = Date.now();
       if (now - lastTime < 16) return;
@@ -143,14 +161,31 @@ class GameManager {
       }
     };
     
-    this.gamecontainer.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY, false));
-    this.gamecontainer.addEventListener('touchmove', e => {
-      if (!this.isFirstInteraction) {
-        e.preventDefault(); // 初回インタラクション後のみスクロール防止
-      }
-      handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
-    }, {passive: true}); // パッシブをtrueに変更（初回タップを妨げない）
+    this.gamecontainer.addEventListener('mousemove', e => {
+      if (!touched) handleMove(e.clientX, e.clientY, false);
+    });
     
+    // タッチイベントの最適化
+    this.gamecontainer.addEventListener('touchstart', e => {
+      touched = true;
+      if (e.touches && e.touches[0]) {
+        lastX = e.touches[0].clientX;
+        lastY = e.touches[0].clientY;
+      }
+    }, {passive: true});
+    
+    this.gamecontainer.addEventListener('touchmove', e => {
+      if (!this.isFirstInteraction && e.touches && e.touches[0]) {
+        e.preventDefault();
+        handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
+      }
+    }, {passive: false}); // preventDefaultを使うためpassive: falseが必要
+    
+    this.gamecontainer.addEventListener('touchend', () => {
+      setTimeout(() => { touched = false; }, 300); // タッチ後の余計なマウスイベント防止
+    }, {passive: true});
+    
+    // クリック/タップイベント
     this.gamecontainer.addEventListener('click', e => {
       if (this.isFirstInteraction) return; // 初回インタラクション前は何もしない
       
@@ -161,16 +196,34 @@ class GameManager {
       }
     });
     
-    this.playpause.addEventListener('click', () => {
+    // ボタンのクリックイベント
+    // タッチデバイスでのダブルタップズームを防止するために、
+    // 'touchend'イベントを追加
+    const handleButtonClick = (event) => {
+      if (event) {
+        event.preventDefault();
+      }
+      
       if (this.isFirstInteraction) {
         this.playMusic();
         this.isFirstInteraction = false;
         return;
       }
       this.togglePlay();
-    });
+    };
     
-    this.restart.addEventListener('click', () => this.restartGame());
+    this.playpause.addEventListener('click', handleButtonClick);
+    this.playpause.addEventListener('touchend', handleButtonClick, {passive: false});
+    
+    const handleRestartClick = (event) => {
+      if (event) {
+        event.preventDefault();
+      }
+      this.restartGame();
+    };
+    
+    this.restart.addEventListener('click', handleRestartClick);
+    this.restart.addEventListener('touchend', handleRestartClick, {passive: false});
   }
 
   /**
@@ -486,6 +539,11 @@ class GameManager {
     bubble.style.fontSize = fontSize;
     
     bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
+    bubble.addEventListener('touchstart', (e) => {
+      e.preventDefault(); // iOSでのホバー対策
+      this.clickLyric(bubble);
+    }, {passive: false});
+    
     this.gamecontainer.appendChild(bubble);
     
     setTimeout(() => bubble.remove(), 8000);
@@ -823,18 +881,34 @@ class GameManager {
       }, 100);
     }, 1500);
     
-    document.getElementById('back-to-title').addEventListener('click', () => {
-      window.location.href = 'index.html';
-    });
+    const setupResultsButtons = () => {
+      const backToTitle = document.getElementById('back-to-title');
+      const replaySong = document.getElementById('replay-song');
+      
+      const addEvents = (element, handler) => {
+        if (!element) return;
+        element.addEventListener('click', handler);
+        element.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          handler();
+        }, {passive: false});
+      };
+      
+      addEvents(backToTitle, () => {
+        window.location.href = 'index.html';
+      });
+      
+      addEvents(replaySong, () => {
+        resultsScreen.classList.remove('show');
+        setTimeout(() => {
+          resultsScreen.classList.add('hidden');
+          this.restartGame();
+          this.resultsDisplayed = false;
+        }, 1000);
+      });
+    };
     
-    document.getElementById('replay-song').addEventListener('click', () => {
-      resultsScreen.classList.remove('show');
-      setTimeout(() => {
-        resultsScreen.classList.add('hidden');
-        this.restartGame();
-        this.resultsDisplayed = false;
-      }, 1000);
-    });
+    setupResultsButtons();
   }
 
   /**
@@ -859,6 +933,10 @@ class GameManager {
  * ページ読み込み時にゲームを起動
  */
 window.addEventListener('load', () => {
+  // モバイルブラウザのビューポート高さを更新
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+  
   setTimeout(() => {
     window.gameManager = new GameManager();
     window.addEventListener('beforeunload', () => {

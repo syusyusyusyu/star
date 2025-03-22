@@ -517,7 +517,8 @@ class GameManager {
       }
     }
     
-    if (this.player?.video && position >= this.player.video.duration - 1000) {
+    // 修正: duration値が有効な場合のみ結果画面を表示
+    if (this.player?.video?.duration > 0 && position >= this.player.video.duration - 1000) {
       this.showResults();
     }
   }

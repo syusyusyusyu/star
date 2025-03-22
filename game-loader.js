@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 });
 
-// GameManager初期化
+// script.jsの初期化関数を削除し、ここだけで処理する
 window.addEventListener('load', () => {
     let attempts = 0;
     const maxAttempts = 5;
@@ -45,7 +45,7 @@ window.addEventListener('load', () => {
     const initGameManager = () => {
         attempts++;
         
-        if (window.songConfig && typeof GameManager === 'function') {
+        if (window.songConfig && typeof GameManager === 'function' && !window.gameManager) {
             try {
                 window.gameManager = new GameManager();
                 
@@ -54,11 +54,12 @@ window.addEventListener('load', () => {
                     if (window.gameManager) window.gameManager.cleanup();
                 });
             } catch (error) {
+                console.error("Game manager initialization error:", error);
                 if (attempts < maxAttempts) {
                     setTimeout(initGameManager, 300);
                 }
             }
-        } else if (attempts < maxAttempts) {
+        } else if (attempts < maxAttempts && !window.gameManager) {
             setTimeout(initGameManager, 300);
         }
     };

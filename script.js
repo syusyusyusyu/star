@@ -16,6 +16,7 @@ class GameManager {
     this.mouseTrail = [];
     this.maxTrailLength = 15;
     this.lastMousePos = { x: 0, y: 0 };
+    this.apiLoaded = false; // APIがロード完了したかを追跡
     
     // 内部処理用のグループサイズを設定
     this.groupSize = 5;
@@ -30,10 +31,13 @@ class GameManager {
     [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
       ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
     
-    // 初期状態では再生ボタンに設定
+    // 初期状態では再生ボタンに設定して無効化
     this.isPaused = true;
     if (this.playpause) {
-      this.playpause.textContent = '再生';
+      this.playpause.textContent = '読み込み中...';
+      this.playpause.disabled = true;
+      this.playpause.style.opacity = '0.5';
+      this.playpause.style.cursor = 'not-allowed';
     }
     
     this.setupEvents();
@@ -47,8 +51,8 @@ class GameManager {
     document.body.style.cursor = 'pointer';
     
     // 最初のクリック/タップを待つ構造
-    const startGame = () => {
-      if (!this.isFirstInteraction) return;
+    const startGame = (e) => {
+      if (!this.isFirstInteraction || !this.apiLoaded) return;
       
       // 重複実行防止
       this.isFirstInteraction = false;
@@ -181,6 +185,9 @@ class GameManager {
         event.preventDefault();
       }
       
+      // APIが準備できていなければ何もしない
+      if (!this.apiLoaded) return;
+      
       if (this.isFirstInteraction) {
         this.playMusic();
         this.isFirstInteraction = false;
@@ -196,6 +203,9 @@ class GameManager {
       if (event) {
         event.preventDefault();
       }
+      // APIが準備できていなければ何もしない
+      if (!this.apiLoaded) return;
+      
       this.restartGame();
     };
     
@@ -328,6 +338,16 @@ class GameManager {
         },
         onVideoReady: (video) => {
           if (video?.firstPhrase) this.processLyrics(video);
+          this.apiLoaded = true; // APIロード完了を記録
+          
+          // プレイボタンを有効化
+          if (this.playpause) {
+            this.playpause.disabled = false;
+            this.playpause.style.opacity = '1';
+            this.playpause.style.cursor = 'pointer';
+            this.playpause.textContent = '再生';
+          }
+          
           if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
         },
         onTimeUpdate: (pos) => {
@@ -344,6 +364,7 @@ class GameManager {
           this.isPaused = true;
           this.playpause.textContent = '再生';
           clearInterval(this.randomTextInterval);
+          this.randomTextInterval = null;
         },
         onStop: () => {
           this.isPaused = true;
@@ -352,7 +373,8 @@ class GameManager {
         },
         onError: () => this.fallback()
       });
-    } catch {
+    } catch (error) {
+      console.error("Player initialization error:", error);
       this.fallback();
     }
   }
@@ -360,8 +382,18 @@ class GameManager {
   fallback() {
     this.isPlayerInit = false;
     this.player = null;
+    this.apiLoaded = true; // APIが失敗しても操作できるように
+    
     if (this.loading) this.loading.textContent = "APIエラー。代替モードで起動中...";
     this.lyricsData = this.fallbackLyricsData;
+    
+    // プレイボタンを有効化
+    if (this.playpause) {
+      this.playpause.disabled = false;
+      this.playpause.style.opacity = '1';
+      this.playpause.style.cursor = 'pointer';
+      this.playpause.textContent = '再生';
+    }
   }
   
   // 内部処理では5文字ずつグループ化、表示時には1文字ずつ
@@ -925,15 +957,3 @@ class GameManager {
     }
   }
 }
-
-window.addEventListener('load', () => {
-  const vh = window.innerHeight * 0.01;
-  document.documentElement.style.setProperty('--vh', `${vh}px`);
-  
-  setTimeout(() => {
-    window.gameManager = new GameManager();
-    window.addEventListener('beforeunload', () => {
-      if (window.gameManager) window.gameManager.cleanup();
-    });
-  }, 100);
-});

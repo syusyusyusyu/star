@@ -17,6 +17,7 @@ class GameManager {
     this.maxTrailLength = 15;
     this.lastMousePos = { x: 0, y: 0 };
     this.apiLoaded = false; // APIがロード完了したかを追跡
+    this._operationInProgress = false; // 操作のロック状態を追跡
     
     // 内部処理用のグループサイズを設定
     this.groupSize = 5;
@@ -78,8 +79,8 @@ class GameManager {
   }
 
   async playMusic() {
-    if (this._processing) return;
-    this._processing = true;
+    if (this._operationInProgress) return;
+    this._operationInProgress = true;
     
     try {
       this.isPaused = false;
@@ -88,7 +89,10 @@ class GameManager {
       // テキストアライブプレーヤーを使用
       if (this.player && this.isPlayerInit) {
         try {
-          await this.player.requestPlay();
+          // プレーヤーが既に再生中でないことを確認
+          if (!this.player.isPlaying) {
+            await this.player.requestPlay();
+          }
         } catch (e) {
           console.error("Player play error:", e);
           // エラー発生時はフォールバックモードへ
@@ -116,7 +120,8 @@ class GameManager {
         }, 1000);
       }
     } finally {
-      setTimeout(() => this._processing = false, 800);
+      // 操作が完全に完了するのを確実にするために長めの遅延を使用
+      setTimeout(() => this._operationInProgress = false, 1000);
     }
   }
 
@@ -273,29 +278,45 @@ class GameManager {
   }
 
   async togglePlay() {
-    if (this._processing) return;
-    this._processing = true;
+    if (this._operationInProgress) return;
+    this._operationInProgress = true;
+    
     try {
       this.isPaused = !this.isPaused;
       this.playpause.textContent = this.isPaused ? '再生' : '一時停止';
       
       if (this.isPaused) {
-        if (this.player?.isPlaying) await this.player.requestPause().catch(() => {});
+        if (this.player?.isPlaying) {
+          await this.player.requestPause().catch(e => console.error("Pause error:", e));
+        }
         clearInterval(this.randomTextInterval);
         this.randomTextInterval = null;
       } else {
-        if (this.player?.isPlaying === false) await this.player.requestPlay().catch(() => this.fallback());
-        else if (!this.player) this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
-        if (!this.randomTextInterval) this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
+        if (this.player) {
+          if (!this.player.isPlaying) {
+            await this.player.requestPlay().catch(e => {
+              console.error("Play error:", e);
+              this.fallback();
+            });
+          }
+        } else {
+          this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
+        }
+        
+        if (!this.randomTextInterval) {
+          this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
+        }
       }
     } finally {
-      setTimeout(() => this._processing = false, 800);
+      // 操作が完全に完了するのを確実にするために長めの遅延を使用
+      setTimeout(() => this._operationInProgress = false, 1000);
     }
   }
 
   async restartGame() {
-    if (this._processing) return;
-    this._processing = true;
+    if (this._operationInProgress) return;
+    this._operationInProgress = true;
+    
     this.score = this.combo = this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.isPaused = false;
@@ -307,13 +328,26 @@ class GameManager {
     
     try {
       if (this.player) {
-        if (this.player.isPlaying) await this.player.requestPause();
-        await this.player.requestStop();
-        await this.player.requestPlay().catch(() => this.fallback());
+        // 操作を正しい順序で行う
+        if (this.player.isPlaying) {
+          await this.player.requestPause().catch(e => console.error("Pause error:", e));
+          // 次の操作の前に小さな遅延を追加
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        
+        await this.player.requestStop().catch(e => console.error("Stop error:", e));
+        // 次の操作の前に小さな遅延を追加
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        await this.player.requestPlay().catch(e => {
+          console.error("Play error:", e);
+          this.fallback();
+        });
       }
       this.playpause.textContent = '一時停止';
     } finally {
-      setTimeout(() => this._processing = false, 1500);
+      // 操作が完全に完了するのを確実にするために長めの遅延を使用
+      setTimeout(() => this._operationInProgress = false, 1500);
     }
   }
 
@@ -897,7 +931,11 @@ class GameManager {
     if (this.resultsDisplayed) return;
     this.resultsDisplayed = true;
     
-    if (this.player?.isPlaying) this.player.requestPause();
+    // 結果表示前にプレーヤーが再生中なら一時停止する
+    // リソースの競合を避けるため、エラーを適切に処理
+    if (this.player?.isPlaying) {
+      this.player.requestPause().catch(e => console.error("Results pause error:", e));
+    }
     
     this.maxCombo = Math.max(this.maxCombo || 0, this.combo);
     

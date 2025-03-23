@@ -31,19 +31,13 @@ class GameManager {
     [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
       ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
     
-    // 初期状態ではすべてのボタンを読み込み中と表示し、無効化
+    // 初期状態ではすべてのボタンを読み込み中と表示
     this.isPaused = true;
     if (this.playpause) {
       this.playpause.textContent = '読み込み中...';
-      this.playpause.disabled = true; // 無効化
-      this.playpause.style.opacity = '0.5';
-      this.playpause.style.cursor = 'not-allowed';
     }
     if (this.restart) {
       this.restart.textContent = '読み込み中...';
-      this.restart.disabled = true; // 無効化
-      this.restart.style.opacity = '0.5';
-      this.restart.style.cursor = 'not-allowed';
     }
     
     this.setupEvents();
@@ -191,6 +185,9 @@ class GameManager {
         event.preventDefault();
       }
       
+      // APIが準備できていなければ何もしない
+      if (!this.apiLoaded) return;
+      
       if (this.isFirstInteraction) {
         this.playMusic();
         this.isFirstInteraction = false;
@@ -206,6 +203,8 @@ class GameManager {
       if (event) {
         event.preventDefault();
       }
+      // APIが準備できていなければ何もしない
+      if (!this.apiLoaded) return;
       
       this.restartGame();
     };
@@ -347,17 +346,11 @@ class GameManager {
           setTimeout(() => {
             this.apiLoaded = true; // ここでAPIロード完了フラグを設定
             
-            // すべてのボタンを有効化して通常表示に戻す
+            // すべてのボタンのテキストを更新
             if (this.playpause) {
-              this.playpause.disabled = false;
-              this.playpause.style.opacity = '1';
-              this.playpause.style.cursor = 'pointer';
               this.playpause.textContent = '再生';
             }
             if (this.restart) {
-              this.restart.disabled = false;
-              this.restart.style.opacity = '1';
-              this.restart.style.cursor = 'pointer';
               this.restart.textContent = '最初から';
             }
             
@@ -404,17 +397,11 @@ class GameManager {
     setTimeout(() => {
       this.apiLoaded = true; // ここでAPIロード完了フラグを設定
       
-      // すべてのボタンを有効化して通常表示に戻す
+      // すべてのボタンのテキストを更新
       if (this.playpause) {
-        this.playpause.disabled = false;
-        this.playpause.style.opacity = '1';
-        this.playpause.style.cursor = 'pointer';
         this.playpause.textContent = '再生';
       }
       if (this.restart) {
-        this.restart.disabled = false;
-        this.restart.style.opacity = '1';
-        this.restart.style.cursor = 'pointer';
         this.restart.textContent = '最初から';
       }
       

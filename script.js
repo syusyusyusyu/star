@@ -338,17 +338,24 @@ class GameManager {
         },
         onVideoReady: (video) => {
           if (video?.firstPhrase) this.processLyrics(video);
-          this.apiLoaded = true; // APIロード完了を記録
           
-          // プレイボタンを有効化
-          if (this.playpause) {
-            this.playpause.disabled = false;
-            this.playpause.style.opacity = '1';
-            this.playpause.style.cursor = 'pointer';
-            this.playpause.textContent = '再生';
-          }
+          // APIロード完了を記録するが、すぐにはボタンを有効化しない
+          if (this.loading) this.loading.textContent = "準備中...";
           
-          if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
+          // 完全なセットアップのために追加の待機時間を設ける
+          setTimeout(() => {
+            this.apiLoaded = true; // ここでAPIロード完了フラグを設定
+            
+            // プレイボタンを有効化
+            if (this.playpause) {
+              this.playpause.disabled = false;
+              this.playpause.style.opacity = '1';
+              this.playpause.style.cursor = 'pointer';
+              this.playpause.textContent = '再生';
+            }
+            
+            if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
+          }, 2000); // 2秒の追加待機時間
         },
         onTimeUpdate: (pos) => {
           if (!this.isPaused) this.updateLyrics(pos);
@@ -382,18 +389,24 @@ class GameManager {
   fallback() {
     this.isPlayerInit = false;
     this.player = null;
-    this.apiLoaded = true; // APIが失敗しても操作できるように
     
-    if (this.loading) this.loading.textContent = "APIエラー。代替モードで起動中...";
+    if (this.loading) this.loading.textContent = "代替モードで準備中...";
     this.lyricsData = this.fallbackLyricsData;
     
-    // プレイボタンを有効化
-    if (this.playpause) {
-      this.playpause.disabled = false;
-      this.playpause.style.opacity = '1';
-      this.playpause.style.cursor = 'pointer';
-      this.playpause.textContent = '再生';
-    }
+    // 同様に待機時間を設ける
+    setTimeout(() => {
+      this.apiLoaded = true; // ここでAPIロード完了フラグを設定
+      
+      // プレイボタンを有効化
+      if (this.playpause) {
+        this.playpause.disabled = false;
+        this.playpause.style.opacity = '1';
+        this.playpause.style.cursor = 'pointer';
+        this.playpause.textContent = '再生';
+      }
+      
+      if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
+    }, 2000); // 2秒の待機時間
   }
   
   // 内部処理では5文字ずつグループ化、表示時には1文字ずつ

@@ -19,7 +19,7 @@ class GameManager {
     this.apiLoaded = false; // APIがロード完了したかを追跡
     
     // 内部処理用のグループサイズを設定
-    this.groupSize = 5;
+    this.groupSize = 6;
     
     // モバイルブラウザのビューポート処理
     this.updateViewportHeight();

@@ -149,9 +149,7 @@ class GameManager {
       
       // ライセンス表示のパターンを検出（TextAliveなどのライセンス表示を含む文字列）
       const message = args.join(' ');
-      if ((message.includes('ライセンス') || message.includes('License') || 
-           message.includes('copyright') || message.includes('Copyright') ||
-           message.includes('コピーライト')) && !this.licenseDetected) {
+      if (message.includes('TextAlive API')&& !this.licenseDetected) {
         
         this.licenseDetected = true;
         console.log('ライセンス表示を検出しました。画面をアクティブ化します。');

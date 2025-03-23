@@ -17,7 +17,7 @@ class GameManager {
     this.maxTrailLength = 15;
     this.lastMousePos = { x: 0, y: 0 };
     this.apiLoaded = false; // APIがロード完了したかを追跡
-    this.songleMessageDetected = false; // Songle APIメッセージが検出されたかどうか
+    this.initialDelayCompleted = false; // 初期遅延が完了したかどうか
     
     // シンプルな全画面オーバーレイを作成
     this.createSimpleOverlay();
@@ -50,19 +50,14 @@ class GameManager {
       this.restart.style.cursor = 'not-allowed';
     }
     
-    // console.logをオーバーライドして、Songle APIメッセージを検知
-    this.setupConsoleMessageDetection();
+    // Songle APIのコンソールメッセージを表示するための短い遅延
+    // 読み込み状態に関わらず、一定時間後にコントロールを有効化する
+    this.setupDelayedInitialization();
     
     this.setupEvents();
     this.createLightEffects();
     this.initGame();
     this.initPlayer();
-    
-    // オーバーレイはSongle APIメッセージが検出されるまで保持
-    // バックアップとして30秒後に自動的に削除
-    setTimeout(() => {
-      this.removeOverlay();
-    }, 30000);
     
     // 自動再生の問題を解決するため、一度全ての要素にクリックイベントを設定
     this.gamecontainer.style.cursor = 'pointer';
@@ -71,8 +66,7 @@ class GameManager {
     
     // 最初のクリック/タップを待つ構造
     const startGame = (e) => {
-      // Songle APIメッセージが検出されていない場合は何もしない
-      if (!this.songleMessageDetected || !this.isFirstInteraction || !this.apiLoaded) return;
+      if (!this.isFirstInteraction || !this.initialDelayCompleted) return;
       
       // 重複実行防止
       this.isFirstInteraction = false;
@@ -92,59 +86,50 @@ class GameManager {
     document.body.addEventListener('touchend', startGame);
   }
 
-  // console.logをオーバーライドして、Songle APIメッセージを検知するメソッド
-  setupConsoleMessageDetection() {
-    const originalConsoleLog = console.log;
-    const self = this;
-    
-    console.log = function(...args) {
-      // 元のconsole.logを呼び出す
-      originalConsoleLog.apply(console, args);
+  // 一定時間後にコントロールを有効化する
+  setupDelayedInitialization() {
+    // 短い遅延でSongle APIのメッセージが表示されるチャンスを与える
+    setTimeout(() => {
+      console.log("初期遅延が完了しました");
+      this.initialDelayCompleted = true;
       
-      // 引数を文字列に変換して検索
-      const logString = args.join(' ');
+      // APIのロード状態に関わらず、ユーザーインタラクションを可能にする
+      this.enableControls();
       
-      // Songle APIメッセージを検出
-      if (logString.includes('Songle APIは非商用利用に限り') && 
-          logString.includes('https://api.songle.jp/')) {
-        
-        self.songleMessageDetected = true;
-        
-        if (self.loading) self.loading.textContent = "Songle API検出完了 - 準備中...";
-        
-        // メッセージ検出後、ボタンを有効化するなどの処理
+      // まだAPIがロードされていない場合は、fallbackモードを検討
+      if (!this.apiLoaded) {
+        console.log("APIのロードに時間がかかっています。代替モードの準備をしています...");
+        // バックアップとして、さらに10秒後にfallbackモードに切り替える
         setTimeout(() => {
-          self.enableControls();
-        }, 1000);
+          if (!this.apiLoaded) {
+            console.log("APIのロードがタイムアウトしました。代替モードに切り替えます。");
+            this.fallback();
+          }
+        }, 10000); // 10秒後
       }
-    };
+    }, 3000); // 3秒間の初期遅延
   }
 
-  // Songle APIメッセージ検出後、コントロールを有効化
+  // コントロールを有効化
   enableControls() {
-    if (!this.songleMessageDetected) return;
-    
-    // APIロード完了も確認
-    if (this.apiLoaded) {
-      // すべてのボタンを有効化して通常表示に戻す
-      if (this.playpause) {
-        this.playpause.disabled = false;
-        this.playpause.style.opacity = '1';
-        this.playpause.style.cursor = 'pointer';
-        this.playpause.textContent = '再生';
-      }
-      if (this.restart) {
-        this.restart.disabled = false;
-        this.restart.style.opacity = '1';
-        this.restart.style.cursor = 'pointer';
-        this.restart.textContent = '最初から';
-      }
-      
-      if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
-      
-      // オーバーレイを削除
-      this.removeOverlay();
+    // すべてのボタンを有効化して通常表示に戻す
+    if (this.playpause) {
+      this.playpause.disabled = false;
+      this.playpause.style.opacity = '1';
+      this.playpause.style.cursor = 'pointer';
+      this.playpause.textContent = '再生';
     }
+    if (this.restart) {
+      this.restart.disabled = false;
+      this.restart.style.opacity = '1';
+      this.restart.style.cursor = 'pointer';
+      this.restart.textContent = '最初から';
+    }
+    
+    if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
+    
+    // オーバーレイを削除
+    this.removeOverlay();
   }
 
   // シンプルな全画面オーバーレイを作成
@@ -212,11 +197,13 @@ class GameManager {
       
       // テキストアライブプレーヤーを使用
       if (this.player && this.isPlayerInit) {
+        console.log("プレーヤーを使って音楽を再生します");
         // 再生をPromiseとして処理する
         const success = await this.safePlayerOperation(
           () => this.player.requestPlay(),
           "Player play error",
           () => {
+            console.log("プレーヤーでエラーが発生しました。代替モードに切り替えます");
             this.fallback();
             this.startLyricsTimer();
           }
@@ -226,6 +213,7 @@ class GameManager {
           console.error("Failed to play music");
         }
       } else {
+        console.log("代替モードで再生します");
         // フォールバックモードですでに初期化済みの場合
         this.startTime = Date.now();
         this.startLyricsTimer();
@@ -315,8 +303,8 @@ class GameManager {
         event.preventDefault();
       }
       
-      // Songle APIメッセージが検出されていない場合は何もしない
-      if (!this.songleMessageDetected) return;
+      // 初期遅延が完了していない場合は何もしない
+      if (!this.initialDelayCompleted) return;
       
       if (this.isFirstInteraction) {
         this.playMusic();
@@ -334,8 +322,8 @@ class GameManager {
         event.preventDefault();
       }
       
-      // Songle APIメッセージが検出されていない場合は何もしない
-      if (!this.songleMessageDetected) return;
+      // 初期遅延が完了していない場合は何もしない
+      if (!this.initialDelayCompleted) return;
       
       this.restartGame();
     };
@@ -482,14 +470,14 @@ class GameManager {
 
   initPlayer() {
     if (typeof TextAliveApp === 'undefined') {
+      console.log("TextAliveが見つかりません。代替モードで起動します");
       if (this.loading) this.loading.textContent = "TextAliveが見つかりません。代替モードで起動中...";
       this.fallback();
       return;
     }
     
     try {
-      // Songle APIメッセージは自動的にコンソールに表示されるため、
-      // ここではconsole.log()オーバーライドによる検出のみ行う
+      console.log("プレーヤーを初期化します");
       
       this.player = new TextAliveApp.Player({
         app: { token: this.apiToken },
@@ -500,7 +488,9 @@ class GameManager {
       
       this.player.addListener({
         onAppReady: (app) => {
+          console.log("アプリの準備ができました");
           if (app && !app.managed) {
+            console.log("曲URLからプレーヤーを作成します:", this.songUrl);
             this.player.createFromSongUrl(this.songUrl)
               .catch(error => {
                 console.error("Song URL creation error:", error);
@@ -509,6 +499,7 @@ class GameManager {
           }
         },
         onVideoReady: (video) => {
+          console.log("ビデオの準備ができました");
           if (video?.firstPhrase) this.processLyrics(video);
           
           // APIロード完了を記録
@@ -516,16 +507,20 @@ class GameManager {
           
           // 完全なセットアップのために追加の待機時間を設ける
           setTimeout(() => {
+            console.log("API読み込み完了");
             this.apiLoaded = true; // ここでAPIロード完了フラグを設定
             
-            // Songle APIメッセージが検出済みの場合のみボタンを有効化
-            this.enableControls();
-          }, 2000); // 2秒の追加待機時間
+            // 初期遅延が既に完了している場合は、ボタンを有効化
+            if (this.initialDelayCompleted) {
+              this.enableControls();
+            }
+          }, 1000); // 1秒の追加待機時間
         },
         onTimeUpdate: (pos) => {
           if (!this.isPaused) this.updateLyrics(pos);
         },
         onPlay: () => {
+          console.log("プレーヤーが再生を開始しました");
           this.isPaused = false;
           this.playpause.textContent = '一時停止';
           if (!this.randomTextInterval) {
@@ -533,12 +528,14 @@ class GameManager {
           }
         },
         onPause: () => {
+          console.log("プレーヤーが一時停止しました");
           this.isPaused = true;
           this.playpause.textContent = '再生';
           clearInterval(this.randomTextInterval);
           this.randomTextInterval = null;
         },
         onStop: () => {
+          console.log("プレーヤーが停止しました");
           this.isPaused = true;
           this.playpause.textContent = '再生';
           this.restartGame();
@@ -555,6 +552,7 @@ class GameManager {
   }
 
   fallback() {
+    console.log("代替モードに切り替えます");
     this.isPlayerInit = false;
     this.player = null;
     
@@ -563,16 +561,20 @@ class GameManager {
     
     // 同様に待機時間を設ける
     setTimeout(() => {
+      console.log("代替モードの準備が完了しました");
       this.apiLoaded = true; // ここでAPIロード完了フラグを設定
       
-      // Songle APIメッセージが検出済みの場合のみボタンを有効化
-      this.enableControls();
-    }, 2000); // 2秒の待機時間
+      // 初期遅延が既に完了している場合は、ボタンを有効化
+      if (this.initialDelayCompleted) {
+        this.enableControls();
+      }
+    }, 1000); // 1秒の待機時間
   }
   
   // 内部処理では5文字ずつグループ化、表示時には1文字ずつ
   processLyrics(video) {
     try {
+      console.log("歌詞を処理しています");
       // まず全ての文字データを収集
       const allCharData = [];
       let phrase = video.firstPhrase;
@@ -620,12 +622,14 @@ class GameManager {
           });
         }
       }
+      console.log(`${this.lyricsData.length}個の歌詞グループを処理しました`);
     } catch (e) {
       console.error("歌詞処理エラー:", e);
     }
   }
 
   startLyricsTimer() {
+    console.log("歌詞タイマーを開始します");
     this.currentLyricIndex = 0;
     this.startTime = Date.now();
     

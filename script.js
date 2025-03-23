@@ -17,10 +17,6 @@ class GameManager {
     this.maxTrailLength = 15;
     this.lastMousePos = { x: 0, y: 0 };
     this.apiLoaded = false; // APIがロード完了したかを追跡
-    this.initialDelayCompleted = false; // 初期遅延が完了したかどうか
-    
-    // シンプルな全画面オーバーレイを作成
-    this.createSimpleOverlay();
     
     // 内部処理用のグループサイズを設定
     this.groupSize = 5;
@@ -39,20 +35,16 @@ class GameManager {
     this.isPaused = true;
     if (this.playpause) {
       this.playpause.textContent = '読み込み中...';
-      this.playpause.disabled = true;
+      this.playpause.disabled = true; // 無効化
       this.playpause.style.opacity = '0.5';
       this.playpause.style.cursor = 'not-allowed';
     }
     if (this.restart) {
       this.restart.textContent = '読み込み中...';
-      this.restart.disabled = true;
+      this.restart.disabled = true; // 無効化
       this.restart.style.opacity = '0.5';
       this.restart.style.cursor = 'not-allowed';
     }
-    
-    // Songle APIのコンソールメッセージを表示するための短い遅延
-    // 読み込み状態に関わらず、一定時間後にコントロールを有効化する
-    this.setupDelayedInitialization();
     
     this.setupEvents();
     this.createLightEffects();
@@ -66,7 +58,7 @@ class GameManager {
     
     // 最初のクリック/タップを待つ構造
     const startGame = (e) => {
-      if (!this.isFirstInteraction || !this.initialDelayCompleted) return;
+      if (!this.isFirstInteraction || !this.apiLoaded) return;
       
       // 重複実行防止
       this.isFirstInteraction = false;
@@ -86,105 +78,9 @@ class GameManager {
     document.body.addEventListener('touchend', startGame);
   }
 
-  // 一定時間後にコントロールを有効化する
-  setupDelayedInitialization() {
-    // 短い遅延でSongle APIのメッセージが表示されるチャンスを与える
-    setTimeout(() => {
-      console.log("初期遅延が完了しました");
-      this.initialDelayCompleted = true;
-      
-      // APIのロード状態に関わらず、ユーザーインタラクションを可能にする
-      this.enableControls();
-      
-      // まだAPIがロードされていない場合は、fallbackモードを検討
-      if (!this.apiLoaded) {
-        console.log("APIのロードに時間がかかっています。代替モードの準備をしています...");
-        // バックアップとして、さらに10秒後にfallbackモードに切り替える
-        setTimeout(() => {
-          if (!this.apiLoaded) {
-            console.log("APIのロードがタイムアウトしました。代替モードに切り替えます。");
-            this.fallback();
-          }
-        }, 10000); // 10秒後
-      }
-    }, 3000); // 3秒間の初期遅延
-  }
-
-  // コントロールを有効化
-  enableControls() {
-    // すべてのボタンを有効化して通常表示に戻す
-    if (this.playpause) {
-      this.playpause.disabled = false;
-      this.playpause.style.opacity = '1';
-      this.playpause.style.cursor = 'pointer';
-      this.playpause.textContent = '再生';
-    }
-    if (this.restart) {
-      this.restart.disabled = false;
-      this.restart.style.opacity = '1';
-      this.restart.style.cursor = 'pointer';
-      this.restart.textContent = '最初から';
-    }
-    
-    if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
-    
-    // オーバーレイを削除
-    this.removeOverlay();
-  }
-
-  // シンプルな全画面オーバーレイを作成
-  createSimpleOverlay() {
-    this.overlay = document.createElement('div');
-    this.overlay.id = 'loading-overlay';
-    this.overlay.style.position = 'fixed';
-    this.overlay.style.top = '0';
-    this.overlay.style.left = '0';
-    this.overlay.style.width = '100%';
-    this.overlay.style.height = '100%';
-    this.overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    this.overlay.style.zIndex = '10000';
-    this.overlay.style.display = 'flex';
-    this.overlay.style.alignItems = 'center';
-    this.overlay.style.justifyContent = 'center';
-    this.overlay.style.color = '#39C5BB';
-    this.overlay.style.fontSize = '24px';
-    this.overlay.style.fontWeight = 'bold';
-    
-    const loadingText = document.createElement('div');
-    loadingText.textContent = '読み込み中...';
-    this.overlay.appendChild(loadingText);
-    
-    document.body.appendChild(this.overlay);
-  }
-  
-  // オーバーレイを削除
-  removeOverlay() {
-    if (this.overlay && document.body.contains(this.overlay)) {
-      document.body.removeChild(this.overlay);
-      this.overlay = null;
-    }
-  }
-
   updateViewportHeight() {
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
-  }
-
-  // プレーヤー操作を安全に行うヘルパーメソッド
-  async safePlayerOperation(operation, errorMessage = "Player operation error", fallbackAction = null) {
-    if (!this.player || !this.isPlayerInit) {
-      if (fallbackAction) fallbackAction();
-      return false;
-    }
-    
-    try {
-      const result = await operation();
-      return true;
-    } catch (e) {
-      console.error(`${errorMessage}: ${e.message}`, e);
-      if (fallbackAction) fallbackAction();
-      return false;
-    }
   }
 
   async playMusic() {
@@ -197,23 +93,15 @@ class GameManager {
       
       // テキストアライブプレーヤーを使用
       if (this.player && this.isPlayerInit) {
-        console.log("プレーヤーを使って音楽を再生します");
-        // 再生をPromiseとして処理する
-        const success = await this.safePlayerOperation(
-          () => this.player.requestPlay(),
-          "Player play error",
-          () => {
-            console.log("プレーヤーでエラーが発生しました。代替モードに切り替えます");
-            this.fallback();
-            this.startLyricsTimer();
-          }
-        );
-        
-        if (!success) {
-          console.error("Failed to play music");
+        try {
+          await this.player.requestPlay();
+        } catch (e) {
+          console.error("Player play error:", e);
+          // エラー発生時はフォールバックモードへ
+          this.fallback();
+          this.startLyricsTimer();
         }
       } else {
-        console.log("代替モードで再生します");
         // フォールバックモードですでに初期化済みの場合
         this.startTime = Date.now();
         this.startLyricsTimer();
@@ -303,9 +191,6 @@ class GameManager {
         event.preventDefault();
       }
       
-      // 初期遅延が完了していない場合は何もしない
-      if (!this.initialDelayCompleted) return;
-      
       if (this.isFirstInteraction) {
         this.playMusic();
         this.isFirstInteraction = false;
@@ -321,9 +206,6 @@ class GameManager {
       if (event) {
         event.preventDefault();
       }
-      
-      // 初期遅延が完了していない場合は何もしない
-      if (!this.initialDelayCompleted) return;
       
       this.restartGame();
     };
@@ -399,22 +281,11 @@ class GameManager {
       this.playpause.textContent = this.isPaused ? '再生' : '一時停止';
       
       if (this.isPaused) {
-        if (this.player?.isPlaying) {
-          await this.safePlayerOperation(
-            () => this.player.requestPause(),
-            "Pause error"
-          );
-        }
+        if (this.player?.isPlaying) await this.player.requestPause().catch(() => {});
         clearInterval(this.randomTextInterval);
         this.randomTextInterval = null;
       } else {
-        if (this.player?.isPlaying === false) {
-          await this.safePlayerOperation(
-            () => this.player.requestPlay(),
-            "Play error",
-            () => this.fallback()
-          );
-        }
+        if (this.player?.isPlaying === false) await this.player.requestPlay().catch(() => this.fallback());
         else if (!this.player) this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
         if (!this.randomTextInterval) this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
       }
@@ -437,30 +308,9 @@ class GameManager {
     
     try {
       if (this.player) {
-        // まずは一時停止
-        if (this.player.isPlaying) {
-          await this.safePlayerOperation(
-            () => this.player.requestPause(),
-            "Pause error"
-          );
-          // 操作間の遅延を追加
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        // 次に停止
-        await this.safePlayerOperation(
-          () => this.player.requestStop(),
-          "Stop error"
-        );
-        // 操作間の遅延を追加
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // 最後に再生
-        await this.safePlayerOperation(
-          () => this.player.requestPlay(),
-          "Play error",
-          () => this.fallback()
-        );
+        if (this.player.isPlaying) await this.player.requestPause();
+        await this.player.requestStop();
+        await this.player.requestPlay().catch(() => this.fallback());
       }
       this.playpause.textContent = '一時停止';
     } finally {
@@ -470,15 +320,12 @@ class GameManager {
 
   initPlayer() {
     if (typeof TextAliveApp === 'undefined') {
-      console.log("TextAliveが見つかりません。代替モードで起動します");
       if (this.loading) this.loading.textContent = "TextAliveが見つかりません。代替モードで起動中...";
       this.fallback();
       return;
     }
     
     try {
-      console.log("プレーヤーを初期化します");
-      
       this.player = new TextAliveApp.Player({
         app: { token: this.apiToken },
         mediaElement: document.createElement('audio')
@@ -488,39 +335,39 @@ class GameManager {
       
       this.player.addListener({
         onAppReady: (app) => {
-          console.log("アプリの準備ができました");
-          if (app && !app.managed) {
-            console.log("曲URLからプレーヤーを作成します:", this.songUrl);
-            this.player.createFromSongUrl(this.songUrl)
-              .catch(error => {
-                console.error("Song URL creation error:", error);
-                this.fallback();
-              });
-          }
+          if (app && !app.managed) this.player.createFromSongUrl(this.songUrl).catch(() => this.fallback());
         },
         onVideoReady: (video) => {
-          console.log("ビデオの準備ができました");
           if (video?.firstPhrase) this.processLyrics(video);
           
-          // APIロード完了を記録
+          // APIロード完了を記録するが、すぐにはボタンを有効化しない
           if (this.loading) this.loading.textContent = "準備中...";
           
           // 完全なセットアップのために追加の待機時間を設ける
           setTimeout(() => {
-            console.log("API読み込み完了");
             this.apiLoaded = true; // ここでAPIロード完了フラグを設定
             
-            // 初期遅延が既に完了している場合は、ボタンを有効化
-            if (this.initialDelayCompleted) {
-              this.enableControls();
+            // すべてのボタンを有効化して通常表示に戻す
+            if (this.playpause) {
+              this.playpause.disabled = false;
+              this.playpause.style.opacity = '1';
+              this.playpause.style.cursor = 'pointer';
+              this.playpause.textContent = '再生';
             }
-          }, 1000); // 1秒の追加待機時間
+            if (this.restart) {
+              this.restart.disabled = false;
+              this.restart.style.opacity = '1';
+              this.restart.style.cursor = 'pointer';
+              this.restart.textContent = '最初から';
+            }
+            
+            if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
+          }, 2000); // 2秒の追加待機時間
         },
         onTimeUpdate: (pos) => {
           if (!this.isPaused) this.updateLyrics(pos);
         },
         onPlay: () => {
-          console.log("プレーヤーが再生を開始しました");
           this.isPaused = false;
           this.playpause.textContent = '一時停止';
           if (!this.randomTextInterval) {
@@ -528,22 +375,17 @@ class GameManager {
           }
         },
         onPause: () => {
-          console.log("プレーヤーが一時停止しました");
           this.isPaused = true;
           this.playpause.textContent = '再生';
           clearInterval(this.randomTextInterval);
           this.randomTextInterval = null;
         },
         onStop: () => {
-          console.log("プレーヤーが停止しました");
           this.isPaused = true;
           this.playpause.textContent = '再生';
           this.restartGame();
         },
-        onError: (e) => {
-          console.error("Player error:", e);
-          this.fallback();
-        }
+        onError: () => this.fallback()
       });
     } catch (error) {
       console.error("Player initialization error:", error);
@@ -552,7 +394,6 @@ class GameManager {
   }
 
   fallback() {
-    console.log("代替モードに切り替えます");
     this.isPlayerInit = false;
     this.player = null;
     
@@ -561,20 +402,29 @@ class GameManager {
     
     // 同様に待機時間を設ける
     setTimeout(() => {
-      console.log("代替モードの準備が完了しました");
       this.apiLoaded = true; // ここでAPIロード完了フラグを設定
       
-      // 初期遅延が既に完了している場合は、ボタンを有効化
-      if (this.initialDelayCompleted) {
-        this.enableControls();
+      // すべてのボタンを有効化して通常表示に戻す
+      if (this.playpause) {
+        this.playpause.disabled = false;
+        this.playpause.style.opacity = '1';
+        this.playpause.style.cursor = 'pointer';
+        this.playpause.textContent = '再生';
       }
-    }, 1000); // 1秒の待機時間
+      if (this.restart) {
+        this.restart.disabled = false;
+        this.restart.style.opacity = '1';
+        this.restart.style.cursor = 'pointer';
+        this.restart.textContent = '最初から';
+      }
+      
+      if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
+    }, 2000); // 2秒の待機時間
   }
   
   // 内部処理では5文字ずつグループ化、表示時には1文字ずつ
   processLyrics(video) {
     try {
-      console.log("歌詞を処理しています");
       // まず全ての文字データを収集
       const allCharData = [];
       let phrase = video.firstPhrase;
@@ -622,14 +472,12 @@ class GameManager {
           });
         }
       }
-      console.log(`${this.lyricsData.length}個の歌詞グループを処理しました`);
     } catch (e) {
       console.error("歌詞処理エラー:", e);
     }
   }
 
   startLyricsTimer() {
-    console.log("歌詞タイマーを開始します");
     this.currentLyricIndex = 0;
     this.startTime = Date.now();
     
@@ -1062,13 +910,7 @@ class GameManager {
     if (this.resultsDisplayed) return;
     this.resultsDisplayed = true;
     
-    if (this.player?.isPlaying) {
-      // 同期的に呼び出す場合は適切にPromiseを処理する
-      this.safePlayerOperation(
-        () => this.player.requestPause(),
-        "Results pause error"
-      );
-    }
+    if (this.player?.isPlaying) this.player.requestPause();
     
     this.maxCombo = Math.max(this.maxCombo || 0, this.combo);
     
@@ -1138,11 +980,6 @@ class GameManager {
     
     if (this.player) {
       try { this.player.dispose(); } catch {}
-    }
-    
-    // オーバーレイを削除
-    if (this.overlay && document.body.contains(this.overlay)) {
-      document.body.removeChild(this.overlay);
     }
   }
 }

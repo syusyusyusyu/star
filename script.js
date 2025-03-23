@@ -46,31 +46,8 @@ class GameManager {
     this.initGame();
     this.initPlayer();
     
-    // 自動再生の問題を解決するため、一度全ての要素にクリックイベントを設定
-    this.gamecontainer.style.cursor = 'pointer';
+    // 通常のカーソルを使用する（特別なスタイルは適用しない）
     this.gamecontainer.style.userSelect = 'none';
-    document.body.style.cursor = 'pointer';
-    
-    // 最初のクリック/タップを待つ構造
-    const startGame = (e) => {
-      if (!this.isFirstInteraction || !this.apiLoaded) return;
-      
-      // 重複実行防止
-      this.isFirstInteraction = false;
-      this.gamecontainer.style.cursor = '';
-      document.body.style.cursor = '';
-      
-      // ゲーム初期化
-      this.playMusic();
-      
-      // イベントリスナーを削除
-      document.body.removeEventListener('click', startGame);
-      document.body.removeEventListener('touchend', startGame);
-    };
-    
-    // document全体にイベント設定（より確実にキャプチャ）
-    document.body.addEventListener('click', startGame);
-    document.body.addEventListener('touchend', startGame);
   }
 
   updateViewportHeight() {
@@ -85,6 +62,7 @@ class GameManager {
     try {
       this.isPaused = false;
       this.playpause.textContent = '一時停止';
+      this.isFirstInteraction = false; // 初回インタラクションフラグをオフに
       
       // テキストアライブプレーヤーを使用
       if (this.player && this.isPlayerInit) {
@@ -184,7 +162,7 @@ class GameManager {
       }
     });
     
-    // ボタンのクリックイベント
+    // ボタンのクリックイベント - ここが再生開始の唯一のトリガー
     const handleButtonClick = (event) => {
       if (event) {
         event.preventDefault();
@@ -194,10 +172,12 @@ class GameManager {
       if (!this.apiLoaded) return;
       
       if (this.isFirstInteraction) {
+        // 初めての実行時は再生を開始
         this.playMusic();
-        this.isFirstInteraction = false;
         return;
       }
+      
+      // それ以降は通常の再生/一時停止の切り替え
       this.togglePlay();
     };
     
@@ -388,7 +368,7 @@ class GameManager {
               this.restart.textContent = '最初から';
             }
             
-            if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
+            if (this.loading) this.loading.textContent = "準備完了 - 下の「再生」ボタンを押してください";
           }, 2000); // 2秒の追加待機時間
         },
         onTimeUpdate: (pos) => {
@@ -439,7 +419,7 @@ class GameManager {
         this.restart.textContent = '最初から';
       }
       
-      if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
+      if (this.loading) this.loading.textContent = "準備完了 - 下の「再生」ボタンを押してください";
     }, 2000); // 2秒の待機時間
   }
   

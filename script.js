@@ -151,7 +151,7 @@ class GameManager {
       const message = args.join(' ');
       if ((message.includes('license') || message.includes('License') || 
            message.includes('copyright') || message.includes('Copyright') ||
-           message.includes('TextAlive')) && !this.licenseDetected) {
+           message.includes('TextAlive API')) && !this.licenseDetected) {
         
         this.licenseDetected = true;
         console.log('ライセンス表示を検出しました。画面をアクティブ化します。');

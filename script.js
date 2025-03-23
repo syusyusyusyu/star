@@ -19,7 +19,7 @@ class GameManager {
     this.apiLoaded = false; // APIがロード完了したかを追跡
     
     // 内部処理用のグループサイズを設定
-    this.groupSize = 6;
+    this.groupSize = 5;
     
     // モバイルブラウザのビューポート処理
     this.updateViewportHeight();
@@ -31,13 +31,10 @@ class GameManager {
     [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
       ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
     
-    // 初期状態では再生ボタンに設定して無効化
+    // 初期状態では再生ボタンの見た目はそのまま（最初から通常表示）
     this.isPaused = true;
     if (this.playpause) {
-      this.playpause.textContent = '読み込み中...';
-      this.playpause.disabled = true;
-      this.playpause.style.opacity = '0.5';
-      this.playpause.style.cursor = 'not-allowed';
+      this.playpause.textContent = '再生';
     }
     
     this.setupEvents();
@@ -346,14 +343,6 @@ class GameManager {
           setTimeout(() => {
             this.apiLoaded = true; // ここでAPIロード完了フラグを設定
             
-            // プレイボタンを有効化
-            if (this.playpause) {
-              this.playpause.disabled = false;
-              this.playpause.style.opacity = '1';
-              this.playpause.style.cursor = 'pointer';
-              this.playpause.textContent = '再生';
-            }
-            
             if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
           }, 2000); // 2秒の追加待機時間
         },
@@ -396,14 +385,6 @@ class GameManager {
     // 同様に待機時間を設ける
     setTimeout(() => {
       this.apiLoaded = true; // ここでAPIロード完了フラグを設定
-      
-      // プレイボタンを有効化
-      if (this.playpause) {
-        this.playpause.disabled = false;
-        this.playpause.style.opacity = '1';
-        this.playpause.style.cursor = 'pointer';
-        this.playpause.textContent = '再生';
-      }
       
       if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
     }, 2000); // 2秒の待機時間

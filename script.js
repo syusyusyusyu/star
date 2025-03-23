@@ -17,7 +17,6 @@ class GameManager {
     this.maxTrailLength = 15;
     this.lastMousePos = { x: 0, y: 0 };
     this.apiLoaded = false; // APIがロード完了したかを追跡
-    this._operationInProgress = false; // 操作のロック状態を追跡
     
     // 内部処理用のグループサイズを設定
     this.groupSize = 5;
@@ -32,13 +31,19 @@ class GameManager {
     [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
       ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
     
-    // 初期状態ではすべてのボタンを読み込み中と表示
+    // 初期状態ではすべてのボタンを読み込み中と表示し、無効化
     this.isPaused = true;
     if (this.playpause) {
       this.playpause.textContent = '読み込み中...';
+      this.playpause.disabled = true; // 無効化
+      this.playpause.style.opacity = '0.5';
+      this.playpause.style.cursor = 'not-allowed';
     }
     if (this.restart) {
       this.restart.textContent = '読み込み中...';
+      this.restart.disabled = true; // 無効化
+      this.restart.style.opacity = '0.5';
+      this.restart.style.cursor = 'not-allowed';
     }
     
     this.setupEvents();
@@ -46,8 +51,31 @@ class GameManager {
     this.initGame();
     this.initPlayer();
     
-    // 通常のカーソルを使用する（特別なスタイルは適用しない）
+    // 自動再生の問題を解決するため、一度全ての要素にクリックイベントを設定
+    this.gamecontainer.style.cursor = 'pointer';
     this.gamecontainer.style.userSelect = 'none';
+    document.body.style.cursor = 'pointer';
+    
+    // 最初のクリック/タップを待つ構造
+    const startGame = (e) => {
+      if (!this.isFirstInteraction || !this.apiLoaded) return;
+      
+      // 重複実行防止
+      this.isFirstInteraction = false;
+      this.gamecontainer.style.cursor = '';
+      document.body.style.cursor = '';
+      
+      // ゲーム初期化
+      this.playMusic();
+      
+      // イベントリスナーを削除
+      document.body.removeEventListener('click', startGame);
+      document.body.removeEventListener('touchend', startGame);
+    };
+    
+    // document全体にイベント設定（より確実にキャプチャ）
+    document.body.addEventListener('click', startGame);
+    document.body.addEventListener('touchend', startGame);
   }
 
   updateViewportHeight() {
@@ -56,21 +84,17 @@ class GameManager {
   }
 
   async playMusic() {
-    if (this._operationInProgress) return;
-    this._operationInProgress = true;
+    if (this._processing) return;
+    this._processing = true;
     
     try {
       this.isPaused = false;
       this.playpause.textContent = '一時停止';
-      this.isFirstInteraction = false; // 初回インタラクションフラグをオフに
       
       // テキストアライブプレーヤーを使用
       if (this.player && this.isPlayerInit) {
         try {
-          // プレーヤーが既に再生中でないことを確認
-          if (!this.player.isPlaying) {
-            await this.player.requestPlay();
-          }
+          await this.player.requestPlay();
         } catch (e) {
           console.error("Player play error:", e);
           // エラー発生時はフォールバックモードへ
@@ -98,8 +122,7 @@ class GameManager {
         }, 1000);
       }
     } finally {
-      // 操作が完全に完了するのを確実にするために長めの遅延を使用
-      setTimeout(() => this._operationInProgress = false, 1000);
+      setTimeout(() => this._processing = false, 800);
     }
   }
 
@@ -162,22 +185,17 @@ class GameManager {
       }
     });
     
-    // ボタンのクリックイベント - ここが再生開始の唯一のトリガー
+    // ボタンのクリックイベント
     const handleButtonClick = (event) => {
       if (event) {
         event.preventDefault();
       }
       
-      // APIが準備できていなければ何もしない
-      if (!this.apiLoaded) return;
-      
       if (this.isFirstInteraction) {
-        // 初めての実行時は再生を開始
         this.playMusic();
+        this.isFirstInteraction = false;
         return;
       }
-      
-      // それ以降は通常の再生/一時停止の切り替え
       this.togglePlay();
     };
     
@@ -188,8 +206,6 @@ class GameManager {
       if (event) {
         event.preventDefault();
       }
-      // APIが準備できていなければ何もしない
-      if (!this.apiLoaded) return;
       
       this.restartGame();
     };
@@ -258,45 +274,29 @@ class GameManager {
   }
 
   async togglePlay() {
-    if (this._operationInProgress) return;
-    this._operationInProgress = true;
-    
+    if (this._processing) return;
+    this._processing = true;
     try {
       this.isPaused = !this.isPaused;
       this.playpause.textContent = this.isPaused ? '再生' : '一時停止';
       
       if (this.isPaused) {
-        if (this.player?.isPlaying) {
-          await this.player.requestPause().catch(e => console.error("Pause error:", e));
-        }
+        if (this.player?.isPlaying) await this.player.requestPause().catch(() => {});
         clearInterval(this.randomTextInterval);
         this.randomTextInterval = null;
       } else {
-        if (this.player) {
-          if (!this.player.isPlaying) {
-            await this.player.requestPlay().catch(e => {
-              console.error("Play error:", e);
-              this.fallback();
-            });
-          }
-        } else {
-          this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
-        }
-        
-        if (!this.randomTextInterval) {
-          this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
-        }
+        if (this.player?.isPlaying === false) await this.player.requestPlay().catch(() => this.fallback());
+        else if (!this.player) this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
+        if (!this.randomTextInterval) this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
       }
     } finally {
-      // 操作が完全に完了するのを確実にするために長めの遅延を使用
-      setTimeout(() => this._operationInProgress = false, 1000);
+      setTimeout(() => this._processing = false, 800);
     }
   }
 
   async restartGame() {
-    if (this._operationInProgress) return;
-    this._operationInProgress = true;
-    
+    if (this._processing) return;
+    this._processing = true;
     this.score = this.combo = this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.isPaused = false;
@@ -308,26 +308,13 @@ class GameManager {
     
     try {
       if (this.player) {
-        // 操作を正しい順序で行う
-        if (this.player.isPlaying) {
-          await this.player.requestPause().catch(e => console.error("Pause error:", e));
-          // 次の操作の前に小さな遅延を追加
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-        
-        await this.player.requestStop().catch(e => console.error("Stop error:", e));
-        // 次の操作の前に小さな遅延を追加
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        await this.player.requestPlay().catch(e => {
-          console.error("Play error:", e);
-          this.fallback();
-        });
+        if (this.player.isPlaying) await this.player.requestPause();
+        await this.player.requestStop();
+        await this.player.requestPlay().catch(() => this.fallback());
       }
       this.playpause.textContent = '一時停止';
     } finally {
-      // 操作が完全に完了するのを確実にするために長めの遅延を使用
-      setTimeout(() => this._operationInProgress = false, 1500);
+      setTimeout(() => this._processing = false, 1500);
     }
   }
 
@@ -360,15 +347,21 @@ class GameManager {
           setTimeout(() => {
             this.apiLoaded = true; // ここでAPIロード完了フラグを設定
             
-            // すべてのボタンのテキストを更新
+            // すべてのボタンを有効化して通常表示に戻す
             if (this.playpause) {
+              this.playpause.disabled = false;
+              this.playpause.style.opacity = '1';
+              this.playpause.style.cursor = 'pointer';
               this.playpause.textContent = '再生';
             }
             if (this.restart) {
+              this.restart.disabled = false;
+              this.restart.style.opacity = '1';
+              this.restart.style.cursor = 'pointer';
               this.restart.textContent = '最初から';
             }
             
-            if (this.loading) this.loading.textContent = "準備完了 - 下の「再生」ボタンを押してください";
+            if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
           }, 2000); // 2秒の追加待機時間
         },
         onTimeUpdate: (pos) => {
@@ -411,15 +404,21 @@ class GameManager {
     setTimeout(() => {
       this.apiLoaded = true; // ここでAPIロード完了フラグを設定
       
-      // すべてのボタンのテキストを更新
+      // すべてのボタンを有効化して通常表示に戻す
       if (this.playpause) {
+        this.playpause.disabled = false;
+        this.playpause.style.opacity = '1';
+        this.playpause.style.cursor = 'pointer';
         this.playpause.textContent = '再生';
       }
       if (this.restart) {
+        this.restart.disabled = false;
+        this.restart.style.opacity = '1';
+        this.restart.style.cursor = 'pointer';
         this.restart.textContent = '最初から';
       }
       
-      if (this.loading) this.loading.textContent = "準備完了 - 下の「再生」ボタンを押してください";
+      if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
     }, 2000); // 2秒の待機時間
   }
   
@@ -911,11 +910,7 @@ class GameManager {
     if (this.resultsDisplayed) return;
     this.resultsDisplayed = true;
     
-    // 結果表示前にプレーヤーが再生中なら一時停止する
-    // リソースの競合を避けるため、エラーを適切に処理
-    if (this.player?.isPlaying) {
-      this.player.requestPause().catch(e => console.error("Results pause error:", e));
-    }
+    if (this.player?.isPlaying) this.player.requestPause();
     
     this.maxCombo = Math.max(this.maxCombo || 0, this.combo);
     

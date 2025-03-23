@@ -149,7 +149,9 @@ class GameManager {
       
       // ライセンス表示のパターンを検出（TextAliveなどのライセンス表示を含む文字列）
       const message = args.join(' ');
-      if (message.includes('TextAlive API')&& !this.licenseDetected) {
+      if ((message.includes('license') || message.includes('License') || 
+           message.includes('copyright') || message.includes('Copyright') ||
+           message.includes('TextAlive')) && !this.licenseDetected) {
         
         this.licenseDetected = true;
         console.log('ライセンス表示を検出しました。画面をアクティブ化します。');
@@ -390,11 +392,24 @@ class GameManager {
       this.playpause.textContent = this.isPaused ? '再生' : '一時停止';
       
       if (this.isPaused) {
-        if (this.player?.isPlaying) await this.player.requestPause().catch(() => {});
+        if (this.player?.isPlaying) {
+          try {
+            await this.player.requestPause();
+          } catch (e) {
+            console.error("Pause error:", e);
+          }
+        }
         clearInterval(this.randomTextInterval);
         this.randomTextInterval = null;
       } else {
-        if (this.player?.isPlaying === false) await this.player.requestPlay().catch(() => this.fallback());
+        if (this.player?.isPlaying === false) {
+          try {
+            await this.player.requestPlay();
+          } catch (e) {
+            console.error("Play error:", e);
+            this.fallback();
+          }
+        }
         else if (!this.player) this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
         if (!this.randomTextInterval) this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
       }
@@ -417,9 +432,26 @@ class GameManager {
     
     try {
       if (this.player) {
-        if (this.player.isPlaying) await this.player.requestPause();
-        await this.player.requestStop();
-        await this.player.requestPlay().catch(() => this.fallback());
+        if (this.player.isPlaying) {
+          try {
+            await this.player.requestPause();
+          } catch (e) {
+            console.error("Pause error:", e);
+          }
+        }
+        
+        try {
+          await this.player.requestStop();
+        } catch (e) {
+          console.error("Stop error:", e);
+        }
+        
+        try {
+          await this.player.requestPlay();
+        } catch (e) {
+          console.error("Play error:", e);
+          this.fallback();
+        }
       }
       this.playpause.textContent = '一時停止';
     } finally {

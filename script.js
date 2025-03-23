@@ -18,6 +18,9 @@ class GameManager {
     this.lastMousePos = { x: 0, y: 0 };
     this.apiLoaded = false; // APIがロード完了したかを追跡
     
+    // 全画面オーバーレイを作成（初期ロード中に全画面をブロック）
+    this.createLoadingOverlay();
+    
     // 内部処理用のグループサイズを設定
     this.groupSize = 5;
     
@@ -51,6 +54,9 @@ class GameManager {
     this.initGame();
     this.initPlayer();
     
+    // コンソール出力を監視して、ライセンス表記を検出
+    this.setupConsoleWatcher();
+    
     // 自動再生の問題を解決するため、一度全ての要素にクリックイベントを設定
     this.gamecontainer.style.cursor = 'pointer';
     this.gamecontainer.style.userSelect = 'none';
@@ -76,6 +82,111 @@ class GameManager {
     // document全体にイベント設定（より確実にキャプチャ）
     document.body.addEventListener('click', startGame);
     document.body.addEventListener('touchend', startGame);
+  }
+
+  // 全画面をカバーするローディングオーバーレイを作成
+  createLoadingOverlay() {
+    this.overlay = document.createElement('div');
+    this.overlay.id = 'loading-overlay';
+    this.overlay.style.position = 'fixed';
+    this.overlay.style.top = '0';
+    this.overlay.style.left = '0';
+    this.overlay.style.width = '100%';
+    this.overlay.style.height = '100%';
+    this.overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    this.overlay.style.zIndex = '10000';
+    this.overlay.style.display = 'flex';
+    this.overlay.style.flexDirection = 'column';
+    this.overlay.style.alignItems = 'center';
+    this.overlay.style.justifyContent = 'center';
+    this.overlay.style.color = '#39C5BB';
+    this.overlay.style.fontSize = '24px';
+    this.overlay.style.fontWeight = 'bold';
+    this.overlay.style.textAlign = 'center';
+    
+    // ローディングテキスト
+    const loadingText = document.createElement('div');
+    loadingText.textContent = 'ライブラリをロード中...';
+    this.overlay.appendChild(loadingText);
+    
+    // ローディングスピナー
+    const spinner = document.createElement('div');
+    spinner.className = 'loading-spinner';
+    spinner.style.width = '50px';
+    spinner.style.height = '50px';
+    spinner.style.margin = '20px auto';
+    spinner.style.border = '5px solid rgba(57, 197, 187, 0.3)';
+    spinner.style.borderRadius = '50%';
+    spinner.style.borderTop = '5px solid #39C5BB';
+    spinner.style.animation = 'spin 1s linear infinite';
+    this.overlay.appendChild(spinner);
+    
+    // スピナーのアニメーションスタイルを追加
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(this.overlay);
+  }
+  
+  // コンソール出力を監視してライセンス表記を検出する
+  setupConsoleWatcher() {
+    // ライセンス表示を検出するためのフラグ
+    this.licenseDetected = false;
+    
+    // オリジナルのconsole.logを保存
+    const originalConsoleLog = console.log;
+    
+    // console.logをオーバーライド
+    console.log = (...args) => {
+      // 元のconsole.logを呼び出し
+      originalConsoleLog.apply(console, args);
+      
+      // ライセンス表示のパターンを検出（TextAliveなどのライセンス表示を含む文字列）
+      const message = args.join(' ');
+      if ((message.includes('ライセンス') || message.includes('License') || 
+           message.includes('copyright') || message.includes('Copyright') ||
+           message.includes('コピーライト')) && !this.licenseDetected) {
+        
+        this.licenseDetected = true;
+        console.log('ライセンス表示を検出しました。画面をアクティブ化します。');
+        
+        // 少し待機してからオーバーレイを削除
+        setTimeout(() => {
+          this.removeOverlayWhenReady();
+        }, 1000);
+      }
+    };
+    
+    // 最大待機時間（10秒）後にはオーバーレイを強制的に削除
+    setTimeout(() => {
+      if (!this.licenseDetected) {
+        console.log('ライセンス表示を検出できませんでしたが、タイムアウトにより画面をアクティブ化します。');
+        this.removeOverlayWhenReady();
+      }
+    }, 10000);
+  }
+  
+  // APIの準備ができた時にオーバーレイを削除
+  removeOverlayWhenReady() {
+    if (this.overlay && document.body.contains(this.overlay)) {
+      // オーバーレイをフェードアウト
+      this.overlay.style.transition = 'opacity 0.5s';
+      this.overlay.style.opacity = '0';
+      
+      // フェードアウト後に削除
+      setTimeout(() => {
+        if (this.overlay && document.body.contains(this.overlay)) {
+          document.body.removeChild(this.overlay);
+          this.overlay = null;
+        }
+      }, 500);
+    }
   }
 
   updateViewportHeight() {
@@ -980,6 +1091,11 @@ class GameManager {
     
     if (this.player) {
       try { this.player.dispose(); } catch {}
+    }
+    
+    // オーバーレイを削除
+    if (this.overlay && document.body.contains(this.overlay)) {
+      document.body.removeChild(this.overlay);
     }
   }
 }

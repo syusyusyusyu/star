@@ -31,10 +31,10 @@ class GameManager {
     [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
       ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
     
-    // 初期状態では再生ボタンの見た目はそのまま（最初から通常表示）
+    // 初期状態では読み込み中テキストを表示（見た目は通常）
     this.isPaused = true;
     if (this.playpause) {
-      this.playpause.textContent = '再生';
+      this.playpause.textContent = '読み込み中...';
     }
     
     this.setupEvents();
@@ -343,6 +343,11 @@ class GameManager {
           setTimeout(() => {
             this.apiLoaded = true; // ここでAPIロード完了フラグを設定
             
+            // ボタンのテキストを更新
+            if (this.playpause) {
+              this.playpause.textContent = '再生';
+            }
+            
             if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
           }, 2000); // 2秒の追加待機時間
         },
@@ -386,8 +391,13 @@ class GameManager {
     setTimeout(() => {
       this.apiLoaded = true; // ここでAPIロード完了フラグを設定
       
+      // ボタンのテキストを更新
+      if (this.playpause) {
+        this.playpause.textContent = '再生';
+      }
+      
       if (this.loading) this.loading.textContent = "準備完了 - クリックして開始";
-    }, 2000); // 2秒の待機時間
+    }, 3000); // 2秒の待機時間
   }
   
   // 内部処理では5文字ずつグループ化、表示時には1文字ずつ

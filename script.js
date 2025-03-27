@@ -1,35 +1,45 @@
 /**
  * ボイスアイドル・ミュージックゲーム - 内部処理のみ最適化版
+ * 
+ * 歌詞を表示してクリックするリズムゲームの実装
+ * TextAliveプレーヤーを使用して歌詞タイミングを同期し、
+ * APIが利用できない場合はフォールバックモードで動作
  */
 class GameManager {
+  /**
+   * ゲームマネージャーの初期化
+   * ゲームの基本設定、DOM要素の取得、イベントリスナーの設定を行う
+   */
   constructor() {
+    // 基本設定の初期化
     this.apiToken = window.songConfig?.apiToken;
     this.songUrl = window.songConfig?.songUrl;
     this.score = this.combo = this.maxCombo = 0;
     this.startTime = Date.now();
     this.isPlaying = this.isPlayerInit = false;
-    this.isFirstInteraction = true;
+    this.isFirstInteraction = true; // 初回インタラクションフラグ
     this.player = null;
     this.isMobile = /Android|iPhone/.test(navigator.userAgent);
     this.activeChars = new Set();
-    this.displayedLyrics = new Set();
+    this.displayedLyrics = new Set(); // 表示済み歌詞を追跡
     this.mouseTrail = [];
     this.maxTrailLength = 15;
     this.lastMousePos = { x: 0, y: 0 };
-    this.apiLoaded = false; // APIがロード完了したかを追跡
-    this._operationInProgress = false; // 操作のロック状態を追跡
-    this.resultsDisplayed = false; // リザルト画面表示フラグを初期化
+    this.apiLoaded = false; // TextAlive APIがロード完了したかを追跡
+    this._operationInProgress = false; // 操作のロック状態を追跡（連打防止）
+    this.resultsDisplayed = false; // リザルト画面表示フラグを初期化（重要：リザルト画面重複表示防止）
     
-    // 内部処理用のグループサイズを設定
+    // 内部処理用のグループサイズを設定（パフォーマンス最適化）
     this.groupSize = 5;
     
-    // モバイルブラウザのビューポート処理
+    // モバイルブラウザのビューポート処理（画面サイズ対応）
     this.updateViewportHeight();
     window.addEventListener('resize', () => this.updateViewportHeight());
     window.addEventListener('orientationchange', () => {
       setTimeout(() => this.updateViewportHeight(), 100);
     });
     
+    // 必要なDOM要素の取得
     [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
       ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
     
@@ -42,6 +52,7 @@ class GameManager {
       this.restart.textContent = '読み込み中...';
     }
     
+    // ゲームの基本セットアップ
     this.setupEvents();
     this.createLightEffects();
     this.initGame();
@@ -50,16 +61,25 @@ class GameManager {
     // 通常のカーソルを使用する（特別なスタイルは適用しない）
     this.gamecontainer.style.userSelect = 'none';
     
-    // 結果表示用のタイマーを追加
+    // 結果表示用のタイマーを追加（曲終了時に確実にリザルト画面へ移行するため）
     this.resultCheckTimer = null;
   }
 
+  /**
+   * モバイルブラウザのビューポート高さを更新
+   * CSSの--vh変数を設定してモバイルブラウザでの100vh問題を解決
+   */
   updateViewportHeight() {
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
   }
 
+  /**
+   * 音楽再生を開始する
+   * プレーヤーの初期化状態に応じて、TextAlivePlayerまたはフォールバックモードで再生
+   */
   async playMusic() {
+    // 操作が進行中なら何もしない（連打防止）
     if (this._operationInProgress) return;
     this._operationInProgress = true;
     
@@ -68,7 +88,7 @@ class GameManager {
       this.playpause.textContent = '一時停止';
       this.isFirstInteraction = false; // 初回インタラクションフラグをオフに
       
-      // テキストアライブプレーヤーを使用
+      // TextAliveプレーヤーの使用
       if (this.player && this.isPlayerInit) {
         try {
           // プレーヤーが既に再生中でないことを確認
@@ -87,7 +107,7 @@ class GameManager {
         this.startLyricsTimer();
       }
       
-      // ランダムテキスト表示開始
+      // ランダムテキスト表示開始（観客の応援メッセージ）
       if (!this.randomTextInterval) {
         this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
       }
@@ -108,14 +128,19 @@ class GameManager {
         this.setupResultCheckTimer(60000);
       }
     } finally {
-      // 操作が完全に完了するのを確実にするために長めの遅延を使用
+      // 操作が完全に完了するのを確実にするために長めの遅延を使用（安全対策）
       setTimeout(() => this._operationInProgress = false, 1000);
     }
   }
 
-  // 結果表示のための確認タイマーをセットアップ
+  /**
+   * 結果表示のための確認タイマーをセットアップ
+   * 指定された時間が経過したらリザルト画面を表示する
+   * 
+   * @param {number} duration - リザルト表示までの時間（ミリ秒）
+   */
   setupResultCheckTimer(duration) {
-    // 既存のタイマーをクリア
+    // 既存のタイマーをクリア（重複防止）
     if (this.resultCheckTimer) {
       clearTimeout(this.resultCheckTimer);
     }
@@ -129,27 +154,33 @@ class GameManager {
     }, duration);
     
     // バックアップとして、さらに長い時間が経過した場合も強制的に結果を表示
+    // （何らかの理由で上のタイマーが機能しなかった場合の保険）
     setTimeout(() => {
       if (!this.resultsDisplayed) {
         console.log("バックアップタイマーが発火しました");
         this.showResults();
       }
-    }, duration + 10000);
+    }, duration + 10000); // メインタイマーから10秒後
   }
 
+  /**
+   * ゲームのイベントハンドラを設定
+   * マウス、タッチ、ボタンのイベントを処理
+   */
   setupEvents() {
     let lastTime = 0, lastX = 0, lastY = 0;
     let touched = false;
     
+    // マウス/タッチの移動を処理する関数
     const handleMove = (x, y, isTouch) => {
       const now = Date.now();
-      if (now - lastTime < 16) return;
+      if (now - lastTime < 16) return; // 60FPS制限
       lastTime = now;
       const dx = x - lastX, dy = y - lastY;
-      if (Math.sqrt(dx*dx + dy*dy) >= 3) {
+      if (Math.sqrt(dx*dx + dy*dy) >= 3) { // 小さすぎる動きは無視
         lastX = x; lastY = y;
         this.lastMousePos = { x, y };
-        this.checkLyrics(x, y, isTouch ? 45 : 35);
+        this.checkLyrics(x, y, isTouch ? 45 : 35); // タッチの場合は判定範囲を広げる
         
         // 星を常に生成する（初回インタラクション後のみ）
         if (!this.isFirstInteraction) {
@@ -161,6 +192,7 @@ class GameManager {
       }
     };
     
+    // マウス移動イベント
     this.gamecontainer.addEventListener('mousemove', e => {
       if (!touched) handleMove(e.clientX, e.clientY, false);
     });
@@ -176,7 +208,7 @@ class GameManager {
     
     this.gamecontainer.addEventListener('touchmove', e => {
       if (!this.isFirstInteraction && e.touches && e.touches[0]) {
-        e.preventDefault();
+        e.preventDefault(); // スクロール防止
         handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
       }
     }, {passive: false});
@@ -196,7 +228,7 @@ class GameManager {
       }
     });
     
-    // ボタンのクリックイベント - ここが再生開始の唯一のトリガー
+    // 再生/一時停止ボタンのクリックイベント - ここが再生開始の唯一のトリガー
     const handleButtonClick = (event) => {
       if (event) {
         event.preventDefault();
@@ -218,6 +250,7 @@ class GameManager {
     this.playpause.addEventListener('click', handleButtonClick);
     this.playpause.addEventListener('touchend', handleButtonClick, {passive: false});
     
+    // リスタートボタンのイベント処理
     const handleRestartClick = (event) => {
       if (event) {
         event.preventDefault();
@@ -232,7 +265,7 @@ class GameManager {
     this.restart.addEventListener('touchend', handleRestartClick, {passive: false});
     
     // 強制的に結果表示へ移行するデバッグ機能
-    // ダブルクリックで結果画面を表示
+    // ダブルクリックで結果画面を表示（テスト用）
     document.addEventListener('dblclick', () => {
       if (!this.isFirstInteraction && !this.resultsDisplayed) {
         console.log("ダブルクリックによる結果表示");
@@ -241,12 +274,16 @@ class GameManager {
     });
   }
 
+  /**
+   * ゲームの初期化
+   * 背景要素の生成と歌詞データの準備
+   */
   initGame() {
     this.createStars();
     this.createAudience();
     this.lyricsData = [];
     
-    // フォールバック用のデータ
+    // フォールバック用の歌詞データ
     const fallbackText = "マジカルミライ初音ミク";
     // 内部管理用にグループ化（表示時に分解）
     this.fallbackLyricsData = [];
@@ -262,9 +299,11 @@ class GameManager {
       });
     }
     
+    // 観客のランダムテキスト
     this.randomTexts = ["ミク！", "かわいい！", "最高！", "39！", "イェーイ！"];
     this.randomTextInterval = null;
     
+    // コンボをリセットするタイマー（30秒間何も取らなかったらコンボリセット）
     this.comboResetTimer = setInterval(() => {
       if (Date.now() - (this.lastScoreTime || 0) > 30000 && this.combo > 0) {
         this.combo = 0;
@@ -273,6 +312,10 @@ class GameManager {
     }, 1000);
   }
 
+  /**
+   * 背景の星を生成
+   * 画面サイズに応じた適切な数の星を表示
+   */
   createStars() {
     const starCount = Math.min(30, Math.floor(window.innerWidth * window.innerHeight / 10000));
     for (let i = 0; i < starCount; i++) {
@@ -290,6 +333,9 @@ class GameManager {
     }
   }
 
+  /**
+   * ステージのスポットライト効果を生成
+   */
   createLightEffects() {
     for (let i = 0; i < 3; i++) {
       const spotlight = document.createElement('div');
@@ -300,8 +346,12 @@ class GameManager {
     }
   }
 
+  /**
+   * 再生/一時停止を切り替える
+   * プレーヤーの状態に応じて適切な処理を行う
+   */
   async togglePlay() {
-    if (this._operationInProgress) return;
+    if (this._operationInProgress) return; // 連打防止
     this._operationInProgress = true;
     
     try {
@@ -309,6 +359,7 @@ class GameManager {
       this.playpause.textContent = this.isPaused ? '再生' : '一時停止';
       
       if (this.isPaused) {
+        // 一時停止処理
         if (this.player?.isPlaying) {
           await this.player.requestPause().catch(e => console.error("Pause error:", e));
         }
@@ -321,6 +372,7 @@ class GameManager {
           this.resultCheckTimer = null;
         }
       } else {
+        // 再生処理
         if (this.player) {
           if (!this.player.isPlaying) {
             await this.player.requestPlay().catch(e => {
@@ -329,6 +381,7 @@ class GameManager {
             });
           }
         } else {
+          // フォールバックモードでの再生再開
           this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
           
           // 再生再開時にタイマーを再設定（残り時間を推定）
@@ -337,6 +390,7 @@ class GameManager {
           this.setupResultCheckTimer(remainingTime);
         }
         
+        // ランダムテキスト表示を再開
         if (!this.randomTextInterval) {
           this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
         }
@@ -347,17 +401,22 @@ class GameManager {
     }
   }
 
+  /**
+   * ゲームをリスタートする
+   * スコアとコンボをリセットし、曲を最初から再生
+   */
   async restartGame() {
-    if (this._operationInProgress) return;
+    if (this._operationInProgress) return; // 連打防止
     this._operationInProgress = true;
     
+    // スコアと状態のリセット
     this.score = this.combo = this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.songStartTime = Date.now(); // 曲の開始時間をリセット
     this.isPaused = false;
     this.scoreEl.textContent = '0';
     this.comboEl.textContent = 'コンボ: 0';
-    this.resultsDisplayed = false; // リザルト表示フラグをリセット
+    this.resultsDisplayed = false; // リザルト表示フラグをリセット（重要）
     
     // 結果画面を非表示にする
     const resultsScreen = document.getElementById('results-screen');
@@ -366,10 +425,11 @@ class GameManager {
       resultsScreen.classList.add('hidden');
     }
     
+    // 表示中の歌詞を全て削除
     document.querySelectorAll('.lyric-bubble').forEach(l => l.remove());
     this.displayedLyrics.clear();
     
-    // タイマーを再設定
+    // リザルト表示タイマーを再設定
     if (this.resultCheckTimer) {
       clearTimeout(this.resultCheckTimer);
     }
@@ -379,10 +439,10 @@ class GameManager {
     
     try {
       if (this.player) {
-        // 操作を正しい順序で行う
+        // 操作を正しい順序で行う（プレーヤーの状態制御）
         if (this.player.isPlaying) {
           await this.player.requestPause().catch(e => console.error("Pause error:", e));
-          // 次の操作の前に小さな遅延を追加
+          // 次の操作の前に小さな遅延を追加（安定性向上）
           await new Promise(resolve => setTimeout(resolve, 300));
         }
         
@@ -402,7 +462,12 @@ class GameManager {
     }
   }
 
+  /**
+   * TextAlive Playerを初期化する
+   * 歌詞同期のためのプレーヤーをセットアップ
+   */
   initPlayer() {
+    // TextAliveが利用可能かチェック
     if (typeof TextAliveApp === 'undefined') {
       if (this.loading) this.loading.textContent = "TextAliveが見つかりません。代替モードで起動中...";
       this.fallback();
@@ -410,6 +475,7 @@ class GameManager {
     }
     
     try {
+      // プレーヤーの作成
       this.player = new TextAliveApp.Player({
         app: { token: this.apiToken },
         mediaElement: document.createElement('audio')
@@ -417,10 +483,13 @@ class GameManager {
       document.body.appendChild(this.player.mediaElement);
       this.isPlayerInit = true;
       
+      // 各種イベントリスナーを設定
       this.player.addListener({
+        // アプリ準備完了時
         onAppReady: (app) => {
           if (app && !app.managed) this.player.createFromSongUrl(this.songUrl).catch(() => this.fallback());
         },
+        // 動画準備完了時（歌詞データ取得）
         onVideoReady: (video) => {
           if (video?.firstPhrase) this.processLyrics(video);
           
@@ -442,9 +511,11 @@ class GameManager {
             if (this.loading) this.loading.textContent = "準備完了-「再生」ボタンを押してね";
           }, 2000); // 2秒の追加待機時間
         },
+        // 時間更新時（歌詞表示タイミング制御）
         onTimeUpdate: (pos) => {
           if (!this.isPaused) this.updateLyrics(pos);
         },
+        // 再生開始時
         onPlay: () => {
           this.isPaused = false;
           this.playpause.textContent = '一時停止';
@@ -452,24 +523,27 @@ class GameManager {
             this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
           }
         },
+        // 一時停止時
         onPause: () => {
           this.isPaused = true;
           this.playpause.textContent = '再生';
           clearInterval(this.randomTextInterval);
           this.randomTextInterval = null;
         },
+        // 停止時
         onStop: () => {
           this.isPaused = true;
           this.playpause.textContent = '再生';
           this.restartGame();
         },
+        // 曲終了時（最重要：ここでリザルト画面を表示）
         onFinish: () => {
-          // 曲が終わったら結果画面を表示（最重要）
           console.log("onFinish イベントが発火しました");
           if (!this.resultsDisplayed) {
             this.showResults();
           }
         },
+        // エラー発生時
         onError: () => this.fallback()
       });
     } catch (error) {
@@ -478,6 +552,10 @@ class GameManager {
     }
   }
 
+  /**
+   * フォールバックモードに切り替え
+   * TextAliveが利用できない場合の代替処理
+   */
   fallback() {
     this.isPlayerInit = false;
     this.player = null;
@@ -501,7 +579,12 @@ class GameManager {
     }, 2000); // 2秒の待機時間
   }
   
-  // 内部処理では5文字ずつグループ化、表示時には1文字ずつ
+  /**
+   * 歌詞データを処理する
+   * TextAliveから取得した歌詞データを内部形式に変換
+   * 
+   * @param {Object} video - TextAliveから取得した動画データ
+   */
   processLyrics(video) {
     try {
       // まず全ての文字データを収集
@@ -527,7 +610,7 @@ class GameManager {
       // 時間順にソート
       allCharData.sort((a, b) => a.time - b.time);
       
-      // 内部処理用に5文字ずつグループ化
+      // 内部処理用に5文字ずつグループ化（パフォーマンス最適化）
       this.lyricsData = [];
       for (let i = 0; i < allCharData.length; i += this.groupSize) {
         const group = allCharData.slice(i, Math.min(i + this.groupSize, allCharData.length));
@@ -563,12 +646,17 @@ class GameManager {
     }
   }
 
+  /**
+   * 歌詞表示タイマーを開始
+   * フォールバックモード用の歌詞タイミング処理
+   */
   startLyricsTimer() {
     this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.songStartTime = Date.now(); // 曲の開始時間を記録
     
     const checkLyrics = () => {
+      // プレーヤーモード、一時停止中、または初回インタラクション前なら処理しない
       if ((this.isPlayerInit && this.player) || this.isPaused || this.isFirstInteraction) {
         requestAnimationFrame(checkLyrics);
         return;
@@ -577,9 +665,10 @@ class GameManager {
       const now = Date.now() - this.startTime;
       let processed = 0;
       
+      // 現在の時間に対応する歌詞を表示
       while (this.currentLyricIndex < this.lyricsData.length && 
              this.lyricsData[this.currentLyricIndex].time <= now && 
-             processed < 2) { // グループ処理なので1回の処理量を減らす
+             processed < 2) { // グループ処理なので1回の処理量を減らす（パフォーマンス対策）
         
         const lyricGroup = this.lyricsData[this.currentLyricIndex];
         
@@ -625,6 +714,7 @@ class GameManager {
           }, 5000);
         }
         
+        // 歌詞を最初からループ（フォールバックモード）
         this.currentLyricIndex = 0;
         this.displayedLyrics.clear();
         this.startTime = Date.now();
@@ -636,6 +726,12 @@ class GameManager {
     requestAnimationFrame(checkLyrics);
   }
 
+  /**
+   * 歌詞の表示を更新する
+   * 現在の再生位置に応じて表示すべき歌詞を判定
+   * 
+   * @param {number} position - 現在の再生位置（ミリ秒）
+   */
   updateLyrics(position) {
     if (this.isPaused || this.isFirstInteraction) return;
     if (!this.displayedLyrics) this.displayedLyrics = new Set();
@@ -683,23 +779,29 @@ class GameManager {
     }
   }
 
-  // 1文字ずつの表示は元のままに
+  /**
+   * 1文字の歌詞を表示
+   * 画面上にランダムな位置で歌詞を表示
+   * 
+   * @param {string} text - 表示する文字
+   */
   displayLyric(text) {
     if (!text) return;
 
-    // 既に同じテキストが表示されていないか確認
+    // 既に同じテキストが表示されていないか確認（重複防止）
     const existingBubbles = document.querySelectorAll('.lyric-bubble');
     for (let bubble of existingBubbles) {
       if (bubble.textContent === text) return;
     }
 
+    // 歌詞バブルを作成
     const bubble = document.createElement('div');
     bubble.className = 'lyric-bubble';
     bubble.textContent = text;
     bubble.style.pointerEvents = 'auto';
     bubble.style.opacity = '1';
     
-    // 画面サイズに応じて位置とフォントサイズを調整
+    // 画面サイズに応じて位置とフォントサイズを調整（レスポンシブ対応）
     const screenWidth = window.innerWidth;
     const isSmallScreen = screenWidth <= 768;
     
@@ -723,23 +825,34 @@ class GameManager {
       fontSize = '30px';
     }
     
+    // スタイルを適用
     bubble.style.left = `${x}px`;
     bubble.style.top = `${y}px`;
-    bubble.style.color = '#39C5BB';
+    bubble.style.color = '#39C5BB'; // ミクカラー
     bubble.style.fontSize = fontSize;
     
+    // イベントリスナーを追加
     bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
     bubble.addEventListener('touchstart', (e) => {
       e.preventDefault(); // iOSでのホバー対策
       this.clickLyric(bubble);
     }, {passive: false});
     
+    // 画面に追加
     this.gamecontainer.appendChild(bubble);
     
+    // 一定時間後に削除
     setTimeout(() => bubble.remove(), 8000);
   }
 
-  // 以下のメソッドは基本的に変更なし
+  /**
+   * マウス/指の位置と歌詞の当たり判定
+   * 
+   * @param {number} x - X座標
+   * @param {number} y - Y座標
+   * @param {number} radius - 判定半径
+   * @return {boolean} - 当たった場合はtrue
+   */
   checkLyrics(x, y, radius) {
     if (this.isFirstInteraction) return false;
     
@@ -747,7 +860,7 @@ class GameManager {
     const radiusSquared = radius * radius;
     
     for (const el of lyrics) {
-      if (el.style.pointerEvents === 'none') continue;
+      if (el.style.pointerEvents === 'none') continue; // 既にクリック済みの場合はスキップ
       
       const rect = el.getBoundingClientRect();
       const elX = rect.left + rect.width / 2;
@@ -764,30 +877,46 @@ class GameManager {
     }
   }
 
+  /**
+   * 歌詞をクリック/タッチした時の処理
+   * スコア加算と視覚効果を処理
+   * 
+   * @param {HTMLElement} element - クリックされた歌詞要素
+   */
   clickLyric(element) {
     if (element.style.pointerEvents === 'none' || this.isFirstInteraction) return;
     
+    // スコアとコンボを更新
     this.combo++;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
-    const points = 100 * (Math.floor(this.combo / 5) + 1);
+    const points = 100 * (Math.floor(this.combo / 5) + 1); // コンボボーナス
     this.score += points;
     
+    // 表示を更新
     this.scoreEl.textContent = this.score;
     this.comboEl.textContent = `コンボ: ${this.combo}`;
     
-    element.style.color = '#FF69B4';
+    // 視覚効果
+    element.style.color = '#FF69B4'; // ピンク色に変更
     this.createClickEffect(element);
-    element.style.pointerEvents = 'none';
+    element.style.pointerEvents = 'none'; // 再クリック防止
     
+    // フェードアウト
     setTimeout(() => element.style.opacity = '0', 100);
     this.lastScoreTime = Date.now();
   }
 
+  /**
+   * クリック時のパーティクル効果を生成
+   * 
+   * @param {HTMLElement} element - クリックされた要素
+   */
   createClickEffect(element) {
     const rect = element.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;
     
+    // パーティクルを生成
     for (let i = 0; i < 6; i++) {
       const particle = document.createElement('div');
       particle.className = 'particle';
@@ -801,16 +930,18 @@ class GameManager {
       setTimeout(() => particle.remove(), 800);
     }
     
+    // スコア表示を作成
     const pointDisplay = document.createElement('div');
     pointDisplay.className = 'lyric-bubble';
     pointDisplay.textContent = `+${100 * (Math.floor(this.combo / 5) + 1)}`;
     pointDisplay.style.left = `${x}px`;
     pointDisplay.style.top = `${y}px`;
-    pointDisplay.style.color = '#FFFF00';
+    pointDisplay.style.color = '#FFFF00'; // 黄色
     pointDisplay.style.pointerEvents = 'none';
     
     this.gamecontainer.appendChild(pointDisplay);
     
+    // 上に浮かせながらフェードアウト
     const animate = () => {
       const top = parseFloat(pointDisplay.style.top);
       pointDisplay.style.top = `${top - 1}px`;
@@ -826,6 +957,12 @@ class GameManager {
     requestAnimationFrame(animate);
   }
 
+  /**
+   * タップ/クリック時の波紋効果を生成
+   * 
+   * @param {number} x - X座標
+   * @param {number} y - Y座標
+   */
   createHitEffect(x, y) {
     const ripple = document.createElement('div');
     ripple.className = 'tap-ripple';
@@ -836,9 +973,16 @@ class GameManager {
     setTimeout(() => ripple.remove(), 500);
   }
 
+  /**
+   * マウスの軌跡に星のパーティクルを生成
+   * 
+   * @param {number} x - X座標
+   * @param {number} y - Y座標
+   */
   createTrailParticle(x, y) {
     if (this.isFirstInteraction) return;
     
+    // 星型パーティクルを生成
     const size = 25 + Math.random() * 40;
     const particle = document.createElement('div');
     particle.className = 'star-particle';
@@ -847,6 +991,7 @@ class GameManager {
     particle.style.left = `${x - size/2}px`;
     particle.style.top = `${y - size/2}px`;
     
+    // ランダムな色
     const hue = Math.floor(Math.random() * 360);
     particle.style.backgroundColor = `hsla(${hue}, 100%, 70%, 0.8)`;
     particle.style.boxShadow = `0 0 ${size/2}px hsla(${hue}, 100%, 70%, 0.8)`;
@@ -855,6 +1000,7 @@ class GameManager {
     this.gamecontainer.appendChild(particle);
     this.mouseTrail.push({ element: particle, createdAt: Date.now() });
     
+    // 古いパーティクルを削除
     const now = Date.now();
     this.mouseTrail = this.mouseTrail.filter(p => {
       if (now - p.createdAt > 800) {
@@ -864,21 +1010,32 @@ class GameManager {
       return true;
     });
     
+    // 最大数を超えたら古いものから削除
     while (this.mouseTrail.length > this.maxTrailLength) {
       const oldest = this.mouseTrail.shift();
       oldest.element.remove();
     }
   }
 
+  /**
+   * 流れ星エフェクトを生成
+   * 
+   * @param {number} x - 開始X座標
+   * @param {number} y - 開始Y座標
+   * @param {number} dx - X方向速度
+   * @param {number} dy - Y方向速度
+   */
   createShooting(x, y, dx, dy) {
     if (this.isFirstInteraction) return;
     
+    // 方向がない場合はランダムに設定
     if (!dx && !dy) {
       const angle = Math.random() * Math.PI * 2;
       dx = Math.cos(angle) * 5;
       dy = Math.sin(angle) * 5;
     }
 
+    // 流れ星を生成
     const size = 15 + Math.random() * 15;
     const meteor = document.createElement('div');
     meteor.className = 'shooting-star';
@@ -887,33 +1044,43 @@ class GameManager {
     meteor.style.left = `${x}px`;
     meteor.style.top = `${y}px`;
     
+    // 移動方向に合わせて回転
     const angle = Math.atan2(dy, dx) * 180 / Math.PI;
     meteor.style.transform = `rotate(${angle + 45}deg)`;
     
+    // 速度に応じた輝き
     const speed = Math.min(150, Math.sqrt(dx * dx + dy * dy) * 5);
     meteor.style.boxShadow = `0 0 ${size}px ${size/2}px rgba(255, 255, 200, 0.8)`;
     meteor.style.filter = `blur(1px) drop-shadow(0 0 ${speed/10}px #fff)`;
     
     this.gamecontainer.appendChild(meteor);
     
+    // アニメーション
     meteor.animate([
       { transform: `rotate(${angle + 45}deg) scale(1)`, opacity: 1 },
       { transform: `translate(${dx * 10}px, ${dy * 10}px) rotate(${angle + 45}deg) scale(0.1)`, opacity: 0 }
     ], { duration: 800, easing: 'ease-out', fill: 'forwards' });
     
+    // 一定時間後に削除
     setTimeout(() => meteor.remove(), 800);
   }
 
+  /**
+   * ランダムなテキスト（観客コメント）を生成
+   */
   createRandomText() {
     if (this.isPaused || this.isFirstInteraction) return;
     
+    // テキスト要素を作成
     const text = document.createElement('div');
     text.className = 'random-text';
     text.textContent = this.randomTexts[Math.floor(Math.random() * this.randomTexts.length)];
     
+    // ランダムな位置
     const x = Math.random() * window.innerWidth * 0.8 + window.innerWidth * 0.1;
     const y = window.innerHeight - Math.random() * 200;
     
+    // スタイル設定
     text.style.left = `${x}px`;
     text.style.top = `${y}px`;
     text.style.opacity = 0.5 + Math.random() * 0.5;
@@ -924,10 +1091,14 @@ class GameManager {
     setTimeout(() => text.remove(), 6000);
   }
 
+  /**
+   * 観客（ペンライトを持つドット）を生成
+   */
   createAudience() {
     const centerX = window.innerWidth / 2;
     const maxAudience = 180;
     
+    // 観客配置の行ごとの設定
     const rows = [
       { distance: 70, count: 14, scale: 0.9 },
       { distance: 130, count: 20, scale: 0.85 },
@@ -939,9 +1110,11 @@ class GameManager {
       { distance: 490, count: 56, scale: 0.55 }
     ];
     
+    // ペンライトの色
     const colors = ['#39C5BB', '#FF69B4', '#FFA500', '#9370DB', '#32CD32', '#00BFFF'];
     let total = 0;
     
+    // 各行ごとに観客を配置
     for (const row of rows) {
       if (total >= maxAudience) break;
       
@@ -951,6 +1124,7 @@ class GameManager {
       for (let i = 0; i < count; i++) {
         if (total >= maxAudience) break;
         
+        // 円形に配置（楕円を形成）
         const angle = step * i * (Math.PI / 180);
         const x = Math.cos(angle) * row.distance;
         const y = Math.sin(angle) * (row.distance * 0.5);
@@ -958,6 +1132,7 @@ class GameManager {
         const posX = centerX + x;
         const posY = 100 - y;
         
+        // 画面内に表示される観客のみ生成
         if (posX >= -20 && posX <= window.innerWidth + 20 && posY >= -20 && posY <= window.innerHeight + 20) {
           const audience = document.createElement('div');
           audience.className = 'audience';
@@ -966,11 +1141,13 @@ class GameManager {
           audience.style.transform = `scale(${row.scale})`;
           audience.style.opacity = Math.max(0.5, row.scale);
           
+          // 後ろの観客は単純な形状
           if (row.distance > 250 && total % 2 === 0) {
             audience.style.backgroundColor = '#333';
             audience.style.height = '12px';
             audience.style.width = '8px';
           } else {
+            // 前の観客はペンライトを持つ
             const penlight = document.createElement('div');
             penlight.className = 'penlight';
             
@@ -984,6 +1161,7 @@ class GameManager {
             const color = colors[Math.floor(Math.random() * colors.length)];
             penlight.style.backgroundColor = color;
             
+            // 前の列はより明るく
             if (row.distance <= 190) {
               penlight.style.boxShadow = `0 0 8px ${color}`;
             }
@@ -997,6 +1175,7 @@ class GameManager {
       }
     }
     
+    // 観客が多い場合、一部のペンライトは動かさない（パフォーマンス対策）
     if (total > 100) {
       const penlights = document.querySelectorAll('.audience .penlight');
       for (let i = 0; i < penlights.length; i++) {
@@ -1008,8 +1187,12 @@ class GameManager {
     }
   }
 
+  /**
+   * リザルト画面を表示する
+   * スコアとランクを表示し、演出を実行
+   */
   showResults() {
-    // 重複実行防止
+    // 重複実行防止（この部分が非常に重要）
     if (this.resultsDisplayed) {
       console.log("すでに結果画面が表示されています");
       return;
@@ -1018,7 +1201,6 @@ class GameManager {
     this.resultsDisplayed = true;
     
     // 結果表示前にプレーヤーが再生中なら一時停止する
-    // リソースの競合を避けるため、エラーを適切に処理
     if (this.player?.isPlaying) {
       this.player.requestPause().catch(e => console.error("Results pause error:", e));
     }
@@ -1029,13 +1211,16 @@ class GameManager {
       this.resultCheckTimer = null;
     }
     
+    // 最大コンボを確定
     this.maxCombo = Math.max(this.maxCombo || 0, this.combo);
     
+    // スコアに応じたランク判定
     let rank = 'C';
     if (this.score >= 10000) rank = 'S';
     else if (this.score >= 8000) rank = 'A';
     else if (this.score >= 6000) rank = 'B';
     
+    // 結果画面要素を取得
     const resultsScreen = document.getElementById('results-screen');
     if (!resultsScreen) {
       console.error("結果画面のDOM要素が見つかりません");
@@ -1056,7 +1241,7 @@ class GameManager {
     setTimeout(() => {
       resultsScreen.classList.add('show');
       
-      // 演出エフェクト
+      // 演出エフェクト（流れ星）
       for (let i = 0; i < 15; i++) {
         setTimeout(() => {
           const x = Math.random() * window.innerWidth;
@@ -1070,10 +1255,14 @@ class GameManager {
     this.setupResultsButtons();
   }
   
+  /**
+   * リザルト画面のボタンイベントを設定
+   */
   setupResultsButtons() {
     const backToTitle = document.getElementById('back-to-title');
     const replaySong = document.getElementById('replay-song');
     
+    // イベントハンドラ追加のヘルパー関数
     const addEvents = (element, handler) => {
       if (!element) return;
       element.addEventListener('click', handler);
@@ -1083,10 +1272,12 @@ class GameManager {
       }, {passive: false});
     };
     
+    // タイトルに戻るボタン
     addEvents(backToTitle, () => {
       window.location.href = 'index.html';
     });
     
+    // 曲をリプレイするボタン
     addEvents(replaySong, () => {
       const resultsScreen = document.getElementById('results-screen');
       if (resultsScreen) {
@@ -1101,16 +1292,22 @@ class GameManager {
     });
   }
 
+  /**
+   * リソースの解放とクリーンアップ
+   * ゲーム終了時に呼び出す
+   */
   cleanup() {
     if (this.randomTextInterval) clearInterval(this.randomTextInterval);
     if (this.comboResetTimer) clearInterval(this.comboResetTimer);
     if (this.resultCheckTimer) clearTimeout(this.resultCheckTimer);
     
+    // マウストレイルの要素を削除
     this.mouseTrail.forEach(item => {
       if (item.element?.parentNode) item.element.remove();
     });
     this.mouseTrail = [];
     
+    // プレーヤーのクリーンアップ
     if (this.player) {
       try { this.player.dispose(); } catch {}
     }

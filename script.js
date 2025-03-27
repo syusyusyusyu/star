@@ -93,7 +93,14 @@ class GameManager {
         try {
           // プレーヤーが既に再生中でないことを確認
           if (!this.player.isPlaying) {
-            await this.player.requestPlay();
+            try {
+              await this.player.requestPlay();
+            } catch (e) {
+              console.error("Player play error:", e);
+              // エラー発生時はフォールバックモードへ
+              this.fallback();
+              this.startLyricsTimer();
+            }
           }
         } catch (e) {
           console.error("Player play error:", e);
@@ -361,7 +368,12 @@ class GameManager {
       if (this.isPaused) {
         // 一時停止処理
         if (this.player?.isPlaying) {
-          await this.player.requestPause().catch(e => console.error("Pause error:", e));
+          try {
+            // Promise形式ではなくtry-catch形式に変更
+            this.player.requestPause();
+          } catch (e) {
+            console.error("Pause error:", e);
+          }
         }
         clearInterval(this.randomTextInterval);
         this.randomTextInterval = null;
@@ -375,10 +387,13 @@ class GameManager {
         // 再生処理
         if (this.player) {
           if (!this.player.isPlaying) {
-            await this.player.requestPlay().catch(e => {
+            try {
+              // Promise形式ではなくtry-catch形式に変更
+              this.player.requestPlay();
+            } catch (e) {
               console.error("Play error:", e);
               this.fallback();
-            });
+            }
           }
         } else {
           // フォールバックモードでの再生再開
@@ -441,19 +456,29 @@ class GameManager {
       if (this.player) {
         // 操作を正しい順序で行う（プレーヤーの状態制御）
         if (this.player.isPlaying) {
-          await this.player.requestPause().catch(e => console.error("Pause error:", e));
-          // 次の操作の前に小さな遅延を追加（安定性向上）
-          await new Promise(resolve => setTimeout(resolve, 300));
+          try {
+            this.player.requestPause();
+            // 次の操作の前に小さな遅延を追加（安定性向上）
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (e) {
+            console.error("Pause error:", e);
+          }
         }
         
-        await this.player.requestStop().catch(e => console.error("Stop error:", e));
-        // 次の操作の前に小さな遅延を追加
-        await new Promise(resolve => setTimeout(resolve, 300));
+        try {
+          this.player.requestStop();
+          // 次の操作の前に小さな遅延を追加
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (e) {
+          console.error("Stop error:", e);
+        }
         
-        await this.player.requestPlay().catch(e => {
+        try {
+          this.player.requestPlay();
+        } catch (e) {
           console.error("Play error:", e);
           this.fallback();
-        });
+        }
       }
       this.playpause.textContent = '一時停止';
     } finally {
@@ -487,7 +512,14 @@ class GameManager {
       this.player.addListener({
         // アプリ準備完了時
         onAppReady: (app) => {
-          if (app && !app.managed) this.player.createFromSongUrl(this.songUrl).catch(() => this.fallback());
+          if (app && !app.managed) {
+            try {
+              this.player.createFromSongUrl(this.songUrl);
+            } catch (e) {
+              console.error("Song creation error:", e);
+              this.fallback();
+            }
+          }
         },
         // 動画準備完了時（歌詞データ取得）
         onVideoReady: (video) => {
@@ -544,7 +576,10 @@ class GameManager {
           }
         },
         // エラー発生時
-        onError: () => this.fallback()
+        onError: (e) => {
+          console.error("Player error:", e);
+          this.fallback();
+        }
       });
     } catch (error) {
       console.error("Player initialization error:", error);
@@ -1201,8 +1236,13 @@ class GameManager {
     this.resultsDisplayed = true;
     
     // 結果表示前にプレーヤーが再生中なら一時停止する
+    // エラー修正: .catch()メソッドの使用から、try-catch形式に変更
     if (this.player?.isPlaying) {
-      this.player.requestPause().catch(e => console.error("Results pause error:", e));
+      try {
+        this.player.requestPause();
+      } catch (e) {
+        console.error("Results pause error:", e);
+      }
     }
     
     // タイマーをクリア

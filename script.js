@@ -49,6 +49,9 @@ class GameManager {
     
     // 通常のカーソルを使用する（特別なスタイルは適用しない）
     this.gamecontainer.style.userSelect = 'none';
+    
+    // 結果表示用のタイマーを追加
+    this.resultCheckTimer = null;
   }
 
   updateViewportHeight() {
@@ -98,10 +101,40 @@ class GameManager {
           }
         }, 1000);
       }
+      
+      // 結果表示用のタイマーを設定（フォールバックモード用）
+      if (!this.player || !this.isPlayerInit) {
+        // 曲の長さを60秒と仮定
+        this.setupResultCheckTimer(60000);
+      }
     } finally {
       // 操作が完全に完了するのを確実にするために長めの遅延を使用
       setTimeout(() => this._operationInProgress = false, 1000);
     }
+  }
+
+  // 結果表示のための確認タイマーをセットアップ
+  setupResultCheckTimer(duration) {
+    // 既存のタイマーをクリア
+    if (this.resultCheckTimer) {
+      clearTimeout(this.resultCheckTimer);
+    }
+    
+    // 曲の終了時に結果を表示するタイマーを設定
+    this.resultCheckTimer = setTimeout(() => {
+      if (!this.isPaused && !this.resultsDisplayed) {
+        console.log("結果表示タイマーが発火しました");
+        this.showResults();
+      }
+    }, duration);
+    
+    // バックアップとして、さらに長い時間が経過した場合も強制的に結果を表示
+    setTimeout(() => {
+      if (!this.resultsDisplayed) {
+        console.log("バックアップタイマーが発火しました");
+        this.showResults();
+      }
+    }, duration + 10000);
   }
 
   setupEvents() {
@@ -197,6 +230,15 @@ class GameManager {
     
     this.restart.addEventListener('click', handleRestartClick);
     this.restart.addEventListener('touchend', handleRestartClick, {passive: false});
+    
+    // 強制的に結果表示へ移行するデバッグ機能
+    // ダブルクリックで結果画面を表示
+    document.addEventListener('dblclick', () => {
+      if (!this.isFirstInteraction && !this.resultsDisplayed) {
+        console.log("ダブルクリックによる結果表示");
+        this.showResults();
+      }
+    });
   }
 
   initGame() {
@@ -272,6 +314,12 @@ class GameManager {
         }
         clearInterval(this.randomTextInterval);
         this.randomTextInterval = null;
+        
+        // 一時停止時にタイマーを停止
+        if (this.resultCheckTimer) {
+          clearTimeout(this.resultCheckTimer);
+          this.resultCheckTimer = null;
+        }
       } else {
         if (this.player) {
           if (!this.player.isPlaying) {
@@ -282,6 +330,11 @@ class GameManager {
           }
         } else {
           this.startTime = Date.now() - (this.lyricsData[this.currentLyricIndex]?.time || 0);
+          
+          // 再生再開時にタイマーを再設定（残り時間を推定）
+          const elapsedTime = Date.now() - this.songStartTime;
+          const remainingTime = Math.max(1000, 60000 - elapsedTime);
+          this.setupResultCheckTimer(remainingTime);
         }
         
         if (!this.randomTextInterval) {
@@ -300,13 +353,29 @@ class GameManager {
     
     this.score = this.combo = this.currentLyricIndex = 0;
     this.startTime = Date.now();
+    this.songStartTime = Date.now(); // 曲の開始時間をリセット
     this.isPaused = false;
     this.scoreEl.textContent = '0';
     this.comboEl.textContent = 'コンボ: 0';
     this.resultsDisplayed = false; // リザルト表示フラグをリセット
     
+    // 結果画面を非表示にする
+    const resultsScreen = document.getElementById('results-screen');
+    if (resultsScreen) {
+      resultsScreen.classList.remove('show');
+      resultsScreen.classList.add('hidden');
+    }
+    
     document.querySelectorAll('.lyric-bubble').forEach(l => l.remove());
     this.displayedLyrics.clear();
+    
+    // タイマーを再設定
+    if (this.resultCheckTimer) {
+      clearTimeout(this.resultCheckTimer);
+    }
+    if (!this.player || !this.isPlayerInit) {
+      this.setupResultCheckTimer(60000);
+    }
     
     try {
       if (this.player) {
@@ -394,6 +463,13 @@ class GameManager {
           this.playpause.textContent = '再生';
           this.restartGame();
         },
+        onFinish: () => {
+          // 曲が終わったら結果画面を表示（最重要）
+          console.log("onFinish イベントが発火しました");
+          if (!this.resultsDisplayed) {
+            this.showResults();
+          }
+        },
         onError: () => this.fallback()
       });
     } catch (error) {
@@ -475,6 +551,13 @@ class GameManager {
           });
         }
       }
+      
+      // プレイヤーの場合、曲の長さに応じてタイマーを設定
+      if (this.player?.video?.duration) {
+        // 曲の長さ + 少し余裕を持たせる
+        const duration = this.player.video.duration + 2000;
+        this.setupResultCheckTimer(duration);
+      }
     } catch (e) {
       console.error("歌詞処理エラー:", e);
     }
@@ -484,7 +567,6 @@ class GameManager {
     this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.songStartTime = Date.now(); // 曲の開始時間を記録
-    this.songDuration = 60000; // フォールバックモードでの曲の長さを60秒に設定
     
     const checkLyrics = () => {
       if ((this.isPlayerInit && this.player) || this.isPaused || this.isFirstInteraction) {
@@ -531,21 +613,21 @@ class GameManager {
         this.currentLyricIndex++;
       }
       
-      // フォールバックモードでの曲終了判定
-      const elapsed = Date.now() - this.songStartTime;
-      if (elapsed >= this.songDuration && !this.resultsDisplayed) {
-        this.showResults();
-      }
-      
+      // 全ての歌詞を表示し終わったら、少し待ってから結果表示
       if (this.currentLyricIndex >= this.lyricsData.length) {
+        // 歌詞を1周したら、5秒後に結果画面を表示（強制的に）
+        if (!this.resultsDisplayed && !this.player) {
+          setTimeout(() => {
+            if (!this.resultsDisplayed) {
+              console.log("歌詞1周完了後の強制結果表示");
+              this.showResults();
+            }
+          }, 5000);
+        }
+        
         this.currentLyricIndex = 0;
         this.displayedLyrics.clear();
         this.startTime = Date.now();
-        
-        // 1周したら結果画面を表示（フォールバックモード用）
-        if (!this.resultsDisplayed && !this.player) {
-          this.showResults();
-        }
       }
       
       requestAnimationFrame(checkLyrics);
@@ -591,17 +673,13 @@ class GameManager {
       }
     }
     
-    // 曲の終了判定を修正
-    if (this.player?.video?.duration > 0 && position >= this.player.video.duration - 1000 && !this.resultsDisplayed) {
-      this.showResults();
-    } else if (
-      // フォールバックモード対応 - 最後のグループが表示された後に結果表示
-      !this.player && 
-      this.currentLyricIndex >= this.lyricsData.length - 1 && 
-      position >= this.lyricsData[this.lyricsData.length - 1].time + 5000 && 
-      !this.resultsDisplayed
-    ) {
-      this.showResults();
+    // 曲の終了判定を改善
+    if (this.player?.video?.duration) {
+      // 曲の終了1秒前になったらリザルト表示
+      if (position >= this.player.video.duration - 1000 && !this.resultsDisplayed) {
+        console.log("曲終了検出による結果表示");
+        this.showResults();
+      }
     }
   }
 
@@ -931,13 +1009,24 @@ class GameManager {
   }
 
   showResults() {
-    if (this.resultsDisplayed) return;
+    // 重複実行防止
+    if (this.resultsDisplayed) {
+      console.log("すでに結果画面が表示されています");
+      return;
+    }
+    console.log("結果画面を表示します");
     this.resultsDisplayed = true;
     
     // 結果表示前にプレーヤーが再生中なら一時停止する
     // リソースの競合を避けるため、エラーを適切に処理
     if (this.player?.isPlaying) {
       this.player.requestPause().catch(e => console.error("Results pause error:", e));
+    }
+    
+    // タイマーをクリア
+    if (this.resultCheckTimer) {
+      clearTimeout(this.resultCheckTimer);
+      this.resultCheckTimer = null;
     }
     
     this.maxCombo = Math.max(this.maxCombo || 0, this.combo);
@@ -948,58 +1037,74 @@ class GameManager {
     else if (this.score >= 6000) rank = 'B';
     
     const resultsScreen = document.getElementById('results-screen');
-    document.getElementById('final-score-display').textContent = this.score;
-    document.getElementById('final-combo-display').textContent = `最大コンボ: ${this.maxCombo}`;
-    document.getElementById('rank-display').textContent = `ランク: ${rank}`;
+    if (!resultsScreen) {
+      console.error("結果画面のDOM要素が見つかりません");
+      return;
+    }
     
+    // 結果画面の要素を確認して表示
+    const finalScoreDisplay = document.getElementById('final-score-display');
+    const finalComboDisplay = document.getElementById('final-combo-display');
+    const rankDisplay = document.getElementById('rank-display');
+    
+    if (finalScoreDisplay) finalScoreDisplay.textContent = this.score;
+    if (finalComboDisplay) finalComboDisplay.textContent = `最大コンボ: ${this.maxCombo}`;
+    if (rankDisplay) rankDisplay.textContent = `ランク: ${rank}`;
+    
+    // 結果画面を表示
+    resultsScreen.classList.remove('hidden');
     setTimeout(() => {
-      resultsScreen.classList.remove('hidden');
-      setTimeout(() => {
-        resultsScreen.classList.add('show');
-        
-        for (let i = 0; i < 15; i++) {
-          setTimeout(() => {
-            const x = Math.random() * window.innerWidth;
-            const y = Math.random() * window.innerHeight;
-            this.createShooting(x, y, Math.random() * 10 - 5, Math.random() * 10 - 5);
-          }, i * 200);
-        }
-      }, 100);
-    }, 1500);
+      resultsScreen.classList.add('show');
+      
+      // 演出エフェクト
+      for (let i = 0; i < 15; i++) {
+        setTimeout(() => {
+          const x = Math.random() * window.innerWidth;
+          const y = Math.random() * window.innerHeight;
+          this.createShooting(x, y, Math.random() * 10 - 5, Math.random() * 10 - 5);
+        }, i * 200);
+      }
+    }, 100);
     
-    const setupResultsButtons = () => {
-      const backToTitle = document.getElementById('back-to-title');
-      const replaySong = document.getElementById('replay-song');
-      
-      const addEvents = (element, handler) => {
-        if (!element) return;
-        element.addEventListener('click', handler);
-        element.addEventListener('touchend', (e) => {
-          e.preventDefault();
-          handler();
-        }, {passive: false});
-      };
-      
-      addEvents(backToTitle, () => {
-        window.location.href = 'index.html';
-      });
-      
-      addEvents(replaySong, () => {
+    // リザルト画面のボタン設定
+    this.setupResultsButtons();
+  }
+  
+  setupResultsButtons() {
+    const backToTitle = document.getElementById('back-to-title');
+    const replaySong = document.getElementById('replay-song');
+    
+    const addEvents = (element, handler) => {
+      if (!element) return;
+      element.addEventListener('click', handler);
+      element.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        handler();
+      }, {passive: false});
+    };
+    
+    addEvents(backToTitle, () => {
+      window.location.href = 'index.html';
+    });
+    
+    addEvents(replaySong, () => {
+      const resultsScreen = document.getElementById('results-screen');
+      if (resultsScreen) {
         resultsScreen.classList.remove('show');
         setTimeout(() => {
           resultsScreen.classList.add('hidden');
           this.restartGame();
-          this.resultsDisplayed = false;
         }, 1000);
-      });
-    };
-    
-    setupResultsButtons();
+      } else {
+        this.restartGame();
+      }
+    });
   }
 
   cleanup() {
     if (this.randomTextInterval) clearInterval(this.randomTextInterval);
     if (this.comboResetTimer) clearInterval(this.comboResetTimer);
+    if (this.resultCheckTimer) clearTimeout(this.resultCheckTimer);
     
     this.mouseTrail.forEach(item => {
       if (item.element?.parentNode) item.element.remove();

@@ -18,6 +18,7 @@ class GameManager {
     this.lastMousePos = { x: 0, y: 0 };
     this.apiLoaded = false; // APIがロード完了したかを追跡
     this._operationInProgress = false; // 操作のロック状態を追跡
+    this.resultsDisplayed = false; // リザルト画面表示フラグを初期化
     
     // 内部処理用のグループサイズを設定
     this.groupSize = 5;
@@ -302,6 +303,7 @@ class GameManager {
     this.isPaused = false;
     this.scoreEl.textContent = '0';
     this.comboEl.textContent = 'コンボ: 0';
+    this.resultsDisplayed = false; // リザルト表示フラグをリセット
     
     document.querySelectorAll('.lyric-bubble').forEach(l => l.remove());
     this.displayedLyrics.clear();
@@ -481,6 +483,8 @@ class GameManager {
   startLyricsTimer() {
     this.currentLyricIndex = 0;
     this.startTime = Date.now();
+    this.songStartTime = Date.now(); // 曲の開始時間を記録
+    this.songDuration = 60000; // フォールバックモードでの曲の長さを60秒に設定
     
     const checkLyrics = () => {
       if ((this.isPlayerInit && this.player) || this.isPaused || this.isFirstInteraction) {
@@ -527,10 +531,21 @@ class GameManager {
         this.currentLyricIndex++;
       }
       
+      // フォールバックモードでの曲終了判定
+      const elapsed = Date.now() - this.songStartTime;
+      if (elapsed >= this.songDuration && !this.resultsDisplayed) {
+        this.showResults();
+      }
+      
       if (this.currentLyricIndex >= this.lyricsData.length) {
         this.currentLyricIndex = 0;
         this.displayedLyrics.clear();
         this.startTime = Date.now();
+        
+        // 1周したら結果画面を表示（フォールバックモード用）
+        if (!this.resultsDisplayed && !this.player) {
+          this.showResults();
+        }
       }
       
       requestAnimationFrame(checkLyrics);
@@ -576,8 +591,16 @@ class GameManager {
       }
     }
     
-    // 修正: duration値が有効な場合のみ結果画面を表示
-    if (this.player?.video?.duration > 0 && position >= this.player.video.duration - 1000) {
+    // 曲の終了判定を修正
+    if (this.player?.video?.duration > 0 && position >= this.player.video.duration - 1000 && !this.resultsDisplayed) {
+      this.showResults();
+    } else if (
+      // フォールバックモード対応 - 最後のグループが表示された後に結果表示
+      !this.player && 
+      this.currentLyricIndex >= this.lyricsData.length - 1 && 
+      position >= this.lyricsData[this.lyricsData.length - 1].time + 5000 && 
+      !this.resultsDisplayed
+    ) {
       this.showResults();
     }
   }

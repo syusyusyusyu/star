@@ -2,38 +2,45 @@
 const songsData = [
     {
         id: 1,
-        title: "SUPERHERO",
-        artist: "めろくる",
-        apiToken: "wifkp8ak1TEhQ8pI",
-        songUrl: "https://piapro.jp/t/hZ35/20240130103028"
+        title: "ストリートライト",
+        artist: "加賀(ネギシャワーP)",
+        apiToken: "HmfsoBVch26BmLCm",
+        songUrl: "https://piapro.jp/t/ULcJ/20250205120202"
     },
     {
         id: 2,
-        title: "いつか君と話したミライは",
-        artist: "タケノコ少年",
-        apiToken: "x0ogHDnqRB8hjnrf",
-        songUrl: "https://piapro.jp/t/--OD/20240202150903"
+        title: "アリフレーション",
+        artist: "雨良 Amala",
+        apiToken: "rdja5JxMEtcYmyKP",
+        songUrl: "https://piapro.jp/t/SuQO/20250127235813"
     },
     {
         id: 3,
-        title: "フューチャーノーツ",
-        artist: "shikisai",
-        apiToken: "ZneYLNtDFF7FMsai",
-        songUrl: "https://piapro.jp/t/XiaI/20240201203346"
+        title: "インフォーマルダイブ",
+        artist: "99piano",
+        apiToken: "CqbpJNJHwoGvXhlD",
+        songUrl: "https://piapro.jp/t/Ppc9/20241224135843"
     },
     {
         id: 4,
-        title: "未来交響曲",
-        artist: "ヤマギシコージ",
-        apiToken: "Dwi8uWkUIHQQGCtF",
-        songUrl: "https://piapro.jp/t/Rejk/20240202164429"
+        title: "ハロー、フェルミ。",
+        artist: "ど～ぱみん",
+        apiToken: "o1B1ZygOqyhK5B3D",
+        songUrl: "https://piapro.jp/t/oTaJ/20250204234235"
     },
     {
         id: 5,
-        title: "リアリティ",
-        artist: "歩く人 & sober bear",
-        apiToken: "QTPx3Xr44KcwmYbL",
-        songUrl: "https://piapro.jp/t/ELIC/20240130010349"
+        title: "パレードレコード",
+        artist: "きさら",
+        apiToken: "G8MU8Wf87RotH8OR",
+        songUrl: "https://piapro.jp/t/GCgy/20250202202635"
+    },
+    {
+        id: 6,
+        title: "ロンリーラン",
+        artist: "海風太陽",
+        apiToken: "fI0SyBEEBzlB2f5C",
+        songUrl: "https://piapro.jp/t/CyPO/20250128183915"
     }
 ];
 

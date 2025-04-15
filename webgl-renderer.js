@@ -728,124 +728,125 @@ class WebGLRenderer {
     }
     
     /**
-     * ポストプロセッシングのセットアップ
-     */
-    setupPostprocessing() {
-      if (!this.config.postprocessing.enabled) return;
-      
-      // コンポーザーを作成
-      this.composer = new THREE.EffectComposer(this.renderer);
-      
-      // レンダーパスを追加
-      const renderPass = new THREE.RenderPass(this.scene, this.camera);
-      this.composer.addPass(renderPass);
-      
-      // アンリアルブルーム効果を追加
-      const bloomPass = new THREE.UnrealBloomPass(
-        new THREE.Vector2(this.width, this.height),
-        this.config.postprocessing.bloom.strength,
-        this.config.postprocessing.bloom.radius,
-        this.config.postprocessing.bloom.threshold
-      );
-      this.composer.addPass(bloomPass);
-      this.bloomPass = bloomPass;
-      
-      // シェーダーパスでカラーグレーディングとビネットを追加
-      const finalShader = {
-        uniforms: {
-          tDiffuse: { value: null },
-          uTime: { value: 0 },
-          uVignetteIntensity: { value: 1.5 },
-          uSaturation: { value: 1.1 },
-          uBrightness: { value: 1.05 },
-          uContrast: { value: 1.05 }
-        },
-        vertexShader: `
-          varying vec2 vUv;
-          void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: `
-          uniform sampler2D tDiffuse;
-          uniform float uTime;
-          uniform float uVignetteIntensity;
-          uniform float uSaturation;
-          uniform float uBrightness;
-          uniform float uContrast;
-          varying vec2 vUv;
+ * ポストプロセッシングのセットアップ（歌詞との干渉軽減版）
+ */
+setupPostprocessing() {
+    if (!this.config.postprocessing.enabled) return;
+    
+    // コンポーザーを作成
+    this.composer = new THREE.EffectComposer(this.renderer);
+    
+    // レンダーパスを追加
+    const renderPass = new THREE.RenderPass(this.scene, this.camera);
+    this.composer.addPass(renderPass);
+    
+    // アンリアルブルーム効果を追加（歌詞の邪魔にならない程度に調整）
+    const bloomPass = new THREE.UnrealBloomPass(
+      new THREE.Vector2(this.width, this.height),
+      1.0,  // 強度を下げる (元: 1.5)
+      0.6,  // 半径を下げる (元: 0.7)
+      0.25  // 閾値を上げる (元: 0.2)
+    );
+    this.composer.addPass(bloomPass);
+    this.bloomPass = bloomPass;
+    
+    // シェーダーパスでカラーグレーディングとビネットを追加（歌詞の視認性を優先）
+    const finalShader = {
+      uniforms: {
+        tDiffuse: { value: null },
+        uTime: { value: 0 },
+        uVignetteIntensity: { value: 1.2 }, // 強度を下げる (元: 1.5)
+        uSaturation: { value: 1.0 },      // 彩度を下げる (元: 1.1)
+        uBrightness: { value: 1.05 },
+        uContrast: { value: 1.05 }
+      },
+      // 以下のシェーダーコードは同じ
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform float uTime;
+        uniform float uVignetteIntensity;
+        uniform float uSaturation;
+        uniform float uBrightness;
+        uniform float uContrast;
+        varying vec2 vUv;
+        
+        // 色をHSLからRGBに変換
+        vec3 hsl2rgb(vec3 c) {
+          vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+          return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
+        }
+        
+        // 色をRGBからHSLに変換
+        vec3 rgb2hsl(vec3 c) {
+          float h = 0.0;
+          float s = 0.0;
+          float l = 0.0;
+          float r = c.r;
+          float g = c.g;
+          float b = c.b;
+          float cMin = min(r, min(g, b));
+          float cMax = max(r, max(g, b));
           
-          // 色をHSLからRGBに変換
-          vec3 hsl2rgb(vec3 c) {
-            vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
-            return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
-          }
-          
-          // 色をRGBからHSLに変換
-          vec3 rgb2hsl(vec3 c) {
-            float h = 0.0;
-            float s = 0.0;
-            float l = 0.0;
-            float r = c.r;
-            float g = c.g;
-            float b = c.b;
-            float cMin = min(r, min(g, b));
-            float cMax = max(r, max(g, b));
+          l = (cMax + cMin) / 2.0;
+          if (cMax > cMin) {
+            float cDelta = cMax - cMin;
             
-            l = (cMax + cMin) / 2.0;
-            if (cMax > cMin) {
-              float cDelta = cMax - cMin;
-              
-              s = l < 0.5 ? cDelta / (cMax + cMin) : cDelta / (2.0 - cMax - cMin);
-              
-              if (r == cMax) {
-                h = (g - b) / cDelta + (g < b ? 6.0 : 0.0);
-              } else if (g == cMax) {
-                h = (b - r) / cDelta + 2.0;
-              } else {
-                h = (r - g) / cDelta + 4.0;
-              }
-              h /= 6.0;
+            s = l < 0.5 ? cDelta / (cMax + cMin) : cDelta / (2.0 - cMax - cMin);
+            
+            if (r == cMax) {
+              h = (g - b) / cDelta + (g < b ? 6.0 : 0.0);
+            } else if (g == cMax) {
+              h = (b - r) / cDelta + 2.0;
+            } else {
+              h = (r - g) / cDelta + 4.0;
             }
-            return vec3(h, s, l);
+            h /= 6.0;
           }
+          return vec3(h, s, l);
+        }
+        
+        void main() {
+          // テクスチャから色を取得
+          vec4 texColor = texture2D(tDiffuse, vUv);
           
-          void main() {
-            // テクスチャから色を取得
-            vec4 texColor = texture2D(tDiffuse, vUv);
-            
-            // ビネット効果（周辺を暗くする）
-            vec2 uv = vUv * 2.0 - 1.0;
-            float vignetteAmount = uVignetteIntensity * length(uv);
-            texColor.rgb *= 1.0 - vignetteAmount * 0.5;
-            
-            // 色調補正
-            // コントラスト
-            texColor.rgb = (texColor.rgb - 0.5) * uContrast + 0.5;
-            
-            // 輝度
-            texColor.rgb *= uBrightness;
-            
-            // 彩度
-            vec3 hsl = rgb2hsl(texColor.rgb);
-            hsl.y *= uSaturation;
-            texColor.rgb = hsl2rgb(hsl);
-            
-            // パルス効果（微妙な色の変化）
-            float pulse = 0.05 * sin(uTime * 0.2);
-            texColor.rgb += pulse * vec3(0.1, 0.2, 0.3);
-            
-            gl_FragColor = texColor;
-          }
-        `
-      };
-      
-      const finalPass = new THREE.ShaderPass(finalShader);
-      finalPass.renderToScreen = true;
-      this.composer.addPass(finalPass);
-      this.finalPass = finalPass;
-    }
+          // ビネット効果（周辺を暗くする）
+          vec2 uv = vUv * 2.0 - 1.0;
+          float vignetteAmount = uVignetteIntensity * length(uv);
+          texColor.rgb *= 1.0 - vignetteAmount * 0.4; // 効果を抑える (元: 0.5)
+          
+          // 色調補正
+          // コントラスト
+          texColor.rgb = (texColor.rgb - 0.5) * uContrast + 0.5;
+          
+          // 輝度
+          texColor.rgb *= uBrightness;
+          
+          // 彩度
+          vec3 hsl = rgb2hsl(texColor.rgb);
+          hsl.y *= uSaturation;
+          texColor.rgb = hsl2rgb(hsl);
+          
+          // パルス効果（控えめに）
+          float pulse = 0.03 * sin(uTime * 0.2); // 効果を抑える (元: 0.05)
+          texColor.rgb += pulse * vec3(0.1, 0.2, 0.3);
+          
+          gl_FragColor = texColor;
+        }
+      `
+    };
+    
+    const finalPass = new THREE.ShaderPass(finalShader);
+    finalPass.renderToScreen = true;
+    this.composer.addPass(finalPass);
+    this.finalPass = finalPass;
+  }
     
     /**
      * イベントリスナーのセットアップ

@@ -1,0 +1,237 @@
+/* WebGL関連の拡張スタイル */
+.webgl-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  /* ゲームコンテナは相対配置に変更して、WebGLと通常のDOMが重なるようにする */
+  #game-container {
+    position: relative;
+    background: none; /* 背景はWebGLで描画するので透明に */
+  }
+  
+  /* 歌詞バブルをWebGLキャンバスより前面に */
+  .lyric-bubble {
+    z-index: 20;
+    position: absolute;
+    color: var(--text-color);
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(57, 197, 187, 0.8);
+    user-select: none;
+    pointer-events: auto;
+    transition: transform 0.2s, color 0.2s;
+    padding: 8px 15px;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    border-radius: 8px;
+  }
+  
+  .lyric-bubble:hover {
+    transform: scale(1.3);
+    color: var(--primary-color);
+    text-shadow: 0 0 15px rgba(57, 197, 187, 1);
+    cursor: pointer;
+  }
+  
+  /* スコア表示をWebGLキャンバスより前面に */
+  #score-container {
+    z-index: 50;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    background-color: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: 1px solid rgba(57, 197, 187, 0.3);
+    box-shadow: 0 0 15px rgba(57, 197, 187, 0.2);
+  }
+  
+  #score {
+    font-size: 32px;
+    color: var(--text-color);
+    text-shadow: 0 0 10px var(--primary-color);
+  }
+  
+  #combo {
+    font-size: 24px;
+    color: var(--text-color);
+    text-shadow: 0 0 10px var(--accent-color);
+  }
+  
+  /* 曲情報もスタイリングを強化 */
+  #song-info {
+    z-index: 50;
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: white;
+    font-size: 18px;
+    text-shadow: 0 0 10px rgba(57, 197, 187, 0.8);
+    background-color: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: 1px solid rgba(57, 197, 187, 0.3);
+    box-shadow: 0 0 15px rgba(57, 197, 187, 0.2);
+  }
+  
+  /* コントロールボタンのスタイリングを強化 */
+  #controls {
+    z-index: 100;
+    position: absolute;
+    bottom: calc(20px + var(--safe-area-bottom));
+    right: 20px;
+    display: flex;
+    gap: 10px;
+  }
+  
+  #controls button {
+    background-color: rgba(57, 197, 187, 0.8);
+    border: none;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s;
+    box-shadow: 0 0 15px rgba(57, 197, 187, 0.4);
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  #controls button:hover {
+    background-color: rgba(57, 197, 187, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(57, 197, 187, 0.6);
+  }
+  
+  #controls button:active {
+    background-color: rgba(57, 197, 187, 1);
+    transform: scale(0.95);
+  }
+  
+  /* リザルト画面もWebGLキャンバスより前面に */
+  #results-screen {
+    z-index: 2000;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+    height: -webkit-fill-available;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 1s ease;
+    pointer-events: none;
+    padding-top: var(--browser-header-height);
+    padding-bottom: calc(var(--browser-footer-height) + var(--safe-area-bottom));
+    box-sizing: border-box;
+  }
+  
+  #results-screen.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  
+  /* ローディング表示の強化 */
+  #loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 18px;
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 15px 25px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(57, 197, 187, 0.3);
+    border: 1px solid rgba(57, 197, 187, 0.3);
+    z-index: 1000;
+    min-width: 200px;
+  }
+  
+  /* 指示テキストもスタイル強化 */
+  #instructions {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 18px;
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 15px 25px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(57, 197, 187, 0.3);
+    border: 1px solid rgba(57, 197, 187, 0.3);
+    z-index: 50;
+    animation: fadeOut 5s forwards;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+  
+  /* モバイル対応 */
+  @media (max-width: 768px) {
+    .lyric-bubble {
+      font-size: 20px;
+      padding: 6px 12px;
+    }
+    
+    #score-container, #song-info {
+      padding: 8px 12px;
+    }
+    
+    #score { font-size: 24px; }
+    #combo { font-size: 18px; }
+    
+    #controls {
+      bottom: calc(15px + var(--safe-area-bottom));
+      padding: 8px;
+      background-color: rgba(0, 0, 0, 0.5);
+      border-radius: 20px;
+      width: 90%;
+      left: 50%;
+      transform: translateX(-50%);
+      justify-content: center;
+    }
+    
+    #controls button {
+      padding: 10px 15px;
+      font-size: 14px;
+    }
+    
+    #loading, #instructions {
+      font-size: 16px;
+      padding: 12px 20px;
+    }
+  }

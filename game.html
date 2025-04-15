@@ -5,9 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>マジカルミライ - 初音ミクのアリーナライブ</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="enhanced-styles.css">
+    <!-- Three.js ライブラリの読み込み -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Three.js 拡張機能の読み込み -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.min.js"></script>
+    <!-- アプリ用スクリプト -->
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="https://unpkg.com/textalive-app-api/dist/index.js"></script>
     <script src="game-loader.js"></script>
+    <script src="webgl-renderer.js"></script>
+    <script src="integrated-game-manager.js"></script>
     <script src="script.js"></script>
 </head>
 <body class="browser-bar-adjust">
@@ -29,7 +40,7 @@
             <button id="restart" aria-label="最初から">最初から</button>
         </div>
     </div>
-    <div id="results-screen" class="hidden">
+    <div id="results-screen">
         <div class="results-container">
             <div class="results-score-section">
                 <h2>リザルト</h2>

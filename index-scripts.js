@@ -41,13 +41,6 @@ const songsData = [
         artist: "海風太陽",
         apiToken: "fI0SyBEEBzlB2f5C",
         songUrl: "https://piapro.jp/t/CyPO/20250128183915"
-    },
-    {
-        id: 7,
-        title: "初音ミクの消失",
-        artist: "cosMo@暴走P",
-        apiToken: "kigVV4ZiRZ0V5i0y",
-        songUrl: "https://www.youtube.com/watch?v=UgZFpO_Y6qo"
     }
 ];
 

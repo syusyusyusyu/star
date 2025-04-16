@@ -41,6 +41,13 @@ const songsData = [
         artist: "海風太陽",
         apiToken: "fI0SyBEEBzlB2f5C",
         songUrl: "https://piapro.jp/t/CyPO/20250128183915"
+    },
+    {
+        id: 7,
+        title: "a",
+        artist: "a",
+        apiToken: "qYdi5k3XTHhl3dbX",
+        songUrl: "https://textalive.jp/songs/www.youtube.com%2Fwatch%3Fv%3DVWVtIg5cdDU"
     }
 ];
 

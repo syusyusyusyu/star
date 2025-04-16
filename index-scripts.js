@@ -44,8 +44,8 @@ const songsData = [
     },
     {
         id: 7,
-        title: "a",
-        artist: "a",
+        title: "初音ミクの消失",
+        artist: "cosMo@暴走P",
         apiToken: "qYdi5k3XTHhl3dbX",
         songUrl: "https://textalive.jp/songs/www.youtube.com%2Fwatch%3Fv%3DVWVtIg5cdDU"
     }

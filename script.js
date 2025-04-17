@@ -288,6 +288,7 @@ class GameManager {
   initGame() {
     this.createStars();
     this.createAudience();
+    this.visuals = new LiveStageVisuals(this.gamecontainer); // ← これを createAudience の直後に追加
     this.lyricsData = [];
     
     // フォールバック用の歌詞データ
@@ -1351,5 +1352,64 @@ class GameManager {
     if (this.player) {
       try { this.player.dispose(); } catch {}
     }
+  }
+}
+
+class LiveStageVisuals {
+  constructor(container) {
+    this.container = container;
+    this.initThreeJS();
+    this.animate();
+  }
+
+  initThreeJS() {
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
+    this.camera.position.set(0, 100, 250);
+
+    this.renderer = new THREE.WebGLRenderer({ alpha: true });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.domElement.style.position = 'absolute';
+    this.renderer.domElement.style.top = 0;
+    this.renderer.domElement.style.left = 0;
+    this.renderer.domElement.style.zIndex = 2; // UIの下、背景の上
+    this.container.appendChild(this.renderer.domElement);
+
+    // ステージリング
+    const ringGeo = new THREE.TorusGeometry(60, 6, 16, 100);
+    const ringMat = new THREE.MeshStandardMaterial({ color: 0x39C5BB, metalness: 0.5, roughness: 0.3 });
+    this.ring = new THREE.Mesh(ringGeo, ringMat);
+    this.ring.rotation.x = Math.PI / 2;
+    this.scene.add(this.ring);
+
+    // ビームライト（コーン）
+    const beamGeo = new THREE.ConeGeometry(30, 150, 32, 1, true);
+    const beamMat = new THREE.MeshBasicMaterial({ color: 0x39C5BB, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+    this.beam = new THREE.Mesh(beamGeo, beamMat);
+    this.beam.position.y = 80;
+    this.scene.add(this.beam);
+
+    // ライト
+    const spotLight = new THREE.SpotLight(0x39C5BB, 2);
+    spotLight.position.set(0, 300, 150);
+    this.scene.add(spotLight);
+
+    const ambient = new THREE.AmbientLight(0x404040);
+    this.scene.add(ambient);
+
+    window.addEventListener('resize', () => this.onResize());
+  }
+
+  onResize() {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  animate() {
+    requestAnimationFrame(() => this.animate());
+    this.ring.rotation.z += 0.005;
+    this.renderer.render(this.scene, this.camera);
   }
 }

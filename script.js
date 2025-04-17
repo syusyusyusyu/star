@@ -1128,100 +1128,82 @@ class GameManager {
   }
 
   /**
-   * 観客（ペンライトを持つドット）を生成
-   */
-  createAudience() {
-    const centerX = window.innerWidth / 2;
-    const maxAudience = 180;
-    
-    // 観客配置の行ごとの設定
-    const rows = [
-      { distance: 70, count: 14, scale: 0.9 },
-      { distance: 130, count: 20, scale: 0.85 },
-      { distance: 190, count: 26, scale: 0.8 },
-      { distance: 250, count: 32, scale: 0.75 },
-      { distance: 310, count: 38, scale: 0.7 },
-      { distance: 370, count: 44, scale: 0.65 },
-      { distance: 430, count: 50, scale: 0.6 },
-      { distance: 490, count: 56, scale: 0.55 }
-    ];
-    
-    // ペンライトの色
-    const colors = ['#39C5BB', '#FF69B4', '#FFA500', '#9370DB', '#32CD32', '#00BFFF'];
-    let total = 0;
-    
-    // 各行ごとに観客を配置
-    for (const row of rows) {
+ * 観客（ペンライトを持つドット）を生成（完全ランダム振りバージョン）
+ */
+createAudience() {
+  const centerX = window.innerWidth / 2;
+  const maxAudience = 180;
+
+  const rows = [
+    { distance: 70, count: 14, scale: 0.9 },
+    { distance: 130, count: 20, scale: 0.85 },
+    { distance: 190, count: 26, scale: 0.8 },
+    { distance: 250, count: 32, scale: 0.75 },
+    { distance: 310, count: 38, scale: 0.7 },
+    { distance: 370, count: 44, scale: 0.65 },
+    { distance: 430, count: 50, scale: 0.6 },
+    { distance: 490, count: 56, scale: 0.55 }
+  ];
+
+  const colors = ['#39C5BB', '#00ffff', '#33ddaa', '#66ffff', '#ffffff'];
+  let total = 0;
+
+  for (const row of rows) {
+    if (total >= maxAudience) break;
+
+    const count = Math.min(row.count, Math.floor(row.count * window.innerWidth / 900));
+    const step = 360 / count;
+
+    for (let i = 0; i < count; i++) {
       if (total >= maxAudience) break;
-      
-      const count = Math.min(row.count, Math.floor(row.count * window.innerWidth / 900));
-      const step = 360 / count;
-      
-      for (let i = 0; i < count; i++) {
-        if (total >= maxAudience) break;
-        
-        // 円形に配置（楕円を形成）
-        const angle = step * i * (Math.PI / 180);
-        const x = Math.cos(angle) * row.distance;
-        const y = Math.sin(angle) * (row.distance * 0.5);
-        
-        const posX = centerX + x;
-        const posY = 100 - y;
-        
-        // 画面内に表示される観客のみ生成
-        if (posX >= -20 && posX <= window.innerWidth + 20 && posY >= -20 && posY <= window.innerHeight + 20) {
-          const audience = document.createElement('div');
-          audience.className = 'audience';
-          audience.style.left = `${posX}px`;
-          audience.style.bottom = `${posY}px`;
-          audience.style.transform = `scale(${row.scale})`;
-          audience.style.opacity = Math.max(0.5, row.scale);
-          
-          // 後ろの観客は単純な形状
-          if (row.distance > 250 && total % 2 === 0) {
-            audience.style.backgroundColor = '#333';
-            audience.style.height = '12px';
-            audience.style.width = '8px';
-          } else {
-            // 前の観客はペンライトを持つ
-            const penlight = document.createElement('div');
-            penlight.className = 'penlight';
-            
-            if (total % 3 !== 0 || row.distance <= 190) {
-              penlight.style.animationDelay = `${Math.random() * 0.8}s`;
-            } else {
-              penlight.style.animation = 'none';
-              penlight.style.transform = `rotate(${Math.random() * 20 - 10}deg)`;
-            }
-            
-            const color = colors[Math.floor(Math.random() * colors.length)];
-            penlight.style.backgroundColor = color;
-            
-            // 前の列はより明るく
-            if (row.distance <= 190) {
-              penlight.style.boxShadow = `0 0 8px ${color}`;
-            }
-            
-            audience.appendChild(penlight);
-          }
-          
-          this.gamecontainer.appendChild(audience);
-          total++;
-        }
-      }
-    }
-    
-    // 観客が多い場合、一部のペンライトは動かさない（パフォーマンス対策）
-    if (total > 100) {
-      const penlights = document.querySelectorAll('.audience .penlight');
-      for (let i = 0; i < penlights.length; i++) {
-        if (i % 3 === 0) {
-          penlights[i].style.animation = 'none';
-          penlights[i].style.transform = `rotate(${Math.random() * 20 - 10}deg)`;
-        }
+
+      const angle = step * i * (Math.PI / 180);
+      const x = Math.cos(angle) * row.distance;
+      const y = Math.sin(angle) * (row.distance * 0.5);
+
+      const posX = centerX + x;
+      const posY = 100 - y;
+
+      if (posX >= -20 && posX <= window.innerWidth + 20 && posY >= -20 && posY <= window.innerHeight + 20) {
+        const audience = document.createElement('div');
+        audience.className = 'audience';
+        audience.style.left = `${posX}px`;
+        audience.style.bottom = `${posY}px`;
+        audience.style.transform = `scale(${row.scale})`;
+        audience.style.opacity = Math.max(0.5, row.scale);
+
+        // === 進化ペンライト ===
+        const penlight = document.createElement('div');
+        penlight.className = 'penlight';
+
+        // ランダムカラー
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        penlight.style.backgroundColor = color;
+        penlight.style.boxShadow = `0 0 10px ${color}`;
+        penlight.style.filter = `drop-shadow(0 0 5px ${color})`;
+        penlight.style.setProperty('--primary-color', color);
+
+        // ランダム振りアニメ
+        const from = (-30 + Math.random() * 10).toFixed(1); // -30〜-20°
+        const to = (20 + Math.random() * 20).toFixed(1);    // 20〜40°
+        const speed = (0.4 + Math.random() * 0.8).toFixed(2); // 秒
+        const delay = (Math.random()).toFixed(2);             // 秒
+
+        penlight.style.setProperty('--rotate-from', `${from}deg`);
+        penlight.style.setProperty('--rotate-to', `${to}deg`);
+        penlight.style.setProperty('--wave-speed', `${speed}s`);
+        penlight.style.animationDelay = `${delay}s`;
+
+        audience.appendChild(penlight);
+        this.gamecontainer.appendChild(audience);
+
+        total++;
       }
     }
   }
+}
+
+
 
   /**
    * リザルト画面を表示する

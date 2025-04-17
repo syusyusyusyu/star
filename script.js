@@ -30,7 +30,7 @@ class GameManager {
     this.resultsDisplayed = false; // リザルト画面表示フラグを初期化（重要：リザルト画面重複表示防止）
     
     // 内部処理用のグループサイズを設定（パフォーマンス最適化）
-    this.groupSize = 5;
+    this.groupSize = 10;
     
     // モバイルブラウザのビューポート処理（画面サイズ対応）
     this.updateViewportHeight();

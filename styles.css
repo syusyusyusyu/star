@@ -872,3 +872,41 @@ body {
 #controls button:disabled:active {
     transform: none;
 }
+
+.viewer-lyrics-container {
+    position: fixed;
+    bottom: 100px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    z-index: 10;
+    pointer-events: none;
+  }
+  
+  .viewer-lyric-char {
+    display: inline-block;
+    color: #ffffff;
+    font-size: 24px;
+    margin: 0 2px;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  
+  .viewer-lyric-char.highlighted {
+    color: #39C5BB;
+    text-shadow: 0 0 10px #39C5BB;
+    transform: scale(1.2);
+  }
+  
+  @media (max-width: 768px) {
+    .viewer-lyrics-container {
+      bottom: 80px;
+    }
+    
+    .viewer-lyric-char {
+      font-size: 18px;
+    }
+  }
+  

@@ -629,91 +629,80 @@ class GameManager {
    */
   processLyrics(video) {
     try {
-      // まず全ての文字データを収集
-      const allCharData = [];
-      let phrase = video.firstPhrase;
-      
-      while (phrase) {
-        let word = phrase.firstWord;
-        while (word) {
-          let char = word.firstChar;
-          while (char) {
-            // 歌詞テキストの取得と検証
-            const charText = (char.text || '').trim();
-            
-            // 文字データの検証
-            // 空文字、制御文字、特殊文字などは除外
-            if (!charText || 
-                charText === '' || 
-                /[\u0000-\u001F\u007F-\u009F\uFEFF\uFFF0-\uFFFF]/.test(charText)) {
+      // メモリ使用量を最小限に抑えるため、処理を分割
+      const processChunk = (phrase, startIndex = 0, maxChars = 100) => {
+        const chunk = [];
+        let charCount = 0;
+        
+        while (phrase && charCount < maxChars) {
+          let word = phrase.firstWord;
+          while (word && charCount < maxChars) {
+            let char = word.firstChar;
+            while (char && charCount < maxChars) {
+              const charText = (char.text || '').trim();
+              
+              // 基本的なバリデーションのみ実施
+              if (charText && charText !== '') {
+                const startTime = char.startTime;
+                const endTime = char.endTime;
+                
+                // 有効な時間データのみ処理
+                if (typeof startTime === 'number' && !isNaN(startTime) && startTime >= 0) {
+                  chunk.push({
+                    time: startTime,
+                    text: charText,
+                    endTime: (typeof endTime === 'number' && !isNaN(endTime) && endTime > startTime) 
+                      ? endTime 
+                      : startTime + 1000,
+                    duration: 1000
+                  });
+                  charCount++;
+                }
+              }
               char = char.next;
-              continue;
             }
-
-            // タイミングデータの厳密な検証と補正
-            const startTime = char.startTime;
-            const endTime = char.endTime;
-            
-            // タイミングデータが無効な場合は補正
-            if (typeof startTime !== 'number' || isNaN(startTime) || startTime < 0) {
-              console.warn(`Invalid start time for lyric: ${charText}`);
-              char = char.next;
-              continue;
-            }
-            
-            // 終了時間が無効な場合は開始時間から補正
-            const validEndTime = (typeof endTime === 'number' && !isNaN(endTime) && endTime > startTime) 
-              ? endTime 
-              : startTime + 1000;
-            
-            // 表示時間が極端に短い場合は補正
-            const duration = Math.max(1000, validEndTime - startTime);
-            
-            allCharData.push({
-              time: startTime,
-              text: charText,
-              endTime: startTime + duration,
-              duration: duration,
-              originalWord: word.text, // 単語の文脈を保持
-              phraseText: phrase.text  // フレーズの文脈を保持
-            });
-            
-            char = char.next;
+            word = word.next;
           }
-          word = word.next;
+          phrase = phrase.next;
         }
-        phrase = phrase.next;
-      }
+        
+        return {
+          chunk,
+          nextPhrase: phrase
+        };
+      };
       
-      // 時間順にソートし、重複を除去
-      allCharData.sort((a, b) => a.time - b.time);
-      const uniqueCharData = allCharData.filter((char, index, self) =>
-        index === self.findIndex(c => 
-          c.text === char.text && 
-          Math.abs(c.time - char.time) < 100
-        )
-      );
+      // 歌詞データを分割して処理
+      const processAllLyrics = async () => {
+        this.lyricsData = [];
+        let currentPhrase = video.firstPhrase;
+        let index = 0;
+        
+        while (currentPhrase) {
+          // 非同期処理でチャンク処理を行う
+          await new Promise(resolve => setTimeout(resolve, 0));
+          const result = processChunk(currentPhrase, index);
+          this.lyricsData.push(...result.chunk);
+          currentPhrase = result.nextPhrase;
+          index += result.chunk.length;
+        }
+        
+        // 処理完了後にタイマーを設定
+        if (this.player?.video?.duration) {
+          const duration = this.player.video.duration + 2000;
+          this.setupResultCheckTimer(duration);
+        }
+      };
       
-      // より堅牢な歌詞データ構造を作成
-      this.lyricsData = uniqueCharData.map(charData => ({
-        time: charData.time,
-        text: charData.text,
-        endTime: charData.endTime,
-        duration: charData.duration,
-        originalChars: [{
-          text: charData.text,
-          timeOffset: 0,
-          duration: charData.duration
-        }]
-      }));
+      // 処理の開始
+      processAllLyrics().catch(e => {
+        console.error('歌詞処理エラー:', e);
+        this.fallback();
+      });
       
-      // プレイヤーの場合、曲の長さに応じてタイマーを設定
-      if (this.player?.video?.duration) {
-        const duration = this.player.video.duration + 2000;
-        this.setupResultCheckTimer(duration);
-      }
     } catch (e) {
       console.error("歌詞処理エラー:", e);
+      this.fallback();
     }
   }
 
@@ -1500,7 +1489,7 @@ class LiveStageVisuals {
     // 星の位置をランダムに配置
     for (let i = 0; i < starCount; i++) {
       const i3 = i * 3;
-      // 空間内のランダムな位置（球状に分布）
+      // 空間内のランダムな位置（球状に分布） 
       const radius = 300 + Math.random() * 700;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);

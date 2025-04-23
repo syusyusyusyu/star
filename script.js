@@ -629,83 +629,40 @@ class GameManager {
   
   /**
    * 歌詞データを処理する
-   * TextAliveから取得した歌詞データを内部形式に変換
+   * TextAliveから取得した歌詞データをシンプルに内部形式に変換
    * 
    * @param {Object} video - TextAliveから取得した動画データ
    */
   processLyrics(video) {
     try {
-      // メモリ使用量を最小限に抑えるため、処理を分割
-      const processChunk = (phrase, startIndex = 0, maxChars = 100) => {
-        const chunk = [];
-        let charCount = 0;
-        
-        while (phrase && charCount < maxChars) {
-          let word = phrase.firstWord;
-          while (word && charCount < maxChars) {
-            let char = word.firstChar;
-            while (char && charCount < maxChars) {
-              const charText = (char.text || '').trim();
-              
-              // 基本的なバリデーションのみ実施
-              if (charText && charText !== '') {
-                const startTime = char.startTime;
-                const endTime = char.endTime;
-                
-                // 有効な時間データのみ処理
-                if (typeof startTime === 'number' && !isNaN(startTime) && startTime >= 0) {
-                  chunk.push({
-                    time: startTime,
-                    text: charText,
-                    endTime: (typeof endTime === 'number' && !isNaN(endTime) && endTime > startTime) 
-                      ? endTime 
-                      : startTime + 1000,
-                    duration: 1000
-                  });
-                  charCount++;
-                }
-              }
-              char = char.next;
+      this.lyricsData = [];
+      let phrase = video.firstPhrase;
+      
+      while (phrase) {
+        let word = phrase.firstWord;
+        while (word) {
+          let char = word.firstChar;
+          while (char) {
+            const text = (char.text || '').trim();
+            if (text) {
+              this.lyricsData.push({
+                time: char.startTime,
+                endTime: char.endTime,
+                text: text,
+                displayDuration: char.endTime - char.startTime
+              });
             }
-            word = word.next;
+            char = char.next;
           }
-          phrase = phrase.next;
+          word = word.next;
         }
-        
-        return {
-          chunk,
-          nextPhrase: phrase
-        };
-      };
-      
-      // 歌詞データを分割して処理
-      const processAllLyrics = async () => {
-        this.lyricsData = [];
-        let currentPhrase = video.firstPhrase;
-        let index = 0;
-        
-        while (currentPhrase) {
-          // 非同期処理でチャンク処理を行う
-          await new Promise(resolve => setTimeout(resolve, 0));
-          const result = processChunk(currentPhrase, index);
-          this.lyricsData.push(...result.chunk);
-          currentPhrase = result.nextPhrase;
-          index += result.chunk.length;
-        }
-        
-        // 処理完了後にタイマーを設定
-        if (this.player?.video?.duration) {
-          const duration = this.player.video.duration + 2000;
-          this.setupResultCheckTimer(duration);
-        }
-      };
-      
-      // 処理の開始
-      processAllLyrics().catch(e => {
-        console.error('歌詞処理エラー:', e);
-        this.fallback();
-      });
-      
+        phrase = phrase.next;
+      }
+
+      // タイマーを設定（曲の長さ分）
+      if (this.player?.video?.duration) {
+        this.setupResultCheckTimer(this.player.video.duration + 2000);
+      }
     } catch (e) {
       console.error("歌詞処理エラー:", e);
       this.fallback();
@@ -720,34 +677,54 @@ class GameManager {
    */
   updateLyrics(position) {
     if (this.isPaused || this.isFirstInteraction) return;
-    if (!this.displayedLyrics) this.displayedLyrics = new Set();
     
-    // 表示すべき歌詞を検索
     for (const lyric of this.lyricsData) {
-      // 歌詞の表示タイミング判定を改善
+      // 表示するタイミングになった歌詞を処理
       if (lyric.time <= position && 
-          lyric.time > position - 500 && 
+          lyric.time > position - 200 && 
           !this.displayedLyrics.has(lyric.time)) {
         
-        // 歌詞を表示
         this.displayLyric(lyric.text);
         this.displayedLyrics.add(lyric.time);
         
-        // 歌詞の表示時間に基づいて削除タイミングを設定
-        const displayDuration = Math.max(3000, lyric.duration);
+        // 歌詞の表示時間は最低3秒、最大8秒
         setTimeout(() => {
           this.displayedLyrics.delete(lyric.time);
-        }, displayDuration);
+        }, Math.min(8000, Math.max(3000, lyric.displayDuration)));
       }
     }
+  }
+
+  /**
+   * 1文字の歌詞を表示
+   * @param {string} text - 表示する文字
+   */
+  displayLyric(text) {
+    const bubble = document.createElement('div');
+    bubble.className = 'lyric-bubble';
+    bubble.textContent = text;
+    bubble.style.opacity = '1';
     
-    // 曲の終了判定
-    if (this.player?.video?.duration) {
-      if (position >= this.player.video.duration - 1000 && !this.resultsDisplayed) {
-        console.log("曲終了検出による結果表示");
-        this.showResults();
-      }
-    }
+    // 表示位置を画面の中央付近にランダムに設定
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const x = screenWidth * 0.2 + Math.random() * (screenWidth * 0.6);
+    const y = screenHeight * 0.3 + Math.random() * (screenHeight * 0.4);
+    
+    bubble.style.left = `${x}px`;
+    bubble.style.top = `${y}px`;
+    bubble.style.fontSize = `${screenWidth <= 768 ? '24' : '36'}px`;
+    
+    this.gamecontainer.appendChild(bubble);
+    
+    // 鑑賞用歌詞も同時に表示
+    this.displayViewerLyric(text, bubble);
+    
+    // 8秒後にフェードアウトして削除
+    setTimeout(() => {
+      bubble.style.opacity = '0';
+      setTimeout(() => bubble.remove(), 1000);
+    }, 8000);
   }
 
   /**

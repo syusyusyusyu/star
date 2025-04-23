@@ -421,6 +421,30 @@ body {
     filter: drop-shadow(0 0 20px rgba(57, 197, 187, 0.8));
 }
 
+/* 結果画面のボタンコンテナ */
+.results-buttons-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.results-buttons {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap; /* 小さい画面でもはみ出さないように */
+    width: 100%;
+    max-width: 500px; /* 最大幅を設定 */
+    padding: 0 20px; /* 左右の余白 */
+}
+
+.results-buttons button {
+    min-width: 140px;
+    margin: 5px;
+}
+
 .results-buttons {
     display: flex;
     gap: 20px;

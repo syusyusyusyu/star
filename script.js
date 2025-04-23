@@ -297,19 +297,25 @@ class GameManager {
     this.visuals = new LiveStageVisuals(this.gamecontainer); // ← これを createAudience の直後に追加
     this.lyricsData = [];
     
-    // フォールバック用の歌詞データ
-    const fallbackText = "マジカルミライ初音ミク";
+    // フォールバック用の歌詞データ - フレーズごとに区切る
+    const fallbackPhrases = [
+      { text: "マジカル", startTime: 1000 },
+      { text: "ミライ", startTime: 4000 },
+      { text: "初音ミク", startTime: 6500 }
+    ];
     this.fallbackLyricsData = [];
 
-    // 一文字ずつ分解して個別の歌詞データとして登録
-    Array.from(fallbackText).forEach((char, index) => {
-      this.fallbackLyricsData.push({
-        time: 1000 + index * 800, // 一文字ずつの表示間隔を800msに設定
-        text: char,
-        originalChars: [{
+    // フレーズごとに歌詞データを生成
+    fallbackPhrases.forEach(phrase => {
+      Array.from(phrase.text).forEach((char, index) => {
+        this.fallbackLyricsData.push({
+          time: phrase.startTime + index * 400, // 同じフレーズ内の文字は400msずつずらす
           text: char,
-          timeOffset: 0
-        }]
+          originalChars: [{
+            text: char,
+            timeOffset: index * 400
+          }]
+        });
       });
     });
     

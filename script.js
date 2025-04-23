@@ -437,7 +437,7 @@ class GameManager {
     this.songStartTime = Date.now(); // 曲の開始時間をリセット
     this.isPaused = false;
     this.scoreEl.textContent = '0';
-    this.comboEl.textContent = 'コンボ: 0';
+    this.comboEl.textContent = `コンボ: 0`;
     this.resultsDisplayed = false; // リザルト表示フラグをリセット（重要）
     
     // 結果画面を非表示にする
@@ -638,12 +638,46 @@ class GameManager {
         while (word) {
           let char = word.firstChar;
           while (char) {
+            // 歌詞テキストの取得と検証
+            const charText = (char.text || '').trim();
+            
+            // 文字データの検証
+            // 空文字、制御文字、特殊文字などは除外
+            if (!charText || 
+                charText === '' || 
+                /[\u0000-\u001F\u007F-\u009F\uFEFF\uFFF0-\uFFFF]/.test(charText)) {
+              char = char.next;
+              continue;
+            }
+
+            // タイミングデータの厳密な検証と補正
+            const startTime = char.startTime;
+            const endTime = char.endTime;
+            
+            // タイミングデータが無効な場合は補正
+            if (typeof startTime !== 'number' || isNaN(startTime) || startTime < 0) {
+              console.warn(`Invalid start time for lyric: ${charText}`);
+              char = char.next;
+              continue;
+            }
+            
+            // 終了時間が無効な場合は開始時間から補正
+            const validEndTime = (typeof endTime === 'number' && !isNaN(endTime) && endTime > startTime) 
+              ? endTime 
+              : startTime + 1000;
+            
+            // 表示時間が極端に短い場合は補正
+            const duration = Math.max(1000, validEndTime - startTime);
+            
             allCharData.push({
-              time: char.startTime,
-              text: char.text,
-              endTime: char.endTime,
-              duration: char.endTime - char.startTime
+              time: startTime,
+              text: charText,
+              endTime: startTime + duration,
+              duration: duration,
+              originalWord: word.text, // 単語の文脈を保持
+              phraseText: phrase.text  // フレーズの文脈を保持
             });
+            
             char = char.next;
           }
           word = word.next;
@@ -651,11 +685,17 @@ class GameManager {
         phrase = phrase.next;
       }
       
-      // 時間順にソート
+      // 時間順にソートし、重複を除去
       allCharData.sort((a, b) => a.time - b.time);
+      const uniqueCharData = allCharData.filter((char, index, self) =>
+        index === self.findIndex(c => 
+          c.text === char.text && 
+          Math.abs(c.time - char.time) < 100
+        )
+      );
       
-      // 文字ごとに個別に処理（グループ化せず）
-      this.lyricsData = allCharData.map(charData => ({
+      // より堅牢な歌詞データ構造を作成
+      this.lyricsData = uniqueCharData.map(charData => ({
         time: charData.time,
         text: charData.text,
         endTime: charData.endTime,

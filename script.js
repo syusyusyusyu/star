@@ -299,19 +299,19 @@ class GameManager {
     
     // フォールバック用の歌詞データ
     const fallbackText = "マジカルミライ初音ミク";
-    // 内部管理用にグループ化（表示時に分解）
     this.fallbackLyricsData = [];
-    for (let i = 0; i < fallbackText.length; i += this.groupSize) {
-      const group = fallbackText.substring(i, Math.min(i + this.groupSize, fallbackText.length));
+
+    // 一文字ずつ分解して個別の歌詞データとして登録
+    Array.from(fallbackText).forEach((char, index) => {
       this.fallbackLyricsData.push({
-        time: 1000 + Math.floor(i / this.groupSize) * 1500, // 時間間隔を広げる
-        text: group,
-        originalChars: Array.from(group).map((c, idx) => ({
-          text: c,
-          timeOffset: idx * 100 // 各文字に少しずつオフセットを付ける
-        }))
+        time: 1000 + index * 800, // 一文字ずつの表示間隔を800msに設定
+        text: char,
+        originalChars: [{
+          text: char,
+          timeOffset: 0
+        }]
       });
-    }
+    });
     
     // 観客のランダムテキスト
     this.randomTexts = ["ミク！", "かわいい！", "最高！", "39！", "イェーイ！"];
@@ -528,7 +528,7 @@ class GameManager {
             }
           }
         },
-        // 動画準備完了時（歌詞データ取得）
+        // 動画準備完了時（歌詞データ取得） 
         onVideoReady: (video) => {
           if (video?.firstPhrase) this.processLyrics(video);
           
@@ -833,7 +833,7 @@ class GameManager {
   displayLyric(text) {
     if (!text) return;
 
-    // 既に同じテキストが表示されていないか確認（重複防止）
+    // 既に同じテキストが表示されていないか確認（重複防止） 
     const existingBubbles = document.querySelectorAll('.lyric-bubble');
     for (let bubble of existingBubbles) {
       if (bubble.textContent === text) return;

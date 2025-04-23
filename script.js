@@ -30,7 +30,7 @@ class GameManager {
     this.resultsDisplayed = false; // リザルト画面表示フラグを初期化（重要：リザルト画面重複表示防止）
     
     // 内部処理用のグループサイズを設定（パフォーマンス最適化）
-    this.groupSize = 10;
+    this.groupSize = 1;
     
     // モバイルブラウザのビューポート処理（画面サイズ対応）
     this.updateViewportHeight();
@@ -63,6 +63,12 @@ class GameManager {
     
     // 結果表示用のタイマーを追加（曲終了時に確実にリザルト画面へ移行するため）
     this.resultCheckTimer = null;
+
+    // 鑑賞用歌詞表示のための追加設定
+    this.displayedViewerLyrics = new Map(); // 表示済み鑑賞用歌詞を追跡
+    this.viewerLyricsContainer = document.createElement('div');
+    this.viewerLyricsContainer.className = 'viewer-lyrics-container';
+    this.gamecontainer.appendChild(this.viewerLyricsContainer);
   }
 
   /**
@@ -634,7 +640,9 @@ class GameManager {
           while (char) {
             allCharData.push({
               time: char.startTime,
-              text: char.text
+              text: char.text,
+              endTime: char.endTime,
+              duration: char.endTime - char.startTime
             });
             char = char.next;
           }
@@ -646,39 +654,64 @@ class GameManager {
       // 時間順にソート
       allCharData.sort((a, b) => a.time - b.time);
       
-      // 内部処理用に5文字ずつグループ化（パフォーマンス最適化）
-      this.lyricsData = [];
-      for (let i = 0; i < allCharData.length; i += this.groupSize) {
-        const group = allCharData.slice(i, Math.min(i + this.groupSize, allCharData.length));
-        if (group.length > 0) {
-          // グループの最初の文字の時間を基準に
-          const baseTime = group[0].time;
-          
-          // 各文字の元のデータを保持する
-          const originalChars = group.map((item, idx) => ({
-            text: item.text,
-            timeOffset: item.time - baseTime // 表示タイミングのオフセットを保持
-          }));
-          
-          // グループテキストは連結
-          const groupText = group.map(item => item.text).join('');
-          
-          this.lyricsData.push({
-            time: baseTime,
-            text: groupText,
-            originalChars: originalChars
-          });
-        }
-      }
+      // 文字ごとに個別に処理（グループ化せず）
+      this.lyricsData = allCharData.map(charData => ({
+        time: charData.time,
+        text: charData.text,
+        endTime: charData.endTime,
+        duration: charData.duration,
+        originalChars: [{
+          text: charData.text,
+          timeOffset: 0,
+          duration: charData.duration
+        }]
+      }));
       
       // プレイヤーの場合、曲の長さに応じてタイマーを設定
       if (this.player?.video?.duration) {
-        // 曲の長さ + 少し余裕を持たせる
         const duration = this.player.video.duration + 2000;
         this.setupResultCheckTimer(duration);
       }
     } catch (e) {
       console.error("歌詞処理エラー:", e);
+    }
+  }
+
+  /**
+   * 歌詞の表示を更新する
+   * 現在の再生位置に応じて表示すべき歌詞を判定
+   * 
+   * @param {number} position - 現在の再生位置（ミリ秒）
+   */
+  updateLyrics(position) {
+    if (this.isPaused || this.isFirstInteraction) return;
+    if (!this.displayedLyrics) this.displayedLyrics = new Set();
+    
+    // 表示すべき歌詞を検索
+    for (const lyric of this.lyricsData) {
+      // 歌詞の表示タイミング判定を改善
+      if (lyric.time <= position && 
+          lyric.time > position - 500 && 
+          !this.displayedLyrics.has(lyric.time)) {
+        
+        // 歌詞を表示
+        this.displayLyric(lyric.text);
+        this.displayedLyrics.add(lyric.time);
+        
+        // 歌詞の表示時間に基づいて削除タイミングを設定
+        const displayDuration = Math.max(3000, lyric.duration);
+        setTimeout(() => {
+          this.displayedLyrics.delete(lyric.time);
+        }, displayDuration);
+      }
+    }
+    
+    // 曲の終了判定
+    if (this.player?.video?.duration) {
+      if (position >= this.player.video.duration - 1000 && !this.resultsDisplayed) {
+        console.log("曲終了検出による結果表示");
+        this.showResults();
+      }
     }
   }
 
@@ -763,59 +796,6 @@ class GameManager {
   }
 
   /**
-   * 歌詞の表示を更新する
-   * 現在の再生位置に応じて表示すべき歌詞を判定
-   * 
-   * @param {number} position - 現在の再生位置（ミリ秒）
-   */
-  updateLyrics(position) {
-    if (this.isPaused || this.isFirstInteraction) return;
-    if (!this.displayedLyrics) this.displayedLyrics = new Set();
-    
-    // グループ単位で表示判定
-    for (let i = 0; i < this.lyricsData.length; i++) {
-      const lyricGroup = this.lyricsData[i];
-      // グループの基準時間が表示範囲内にある場合
-      if (lyricGroup.time <= position && lyricGroup.time > position - 500 && 
-          !this.displayedLyrics.has(lyricGroup.time)) {
-        
-        // グループ内の各文字を個別に表示（時間差で）
-        lyricGroup.originalChars.forEach((charData, idx) => {
-          // 各文字の表示時間にオフセットを適用
-          setTimeout(() => {
-            // 既に表示済み判定がついていない場合のみ表示
-            if (!this.displayedLyrics.has(lyricGroup.time + "-" + idx)) {
-              this.displayLyric(charData.text);
-              this.displayedLyrics.add(lyricGroup.time + "-" + idx);
-              
-              // しばらくしたら削除フラグを消す
-              setTimeout(() => {
-                this.displayedLyrics.delete(lyricGroup.time + "-" + idx);
-              }, 10000);
-            }
-          }, charData.timeOffset || (idx * 50)); // オフセットがなければ50msずつずらす
-        });
-        
-        this.displayedLyrics.add(lyricGroup.time);
-        
-        // グループ全体のフラグを一定時間後に削除
-        setTimeout(() => {
-          this.displayedLyrics.delete(lyricGroup.time);
-        }, 10000);
-      }
-    }
-    
-    // 曲の終了判定を改善
-    if (this.player?.video?.duration) {
-      // 曲の終了1秒前になったらリザルト表示
-      if (position >= this.player.video.duration - 1000 && !this.resultsDisplayed) {
-        console.log("曲終了検出による結果表示");
-        this.showResults();
-      }
-    }
-  }
-
-  /**
    * 1文字の歌詞を表示
    * 画面上にランダムな位置で歌詞を表示
    * 
@@ -879,6 +859,58 @@ class GameManager {
     
     // 一定時間後に削除
     setTimeout(() => bubble.remove(), 8000);
+
+    // 鑑賞用歌詞も同時に表示
+    this.displayViewerLyric(text, bubble);
+  }
+
+  /**
+   * 鑑賞用歌詞を表示
+   * @param {string} text - 表示する文字
+   * @param {HTMLElement} gameBubble - ゲーム用歌詞要素
+   */
+  displayViewerLyric(text, gameBubble) {
+    // 既に表示されている場合は何もしない
+    if (this.displayedViewerLyrics.has(text)) return;
+
+    const viewerChar = document.createElement('span');
+    viewerChar.className = 'viewer-lyric-char';
+    viewerChar.textContent = text;
+    viewerChar.style.opacity = '0';
+    this.viewerLyricsContainer.appendChild(viewerChar);
+
+    // タイプライター効果で表示
+    setTimeout(() => {
+      viewerChar.style.opacity = '1';
+      viewerChar.style.transform = 'translateY(0)';
+    }, 50);
+
+    // ゲーム用の歌詞要素と鑑賞用歌詞要素を紐付け
+    this.displayedViewerLyrics.set(text, {
+      element: viewerChar,
+      gameBubble: gameBubble
+    });
+
+    // ゲーム歌詞がクリックされたときの処理
+    const originalClick = gameBubble.onclick;
+    gameBubble.onclick = (e) => {
+      if (originalClick) originalClick(e);
+      const viewerInfo = this.displayedViewerLyrics.get(text);
+      if (viewerInfo && viewerInfo.element) {
+        viewerInfo.element.classList.add('highlighted');
+      }
+    };
+
+    // 一定時間後に鑑賞用歌詞を削除
+    setTimeout(() => {
+      viewerChar.style.opacity = '0';
+      setTimeout(() => {
+        if (viewerChar.parentNode) {
+          viewerChar.parentNode.removeChild(viewerChar);
+        }
+        this.displayedViewerLyrics.delete(text);
+      }, 1000);
+    }, 8000);
   }
 
   /**
@@ -940,6 +972,13 @@ class GameManager {
     // フェードアウト
     setTimeout(() => element.style.opacity = '0', 100);
     this.lastScoreTime = Date.now();
+
+    // 対応する鑑賞用歌詞もハイライト
+    const text = element.textContent;
+    const viewerInfo = this.displayedViewerLyrics.get(text);
+    if (viewerInfo && viewerInfo.element) {
+      viewerInfo.element.classList.add('highlighted');
+    }
   }
 
   /**
@@ -1352,6 +1391,10 @@ class GameManager {
     if (this.player) {
       try { this.player.dispose(); } catch {}
     }
+
+    // 鑑賞用歌詞のクリーンアップ
+    this.viewerLyricsContainer.innerHTML = '';
+    this.displayedViewerLyrics.clear();
   }
 }
 

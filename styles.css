@@ -455,6 +455,158 @@ body {
     display: none;
 }
 
+/* リザルト画面のスタイル */
+#results-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    display: none;
+    overflow: auto;
+}
+
+.results-container {
+    background-color: rgba(28, 28, 45, 0.9);
+    border-radius: 15px;
+    padding: 20px;
+    width: 80%;
+    max-width: 500px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 0 20px rgba(81, 207, 255, 0.6);
+}
+
+.results-container h2 {
+    color: #51cfff;
+    font-size: 2rem;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.results-content {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    justify-content: space-between;
+}
+
+.results-score-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+#final-score-display {
+    color: #ffffff;
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+#final-combo-display, #rank-display {
+    color: #ffffff;
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+.results-miku-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#results-miku {
+    width: 100px;
+    height: 150px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.results-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+    width: 100%;
+}
+
+.results-buttons button {
+    background-color: #51cfff;
+    color: #1c1c2d;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s;
+}
+
+.results-buttons button:hover {
+    background-color: #3da9d4;
+}
+
+/* レスポンシブデザイン対応 */
+@media (max-width: 768px) {
+    .results-content {
+        flex-direction: column;
+    }
+    
+    .results-miku-section {
+        margin-top: 20px;
+    }
+    
+    .results-buttons {
+        flex-direction: column;
+    }
+    
+    .results-buttons button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    #final-score-display {
+        font-size: 2rem;
+    }
+    
+    .results-container {
+        width: 90%;
+        padding: 15px;
+    }
+}
+
+@media (max-height: 600px) {
+    .results-container {
+        padding: 10px;
+    }
+    
+    .results-container h2 {
+        font-size: 1.5rem;
+        margin-bottom: 10px;
+    }
+    
+    #final-score-display {
+        font-size: 1.8rem;
+    }
+    
+    #final-combo-display, #rank-display {
+        font-size: 1rem;
+    }
+    
+    .results-buttons {
+        margin-top: 10px;
+    }
+}
+
 /* アニメーション定義 */
 @keyframes dance {
     0% { transform: translateX(-50%) translateY(0); }

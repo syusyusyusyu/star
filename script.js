@@ -54,7 +54,6 @@ class GameManager {
     
     // ゲームの基本セットアップ
     this.setupEvents();
-    this.createLightEffects();
     this.initGame();
     this.initPlayer();
     
@@ -80,46 +79,37 @@ class GameManager {
 
     this.visuals.setVideoTexture(videoElement);
 
-    const hands = new Hands({locateFile: (file) => {
-      return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-    }});
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-    hands.onResults((results) => {
-      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const landmarks = results.multiHandLandmarks[0];
-        const x = landmarks[8].x * window.innerWidth;
-        const y = landmarks[8].y * window.innerHeight;
-        this.checkLyrics(x, y, 35);
-      }
-    });
-
     const pose = new Pose({locateFile: (file) => {
       return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
     }});
     pose.setOptions({
-      modelComplexity: 1,
+      modelComplexity: 0,
       smoothLandmarks: true,
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5
     });
     pose.onResults((results) => {
       if (results.poseLandmarks) {
-        this.visuals.updatePlayerAvatar(results.poseLandmarks);
+        const flippedLandmarks = results.poseLandmarks.map(landmark => {
+          return { ...landmark, x: 1 - landmark.x };
+        });
+        this.visuals.updatePlayerAvatar(flippedLandmarks);
+
+        const rightHand = flippedLandmarks[20];
+        if (rightHand) {
+            const x = rightHand.x * window.innerWidth;
+            const y = rightHand.y * window.innerHeight;
+        this.checkLyrics(x, y, 60);
+        }
       }
     });
 
     const camera = new Camera(videoElement, {
       onFrame: async () => {
-        await hands.send({image: videoElement});
         await pose.send({image: videoElement});
       },
-      width: 1280,
-      height: 720
+      width: 640,
+      height: 360
     });
     camera.start();
   }
@@ -345,8 +335,6 @@ class GameManager {
    * 背景要素の生成と歌詞データの準備
    */
   initGame() {
-    this.createStars();
-    this.createAudience();
     this.visuals = new LiveStageVisuals(this.gamecontainer); // ← これを createAudience の直後に追加
     this.lyricsData = [];
     
@@ -385,39 +373,9 @@ class GameManager {
     }, 1000);
   }
 
-  /**
-   * 背景の星を生成
-   * 画面サイズに応じた適切な数の星を表示
-   */
-  createStars() {
-    const starCount = Math.min(30, Math.floor(window.innerWidth * window.innerHeight / 10000));
-    for (let i = 0; i < starCount; i++) {
-      const star = document.createElement('div');
-      star.className = 'light-effect';
-      star.style.left = `${Math.random() * 100}%`;
-      star.style.top = `${Math.random() * 100}%`;
-      star.style.animationDelay = `${Math.random() * 3}s`;
-      if (Math.random() > 0.7) {
-        star.style.width = '6px';
-        star.style.height = '6px';
-        star.style.boxShadow = '0 0 10px #fff';
-      }
-      this.gamecontainer.appendChild(star);
-    }
-  }
+  
 
-  /**
-   * ステージのスポットライト効果を生成
-   */
-  createLightEffects() {
-    for (let i = 0; i < 3; i++) {
-      const spotlight = document.createElement('div');
-      spotlight.className = 'spotlight';
-      spotlight.style.left = `${(i * 30) + 20}%`;
-      spotlight.style.animationDelay = `${i * -2.5}s`;
-      this.gamecontainer.appendChild(spotlight);
-    }
-  }
+  
 
   /**
    * 再生/一時停止を切り替える
@@ -1113,219 +1071,13 @@ class GameManager {
     setTimeout(() => ripple.remove(), 500);
   }
 
-  /**
-   * マウスの軌跡に星のパーティクルを生成
-   * 
-   * @param {number} x - X座標
-   * @param {number} y - Y座標
-   */
-  createTrailParticle(x, y) {
-    if (this.isFirstInteraction) return;
-    
-    // 星型パーティクルを生成
-    const size = 25 + Math.random() * 40;
-    const particle = document.createElement('div');
-    particle.className = 'star-particle';
-    particle.style.width = `${size}px`;
-    particle.style.height = `${size}px`;
-    particle.style.left = `${x - size/2}px`;
-    particle.style.top = `${y - size/2}px`;
-    
-    // ランダムな色
-    const hue = Math.floor(Math.random() * 360);
-    particle.style.backgroundColor = `hsla(${hue}, 100%, 70%, 0.8)`;
-    particle.style.boxShadow = `0 0 ${size/2}px hsla(${hue}, 100%, 70%, 0.8)`;
-    particle.style.transform = `rotate(${Math.random() * 360}deg)`;
-    
-    this.gamecontainer.appendChild(particle);
-    this.mouseTrail.push({ element: particle, createdAt: Date.now() });
-    
-    // 古いパーティクルを削除
-    const now = Date.now();
-    this.mouseTrail = this.mouseTrail.filter(p => {
-      if (now - p.createdAt > 800) {
-        p.element.remove();
-        return false;
-      }
-      return true;
-    });
-    
-    // 最大数を超えたら古いものから削除
-    while (this.mouseTrail.length > this.maxTrailLength) {
-      const oldest = this.mouseTrail.shift();
-      oldest.element.remove();
-    }
-  }
+  
 
-  /**
-   * 流れ星エフェクトを生成
-   * 
-   * @param {number} x - 開始X座標
-   * @param {number} y - 開始Y座標
-   * @param {number} dx - X方向速度
-   * @param {number} dy - Y方向速度
-   */
-  createShooting(x, y, dx, dy) {
-    if (this.isFirstInteraction) return;
-    
-    // 方向がない場合はランダムに設定
-    if (!dx && !dy) {
-      const angle = Math.random() * Math.PI * 2;
-      dx = Math.cos(angle) * 5;
-      dy = Math.sin(angle) * 5;
-    }
+  
 
-    // 流れ星を生成
-    const size = 15 + Math.random() * 15;
-    const meteor = document.createElement('div');
-    meteor.className = 'shooting-star';
-    meteor.style.width = `${size}px`;
-    meteor.style.height = `${size}px`;
-    meteor.style.left = `${x}px`;
-    meteor.style.top = `${y}px`;
-    
-    // 移動方向に合わせて回転
-    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-    meteor.style.transform = `rotate(${angle + 45}deg)`;
-    
-    // 速度に応じた輝き
-    const speed = Math.min(150, Math.sqrt(dx * dx + dy * dy) * 5);
-    meteor.style.boxShadow = `0 0 ${size}px ${size/2}px rgba(255, 255, 200, 0.8)`;
-    meteor.style.filter = `blur(1px) drop-shadow(0 0 ${speed/10}px #fff)`;
-    
-    this.gamecontainer.appendChild(meteor);
-    
-    // アニメーション
-    meteor.animate([
-      { transform: `rotate(${angle + 45}deg) scale(1)`, opacity: 1 },
-      { transform: `translate(${dx * 10}px, ${dy * 10}px) rotate(${angle + 45}deg) scale(0.1)`, opacity: 0 }
-    ], { duration: 800, easing: 'ease-out', fill: 'forwards' });
-    
-    // 一定時間後に削除
-    setTimeout(() => meteor.remove(), 800);
-  }
+  
 
-  /**
-   * ランダムなテキスト（観客コメント）を生成
-   */
-  createRandomText() {
-    if (this.isPaused || this.isFirstInteraction) return;
-    
-    // テキスト要素を作成
-    const text = document.createElement('div');
-    text.className = 'random-text';
-    text.textContent = this.randomTexts[Math.floor(Math.random() * this.randomTexts.length)];
-    
-    // ランダムな位置
-    const x = Math.random() * window.innerWidth * 0.8 + window.innerWidth * 0.1;
-    const y = window.innerHeight - Math.random() * 200;
-    
-    // スタイル設定
-    text.style.left = `${x}px`;
-    text.style.top = `${y}px`;
-    text.style.opacity = 0.5 + Math.random() * 0.5;
-    text.style.fontSize = `${14 + Math.random() * 12}px`;
-    text.style.transform = `rotate(${-20 + Math.random() * 40}deg)`;
-    
-    this.gamecontainer.appendChild(text);
-    setTimeout(() => text.remove(), 6000);
-  }
-
-  /**
-   * 観客（ペンライトを持つドット）を生成
-   */
-  createAudience() {
-    const centerX = window.innerWidth / 2;
-    const maxAudience = 180;
-    
-    // 観客配置の行ごとの設定
-    const rows = [
-      { distance: 70, count: 14, scale: 0.9 },
-      { distance: 130, count: 20, scale: 0.85 },
-      { distance: 190, count: 26, scale: 0.8 },
-      { distance: 250, count: 32, scale: 0.75 },
-      { distance: 310, count: 38, scale: 0.7 },
-      { distance: 370, count: 44, scale: 0.65 },
-      { distance: 430, count: 50, scale: 0.6 },
-      { distance: 490, count: 56, scale: 0.55 }
-    ];
-    
-    // ペンライトの色
-    const colors = ['#39C5BB', '#FF69B4', '#FFA500', '#9370DB', '#32CD32', '#00BFFF'];
-    let total = 0;
-    
-    // 各行ごとに観客を配置
-    for (const row of rows) {
-      if (total >= maxAudience) break;
-      
-      const count = Math.min(row.count, Math.floor(row.count * window.innerWidth / 900));
-      const step = 360 / count;
-      
-      for (let i = 0; i < count; i++) {
-        if (total >= maxAudience) break;
-        
-        // 円形に配置（楕円を形成）
-        const angle = step * i * (Math.PI / 180);
-        const x = Math.cos(angle) * row.distance;
-        const y = Math.sin(angle) * (row.distance * 0.5);
-        
-        const posX = centerX + x;
-        const posY = 100 - y;
-        
-        // 画面内に表示される観客のみ生成
-        if (posX >= -20 && posX <= window.innerWidth + 20 && posY >= -20 && posY <= window.innerHeight + 20) {
-          const audience = document.createElement('div');
-          audience.className = 'audience';
-          audience.style.left = `${posX}px`;
-          audience.style.bottom = `${posY}px`;
-          audience.style.transform = `scale(${row.scale})`;
-          audience.style.opacity = Math.max(0.5, row.scale);
-          
-          // 後ろの観客は単純な形状
-          if (row.distance > 250 && total % 2 === 0) {
-            audience.style.backgroundColor = '#333';
-            audience.style.height = '12px';
-            audience.style.width = '8px';
-          } else {
-            // 前の観客はペンライトを持つ
-            const penlight = document.createElement('div');
-            penlight.className = 'penlight';
-            
-            if (total % 3 !== 0 || row.distance <= 190) {
-              penlight.style.animationDelay = `${Math.random() * 0.8}s`;
-            } else {
-              penlight.style.animation = 'none';
-              penlight.style.transform = `rotate(${Math.random() * 20 - 10}deg)`;
-            }
-            
-            const color = colors[Math.floor(Math.random() * colors.length)];
-            penlight.style.backgroundColor = color;
-            
-            // 前の列はより明るく
-            if (row.distance <= 190) {
-              penlight.style.boxShadow = `0 0 8px ${color}`;
-            }
-            
-            audience.appendChild(penlight);
-          }
-          
-          this.gamecontainer.appendChild(audience);
-          total++;
-        }
-      }
-    }
-    
-    // 観客が多い場合、一部のペンライトは動かさない（パフォーマンス対策）
-    if (total > 100) {
-      const penlights = document.querySelectorAll('.audience .penlight');
-      for (let i = 0; i < penlights.length; i++) {
-        if (i % 3 === 0) {
-          penlights[i].style.animation = 'none';
-          penlights[i].style.transform = `rotate(${Math.random() * 20 - 10}deg)`;
-        }
-      }
-    }
-  }
+  
 
   /**
    * リザルト画面を表示する
@@ -1472,8 +1224,8 @@ class LiveStageVisuals {
 
   initThreeJS() {
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
-    this.camera.position.set(0, 100, 250);
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
+    this.camera.position.set(0, 100, 150);
 
     this.renderer = new THREE.WebGLRenderer({ alpha: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1483,29 +1235,6 @@ class LiveStageVisuals {
     this.renderer.domElement.style.left = 0;
     this.renderer.domElement.style.zIndex = 2; // UIの下、背景の上
     this.container.appendChild(this.renderer.domElement);
-
-    // ステージリング
-    const ringGeo = new THREE.TorusGeometry(60, 6, 16, 100);
-    const ringMat = new THREE.MeshStandardMaterial({ color: 0x39C5BB, metalness: 0.5, roughness: 0.3 });
-    this.ring = new THREE.Mesh(ringGeo, ringMat);
-    this.ring.rotation.x = Math.PI / 2;
-    this.scene.add(this.ring);
-
-    // ビームライト（コーン）
-    const beamGeo = new THREE.ConeGeometry(30, 150, 32, 1, true);
-    const beamMat = new THREE.MeshBasicMaterial({ color: 0x39C5BB, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
-    this.beam = new THREE.Mesh(beamGeo, beamMat);
-    this.beam.position.y = 80;
-    this.scene.add(this.beam);
-
-    // 星空を作成
-    this.createStarfield();
-    
-    // 観客ペンライトを作成
-    this.createAudienceLights();
-
-    // スポットライトの設定
-    this.setupLights();
 
     // リサイズイベントの設定
     window.addEventListener('resize', () => this.onResize());
@@ -1522,6 +1251,8 @@ class LiveStageVisuals {
 
   setVideoTexture(videoElement) {
     const videoTexture = new THREE.VideoTexture(videoElement);
+    videoTexture.wrapS = THREE.RepeatWrapping;
+    videoTexture.repeat.x = -1;
     this.scene.background = videoTexture;
   }
 
@@ -1586,252 +1317,8 @@ class LiveStageVisuals {
     }
   }
 
-  /**
-   * 3D星空の作成
-   * パーティクルシステムを使用して多数の星を効率的に表示
-   */
-  createStarfield() {
-    const starCount = 500;
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(starCount * 3);
-    const sizes = new Float32Array(starCount);
-    const colors = new Float32Array(starCount * 3);
-    
-    // 星の位置をランダムに配置
-    for (let i = 0; i < starCount; i++) {
-      const i3 = i * 3;
-      // 空間内のランダムな位置（球状に分布） 
-      const radius = 300 + Math.random() * 700;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      
-      positions[i3] = radius * Math.sin(phi) * Math.cos(theta);     // x
-      positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta); // y
-      positions[i3 + 2] = radius * Math.cos(phi);                   // z
-      
-      // 星のサイズはランダム
-      sizes[i] = 2 + Math.random() * 4;
-      
-      // 星の色（青白～黄白の範囲でランダム）
-      const colorRnd = Math.random();
-      colors[i3] = 0.8 + colorRnd * 0.2;          // R
-      colors[i3 + 1] = 0.8 + colorRnd * 0.2;      // G
-      colors[i3 + 2] = 0.9 + colorRnd * 0.1;      // B
-    }
-    
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    
-    // シェーダー用のマテリアル
-    const material = new THREE.PointsMaterial({
-      size: 2,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8,
-      map: this.createStarTexture(),
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    
-    // 星のパーティクルシステム
-    this.starfield = new THREE.Points(geometry, material);
-    this.scene.add(this.starfield);
-  }
-  
-  /**
-   * 星のテクスチャを作成
-   * @returns {THREE.Texture} - 星のテクスチャ
-   */
-  createStarTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 32;
-    canvas.height = 32;
-    const ctx = canvas.getContext('2d');
-    
-    // グラデーションで星を描画
-    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    gradient.addColorStop(0.5, 'rgba(240, 240, 255, 0.8)');
-    gradient.addColorStop(1, 'rgba(220, 220, 255, 0)');
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 32, 32);
-    
-    const texture = new THREE.Texture(canvas);
-    texture.needsUpdate = true;
-    return texture;
-  }
-  
-  /**
-   * 観客ペンライトの3D表現を作成
-   * 多数のペンライトをインスタンス化して効率的に表示
-   */
-  createAudienceLights() {
-    // ペンライトを表現する細長い円柱
-    const geometry = new THREE.CylinderGeometry(0.5, 0.5, 15, 8);
-    geometry.translate(0, 7.5, 0); // 底面が原点になるように調整
-    
-    // インスタンスに適用する基本マテリアル
-    const material = new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.8,
-      blending: THREE.AdditiveBlending
-    });
-    
-    // インスタンスメッシュの作成
-    this.penlights = new THREE.InstancedMesh(geometry, material, 300);
-    this.penlights.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    this.scene.add(this.penlights);
-    
-    // ペンライトカラーのバリエーション（ミクカラー中心）
-    this.penlightColors = [
-      new THREE.Color(0x39C5BB), // ミクブルー
-      new THREE.Color(0xFF69B4), // ピンク
-      new THREE.Color(0xFFA500), // オレンジ
-      new THREE.Color(0x9370DB), // 紫
-      new THREE.Color(0x32CD32), // 緑
-      new THREE.Color(0x00BFFF)  // 水色
-    ];
-    
-    // 各ペンライトのアニメーション情報を保持
-    this.penlightAnimations = [];
-    
-    // ペンライトの配置（半円状に複数列）
-    const center = new THREE.Vector3(0, -50, 0);
-    const matrix = new THREE.Matrix4();
-    
-    let count = 0;
-    
-    // 6列のペンライト配置
-    for (let row = 0; row < 6; row++) {
-      // 行ごとに数を増やす
-      const lightCount = 20 + row * 10;
-      const radius = 80 + row * 30;
-      
-      for (let i = 0; i < lightCount; i++) {
-        if (count >= 300) break; // 最大インスタンス数
-        
-        // 半円上に配置
-        const angle = Math.PI * (0.1 + 0.8 * (i / (lightCount - 1)));
-        const x = center.x + radius * Math.cos(angle);
-        const z = center.z + radius * Math.sin(angle);
-        
-        // 高さは少しランダムに
-        const y = center.y + row * 5 + Math.random() * 2;
-        
-        // インスタンスの変換行列を設定
-        matrix.makeTranslation(x, y, z);
-        
-        // ランダムな傾き（観客が持っている感じ）
-        const tiltX = (Math.random() - 0.5) * 0.2;
-        const tiltZ = (Math.random() - 0.5) * 0.2;
-        matrix.multiply(new THREE.Matrix4().makeRotationX(tiltX));
-        matrix.multiply(new THREE.Matrix4().makeRotationZ(tiltZ));
-        
-        this.penlights.setMatrixAt(count, matrix);
-        
-        // ランダムな色を設定
-        const colorIndex = Math.floor(Math.random() * this.penlightColors.length);
-        this.penlights.setColorAt(count, this.penlightColors[colorIndex]);
-        
-        // アニメーション情報を保存
-        this.penlightAnimations.push({
-          index: count,
-          speed: 0.5 + Math.random() * 0.5,
-          phase: Math.random() * Math.PI * 2,
-          baseIntensity: 0.5 + Math.random() * 0.5
-        });
-        
-        count++;
-      }
-    }
-    
-    // マトリックスとカラーの更新を適用
-    this.penlights.instanceMatrix.needsUpdate = true;
-    this.penlights.instanceColor.needsUpdate = true;
-  }
-
-  /**
-   * 照明効果のセットアップ
-   * スポットライトと環境光を設定
-   */
-  setupLights() {
-    const spotLight = new THREE.SpotLight(0x39C5BB, 2);
-    spotLight.position.set(0, 300, 150);
-    this.scene.add(spotLight);
-
-    const ambient = new THREE.AmbientLight(0x404040);
-    this.scene.add(ambient);
-  }
-
-  /**
-   * ウィンドウリサイズ時の処理
-   * カメラとレンダラーのサイズを更新
-   */
-  onResize() {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  /**
-   * アニメーションループ
-   * ステージ要素を回転させ続ける
-   */
   animate() {
     requestAnimationFrame(() => this.animate());
-    
-    // リングの回転
-    this.ring.rotation.z += 0.005;
-    
-    // ビームの回転（揺らめき効果）
-    if (this.beam) {
-      this.beam.rotation.y += 0.01;
-      this.beam.material.opacity = 0.1 + Math.sin(Date.now() * 0.002) * 0.1;
-    }
-    
-    // 星空のアニメーション
-    if (this.starfield) {
-      this.starfield.rotation.y += 0.0003;
-    }
-    
-    // ペンライトのアニメーション
-    if (this.penlights && this.penlightAnimations) {
-      const time = Date.now() * 0.001;
-      const color = new THREE.Color();
-      const matrix = new THREE.Matrix4();
-      
-      // ペンライトの明るさを時間経過で変化させる
-      for (const anim of this.penlightAnimations) {
-        // 元の色を取得
-        this.penlights.getColorAt(anim.index, color);
-        
-        // 明るさを時間に応じて変化（サイン波）
-        const intensity = anim.baseIntensity * (0.7 + 0.3 * Math.sin(time * anim.speed + anim.phase));
-        
-        // 色を更新
-        this.penlights.setColorAt(anim.index, color.multiplyScalar(intensity));
-        
-        // 時々ペンライトを振る
-        if (Math.random() < 0.01) {
-          this.penlights.getMatrixAt(anim.index, matrix);
-          
-          // 少しだけ回転を追加
-          const rotX = (Math.random() - 0.5) * 0.05;
-          const rotZ = (Math.random() - 0.5) * 0.05;
-          matrix.multiply(new THREE.Matrix4().makeRotationX(rotX));
-          matrix.multiply(new THREE.Matrix4().makeRotationZ(rotZ));
-          
-          this.penlights.setMatrixAt(anim.index, matrix);
-          this.penlights.instanceMatrix.needsUpdate = true;
-        }
-      }
-      
-      this.penlights.instanceColor.needsUpdate = true;
-    }
-    
-    // シーンのレンダリング
     this.renderer.render(this.scene, this.camera);
   }
 }

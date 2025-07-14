@@ -111,9 +111,16 @@ class GameManager {
       }
     });
 
+    let lastPoseTime = 0;
+    const poseInterval = 100; // 100msごとに処理 (約10FPS)
+
     const camera = new Camera(videoElement, {
       onFrame: async () => {
-        await pose.send({image: videoElement});
+        const now = performance.now();
+        if (now - lastPoseTime > poseInterval) {
+          lastPoseTime = now;
+          await pose.send({image: videoElement});
+        }
       },
       width: 640,
       height: 360
@@ -1289,7 +1296,8 @@ class LiveStageVisuals {
           this.scene.add(this.playerAvatar.joints[end]);
         }
 
-        const boneGeometry = new THREE.BufferGeometry().setFromPoints([this.playerAvatar.joints[start].position, this.playerAvatar.joints[end].position]);
+        const boneGeometry = new THREE.BufferGeometry();
+        boneGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
         this.playerAvatar.bones[i] = new THREE.Line(boneGeometry, boneMaterial);
         this.scene.add(this.playerAvatar.bones[i]);
       }
@@ -1312,7 +1320,14 @@ class LiveStageVisuals {
       const end = pair[1];
       const bone = this.playerAvatar.bones[i];
       if (bone) {
-        bone.geometry.setFromPoints([this.playerAvatar.joints[start].position, this.playerAvatar.joints[end].position]);
+        const positions = bone.geometry.attributes.position.array;
+        positions[0] = this.playerAvatar.joints[start].position.x;
+        positions[1] = this.playerAvatar.joints[start].position.y;
+        positions[2] = this.playerAvatar.joints[start].position.z;
+        positions[3] = this.playerAvatar.joints[end].position.x;
+        positions[4] = this.playerAvatar.joints[end].position.y;
+        positions[5] = this.playerAvatar.joints[end].position.z;
+        bone.geometry.attributes.position.needsUpdate = true;
       }
     }
 

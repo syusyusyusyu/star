@@ -1156,8 +1156,8 @@ class LiveStageVisuals {
     const penlightMaterial = new THREE.MeshBasicMaterial({ color: 0x39C5BB, transparent: true, opacity: 0.8 });
     this.leftPenlight = new THREE.Mesh(penlightGeometry, penlightMaterial);
     this.rightPenlight = new THREE.Mesh(penlightGeometry, penlightMaterial);
-    this.scene.add(this.leftPenlight);
-    this.scene.add(this.rightPenlight);
+    // this.scene.add(this.leftPenlight);
+    // this.scene.add(this.rightPenlight);
   }
 
   setVideoTexture(videoElement) {

@@ -99,7 +99,14 @@ class GameManager {
         if (rightHand) {
             const x = rightHand.x * window.innerWidth;
             const y = rightHand.y * window.innerHeight;
-        this.checkLyrics(x, y, 60);
+            this.checkLyrics(x, y, 80);
+        }
+
+        const leftHand = flippedLandmarks[19];
+        if (leftHand) {
+            const x = leftHand.x * window.innerWidth;
+            const y = leftHand.y * window.innerHeight;
+            this.checkLyrics(x, y, 80);
         }
       }
     });
@@ -861,7 +868,7 @@ class GameManager {
       // PC・大きな画面
       x = 100 + Math.random() * (screenWidth - 300);
       y = window.innerHeight - 300 - Math.random() * 100;
-      fontSize = '30px';
+      fontSize = '48px';
     }
     
     // スタイルを適用

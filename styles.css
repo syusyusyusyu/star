@@ -771,7 +771,7 @@ body {
   .viewer-lyric-char {
     display: inline-block;
     color: #ffffff;
-    font-size: 24px;
+    font-size: 32px;
     margin: 0 2px;
     text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
     transition: all 0.3s ease;
@@ -791,7 +791,7 @@ body {
     }
     
     .viewer-lyric-char {
-      font-size: 18px;
+      font-size: 24px;
     }
   }
   

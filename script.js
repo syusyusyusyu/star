@@ -238,66 +238,6 @@ class GameManager {
    * マウス、タッチ、ボタンのイベントを処理
    */
   setupEvents() {
-    let lastTime = 0, lastX = 0, lastY = 0;
-    let touched = false;
-    
-    // マウス/タッチの移動を処理する関数
-    const handleMove = (x, y, isTouch) => {
-      const now = Date.now();
-      if (now - lastTime < 16) return; // 60FPS制限
-      lastTime = now;
-      const dx = x - lastX, dy = y - lastY;
-      if (Math.sqrt(dx*dx + dy*dy) >= 3) { // 小さすぎる動きは無視
-        lastX = x; lastY = y;
-        this.lastMousePos = { x, y };
-        this.checkLyrics(x, y, isTouch ? 45 : 35); // タッチの場合は判定範囲を広げる
-        
-        // 星を常に生成する（初回インタラクション後のみ）
-        if (!this.isFirstInteraction) {
-          this.createTrailParticle(x, y);
-          if (Math.random() < (isTouch ? 0.03 : 0.01)) {
-            this.createShooting(x, y, dx, dy);
-          }
-        }
-      }
-    };
-    
-    // マウス移動イベント
-    this.gamecontainer.addEventListener('mousemove', e => {
-      if (!touched) handleMove(e.clientX, e.clientY, false);
-    });
-    
-    // タッチイベントの最適化
-    this.gamecontainer.addEventListener('touchstart', e => {
-      touched = true;
-      if (e.touches && e.touches[0]) {
-        lastX = e.touches[0].clientX;
-        lastY = e.touches[0].clientY;
-      }
-    }, {passive: true});
-    
-    this.gamecontainer.addEventListener('touchmove', e => {
-      if (!this.isFirstInteraction && e.touches && e.touches[0]) {
-        e.preventDefault(); // スクロール防止
-        handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
-      }
-    }, {passive: false});
-    
-    this.gamecontainer.addEventListener('touchend', () => {
-      setTimeout(() => { touched = false; }, 300);
-    }, {passive: true});
-    
-    // クリック/タップイベント
-    this.gamecontainer.addEventListener('click', e => {
-      if (this.isFirstInteraction) return;
-      
-      this.checkLyrics(e.clientX, e.clientY, 35);
-      if (Math.random() < 0.2) {
-        const angle = Math.random() * Math.PI * 2;
-        this.createShooting(e.clientX, e.clientY, Math.cos(angle) * 5, Math.sin(angle) * 5);
-      }
-    });
-    
     // 再生/一時停止ボタンのクリックイベント - ここが再生開始の唯一のトリガー
     const handleButtonClick = (event) => {
       if (event) {

@@ -69,6 +69,59 @@ class GameManager {
     this.viewerLyricsContainer = document.createElement('div');
     this.viewerLyricsContainer.className = 'viewer-lyrics-container';
     this.gamecontainer.appendChild(this.viewerLyricsContainer);
+
+    this.initCamera();
+  }
+
+  initCamera() {
+    const videoElement = document.createElement('video');
+    videoElement.style.display = 'none';
+    document.body.appendChild(videoElement);
+
+    this.visuals.setVideoTexture(videoElement);
+
+    const hands = new Hands({locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+    }});
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    hands.onResults((results) => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        const x = landmarks[8].x * window.innerWidth;
+        const y = landmarks[8].y * window.innerHeight;
+        this.checkLyrics(x, y, 35);
+      }
+    });
+
+    const pose = new Pose({locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    }});
+    pose.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    pose.onResults((results) => {
+      if (results.poseLandmarks) {
+        this.visuals.updatePlayerAvatar(results.poseLandmarks);
+      }
+    });
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({image: videoElement});
+        await pose.send({image: videoElement});
+      },
+      width: 1280,
+      height: 720
+    });
+    camera.start();
   }
 
   /**
@@ -1456,6 +1509,81 @@ class LiveStageVisuals {
 
     // リサイズイベントの設定
     window.addEventListener('resize', () => this.onResize());
+
+    this.playerAvatar = {};
+
+    const penlightGeometry = new THREE.CylinderGeometry(2, 2, 40, 32);
+    const penlightMaterial = new THREE.MeshBasicMaterial({ color: 0x39C5BB, transparent: true, opacity: 0.8 });
+    this.leftPenlight = new THREE.Mesh(penlightGeometry, penlightMaterial);
+    this.rightPenlight = new THREE.Mesh(penlightGeometry, penlightMaterial);
+    this.scene.add(this.leftPenlight);
+    this.scene.add(this.rightPenlight);
+  }
+
+  setVideoTexture(videoElement) {
+    const videoTexture = new THREE.VideoTexture(videoElement);
+    this.scene.background = videoTexture;
+  }
+
+  updatePlayerAvatar(landmarks) {
+    if (!this.playerAvatar.joints) {
+      this.playerAvatar.joints = {};
+      this.playerAvatar.bones = {};
+
+      const boneMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 5 });
+
+      const connections = POSE_CONNECTIONS;
+      for (let i = 0; i < connections.length; i++) {
+        const pair = connections[i];
+        const start = pair[0];
+        const end = pair[1];
+
+        if (!this.playerAvatar.joints[start]) {
+          const geometry = new THREE.SphereGeometry(5, 32, 32);
+          const material = new THREE.MeshBasicMaterial({ color: 0x39C5BB });
+          this.playerAvatar.joints[start] = new THREE.Mesh(geometry, material);
+          this.scene.add(this.playerAvatar.joints[start]);
+        }
+        if (!this.playerAvatar.joints[end]) {
+          const geometry = new THREE.SphereGeometry(5, 32, 32);
+          const material = new THREE.MeshBasicMaterial({ color: 0x39C5BB });
+          this.playerAvatar.joints[end] = new THREE.Mesh(geometry, material);
+          this.scene.add(this.playerAvatar.joints[end]);
+        }
+
+        const boneGeometry = new THREE.BufferGeometry().setFromPoints([this.playerAvatar.joints[start].position, this.playerAvatar.joints[end].position]);
+        this.playerAvatar.bones[i] = new THREE.Line(boneGeometry, boneMaterial);
+        this.scene.add(this.playerAvatar.bones[i]);
+      }
+    }
+
+    for (let i = 0; i < landmarks.length; i++) {
+      const landmark = landmarks[i];
+      const joint = this.playerAvatar.joints[i];
+      if (joint) {
+        joint.position.x = (landmark.x - 0.5) * -window.innerWidth;
+        joint.position.y = (1 - landmark.y) * window.innerHeight - (window.innerHeight / 2);
+        joint.position.z = (landmark.z || 0) * -1000;
+      }
+    }
+
+    const connections = POSE_CONNECTIONS;
+    for (let i = 0; i < connections.length; i++) {
+      const pair = connections[i];
+      const start = pair[0];
+      const end = pair[1];
+      const bone = this.playerAvatar.bones[i];
+      if (bone) {
+        bone.geometry.setFromPoints([this.playerAvatar.joints[start].position, this.playerAvatar.joints[end].position]);
+      }
+    }
+
+    if (this.playerAvatar.joints[15]) {
+        this.leftPenlight.position.copy(this.playerAvatar.joints[15].position);
+    }
+    if (this.playerAvatar.joints[16]) {
+        this.rightPenlight.position.copy(this.playerAvatar.joints[16].position);
+    }
   }
 
   /**

@@ -996,14 +996,6 @@ class GameManager {
     setTimeout(() => ripple.remove(), 500);
   }
 
-  
-
-  
-
-  
-
-  
-
   /**
    * リザルト画面を表示する
    * スコアとランクを表示し、演出を実行

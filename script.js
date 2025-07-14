@@ -660,42 +660,7 @@ class GameManager {
     }
   }
 
-  /**
-   * 1文字の歌詞を表示
-   * @param {string} text - 表示する文字
-   */
-  displayLyric(text) {
-    const bubble = document.createElement('div');
-    bubble.className = 'lyric-bubble';
-    bubble.textContent = text;
-    bubble.style.opacity = '1';
-    
-    // 表示位置を画面の中央付近にランダムに設定
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-    const x = screenWidth * 0.2 + Math.random() * (screenWidth * 0.6);
-    const y = screenHeight * 0.3 + Math.random() * (screenHeight * 0.4);
-    
-    bubble.style.left = `${x}px`;
-    bubble.style.top = `${y}px`;
-    bubble.style.fontSize = `${screenWidth <= 768 ? '24' : '36'}px`;
-    
-    this.gamecontainer.appendChild(bubble);
-    
-    // 鑑賞用歌詞も同時に表示
-    this.displayViewerLyric(text, bubble);
-    
-    // 8秒後にフェードアウトして削除
-    setTimeout(() => {
-      // 歌詞がクリックされずに消えた場合、コンボをリセット
-      if (bubble.style.pointerEvents !== 'none') {
-        this.combo = 0;
-        this.comboEl.textContent = `コンボ: 0`;
-      }
-      bubble.style.opacity = '0';
-      setTimeout(() => bubble.remove(), 1000);
-    }, 8000);
-  }
+  
 
   /**
    * 歌詞表示タイマーを開始
@@ -785,12 +750,6 @@ class GameManager {
    */
   displayLyric(text) {
     if (!text) return;
-
-    // 既に同じテキストが表示されていないか確認（重複防止） 
-    const existingBubbles = document.querySelectorAll('.lyric-bubble');
-    for (let bubble of existingBubbles) {
-      if (bubble.textContent === text) return;
-    }
 
     // 歌詞バブルを作成
     const bubble = document.createElement('div');

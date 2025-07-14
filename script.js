@@ -747,6 +747,11 @@ class GameManager {
     
     // 8秒後にフェードアウトして削除
     setTimeout(() => {
+      // 歌詞がクリックされずに消えた場合、コンボをリセット
+      if (bubble.style.pointerEvents !== 'none') {
+        this.combo = 0;
+        this.comboEl.textContent = `コンボ: 0`;
+      }
       bubble.style.opacity = '0';
       setTimeout(() => bubble.remove(), 1000);
     }, 8000);
@@ -895,7 +900,14 @@ class GameManager {
     this.gamecontainer.appendChild(bubble);
     
     // 一定時間後に削除
-    setTimeout(() => bubble.remove(), 8000);
+    setTimeout(() => {
+      // 歌詞がクリックされずに消えた場合、コンボをリセット
+      if (bubble.style.pointerEvents !== 'none') {
+        this.combo = 0;
+        this.comboEl.textContent = `コンボ: 0`;
+      }
+      bubble.remove();
+    }, 8000);
 
     // 鑑賞用歌詞も同時に表示
     this.displayViewerLyric(text, bubble);

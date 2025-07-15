@@ -28,9 +28,21 @@ class GameManager {
     this.apiLoaded = false; // TextAlive APIがロード完了したかを追跡
     this._operationInProgress = false; // 操作のロック状態を追跡（連打防止）
     this.resultsDisplayed = false; // リザルト画面表示フラグを初期化（重要：リザルト画面重複表示防止）
-    // URLからモードを読み込む
+    
+    // モバイルデバイス検出
+    this.isMobile = this.detectMobileDevice();
+    if (this.isMobile) {
+      console.log('モバイルデバイスが検出されました。Cursorモード限定で動作します。');
+    }
+    
+    // URLからモードを読み込む（モバイルの場合はcursor限定）
     const urlParams = new URLSearchParams(window.location.search);
-    this.currentMode = urlParams.get('mode') || 'cursor'; // デフォルトはカーソルモード
+    const requestedMode = urlParams.get('mode') || 'cursor';
+    this.currentMode = this.isMobile ? 'cursor' : requestedMode; // モバイルではcursor固定
+    
+    if (this.isMobile && requestedMode !== 'cursor') {
+      console.log(`モバイルデバイスのため、要求されたモード'${requestedMode}'からCursorモードに変更されました。`);
+    }
     this.hands = null; // MediaPipe Handsインスタンス
     this.pose = null; // MediaPipe Poseインスタンス
     this.bodyDetectionReady = false; // ボディ検出準備完了フラグ
@@ -82,7 +94,33 @@ class GameManager {
     this.updateInstructions(); // 初期指示を更新
   }
 
+  /**
+   * モバイルデバイスかどうかを検出
+   * @return {boolean} モバイルデバイスの場合true
+   */
+  detectMobileDevice() {
+    // ユーザーエージェントによる検出
+    const mobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // タッチ対応の検出
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    // 画面サイズによる検出（768px以下をモバイルとみなす）
+    const smallScreen = window.innerWidth <= 768;
+    
+    // カメラアクセスの制限チェック（一部のモバイルブラウザでは制限あり）
+    const limitedCamera = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    return mobileUA || (hasTouch && smallScreen) || limitedCamera;
+  }
+
   initCamera() {
+    // モバイルデバイスの場合はカメラ機能を無効化
+    if (this.isMobile) {
+      console.log('モバイルデバイスが検出されました。カメラ機能は無効化されます。');
+      return;
+    }
+    
     let videoElement = document.getElementById('camera-video');
     if (!videoElement) {
         videoElement = document.createElement('video');
@@ -347,16 +385,20 @@ class GameManager {
     if (!instructionsEl) return;
 
     let text = '';
-    switch (this.currentMode) {
-      case 'cursor':
-        text = '歌詞の文字にマウスを当ててポイントを獲得しよう！';
-        break;
-      case 'hand':
-        text = 'カメラに手を映して歌詞に触れてポイントを獲得しよう！';
-        break;
-      case 'body':
-        text = 'カメラに全身を映して歌詞に触れてポイントを獲得しよう！';
-        break;
+    if (this.isMobile) {
+      text = '歌詞の文字をタップしてポイントを獲得しよう！';
+    } else {
+      switch (this.currentMode) {
+        case 'cursor':
+          text = '歌詞の文字にマウスを当ててポイントを獲得しよう！';
+          break;
+        case 'hand':
+          text = 'カメラに手を映して歌詞に触れてポイントを獲得しよう！';
+          break;
+        case 'body':
+          text = 'カメラに全身を映して歌詞に触れてポイントを獲得しよう！';
+          break;
+      }
     }
     instructionsEl.textContent = text;
   }
@@ -409,8 +451,8 @@ class GameManager {
       indicator.style.opacity = '0.95';
     }
 
-    // Handモード以外では非表示
-    if (this.currentMode !== 'hand') {
+    // Handモード以外、またはモバイルデバイスでは非表示
+    if (this.currentMode !== 'hand' || this.isMobile) {
       indicator.style.display = 'none';
     } else {
       indicator.style.display = 'block';

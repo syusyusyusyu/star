@@ -35,6 +35,7 @@ class GameManager {
     this.pose = null; // MediaPipe Poseインスタンス
     this.bodyDetectionReady = false; // ボディ検出準備完了フラグ
     this.countdownTimer = null; // カウントダウンタイマー
+    this.fullBodyLostTimer = null; // 全身ロスト時のタイマー
     
     // 内部処理用のグループサイズを設定（パフォーマンス最適化）
     this.groupSize = 1;
@@ -258,7 +259,15 @@ class GameManager {
     const allDetected = requiredLandmarks.every(index => landmarks[index] && landmarks[index].visibility > 0.8);
 
     if (allDetected) {
-      if (!this.countdownTimer) {
+      if (this.fullBodyLostTimer) {
+        clearTimeout(this.fullBodyLostTimer);
+        this.fullBodyLostTimer = null;
+        if (this.countdownOverlay.classList.contains('hidden')) {
+            // 警告表示中だった場合のみメッセージをクリア
+            this.countdownText.textContent = '';
+        }
+      }
+      if (!this.countdownTimer && !this.bodyDetectionReady) {
         let count = 5;
         this.countdownOverlay.classList.remove('hidden');
         this.countdownText.textContent = count;
@@ -283,6 +292,15 @@ class GameManager {
         this.loading.textContent = "全身が映るように調整してください...";
       }
       this.bodyDetectionReady = false;
+
+      // ゲームが開始している状態で全身がロストした場合
+      if (this.player?.isPlaying && !this.fullBodyLostTimer) {
+        this.fullBodyLostTimer = setTimeout(() => {
+          this.countdownOverlay.classList.remove('hidden');
+          this.countdownText.textContent = "全身が画面から外れています！";
+          // 必要であればゲームを一時停止するなどの処理を追加
+        }, 3000); // 3秒間全身が検出されなかったら警告
+      }
     }
   }
 

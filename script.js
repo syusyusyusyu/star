@@ -934,16 +934,24 @@ class GameManager {
         },
         // 曲終了時（最重要：ここでリザルト画面を表示）
         onFinish: () => {
-          console.log("🎵 onFinish イベントが発火しました - 3秒後にリザルト画面を表示します");
+          console.log("🎵 onFinish イベントが発火しました");
           console.log("resultsDisplayed状態:", this.resultsDisplayed);
+          console.log("現在のモード:", this.currentMode);
+          
           if (!this.resultsDisplayed) {
-            // 曲が完全に終了してから3秒待ってからリザルト画面を表示
-            setTimeout(() => {
-              if (!this.resultsDisplayed) {
-                console.log("🎵 遅延後にリザルト画面を表示します");
-                this.showResults();
-              }
-            }, 3000);
+            // Bodyモードの場合のみ3秒遅延、その他のモードは即座に表示
+            if (this.currentMode === 'body') {
+              console.log("🎵 Bodyモード: 3秒後にリザルト画面を表示します");
+              setTimeout(() => {
+                if (!this.resultsDisplayed) {
+                  console.log("🎵 遅延後にリザルト画面を表示します");
+                  this.showResults();
+                }
+              }, 3000);
+            } else {
+              console.log("🎵 " + this.currentMode + "モード: 即座にリザルト画面を表示します");
+              this.showResults();
+            }
           } else {
             console.log("すでにリザルト画面が表示済みです");
           }
@@ -1026,12 +1034,14 @@ class GameManager {
         console.log("曲の長さ:", this.player.video.duration, "ms");
         // ボディモードの場合、カウントダウン分の時間を追加で考慮
         const extraTime = this.currentMode === 'body' ? 5000 : 0;
-        // より余裕を持って曲終了後に結果表示（10秒の余裕を追加）
-        this.setupResultCheckTimer(this.player.video.duration + extraTime + 10000);
+        // Bodyモードのみ長い余裕時間、その他のモードは短い余裕時間
+        const bufferTime = this.currentMode === 'body' ? 10000 : 3000;
+        this.setupResultCheckTimer(this.player.video.duration + extraTime + bufferTime);
       } else {
         console.log("曲の長さが取得できません。デフォルトタイマーを設定");
-        // 曲の長さが取得できない場合はデフォルトで120秒後にリザルト表示（余裕を持たせる）
-        this.setupResultCheckTimer(120000);
+        // Bodyモードのみ長いデフォルト時間、その他のモードは短いデフォルト時間
+        const defaultTime = this.currentMode === 'body' ? 120000 : 90000;
+        this.setupResultCheckTimer(defaultTime);
       }
     } catch (e) {
       console.error("歌詞処理エラー:", e);

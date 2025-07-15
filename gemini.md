@@ -31,13 +31,6 @@
 
 #### ローカルHTTPサーバーの例:
 
-**Pythonの場合:**
-```bash
-# プロジェクトルートディレクトリで実行
-python3 -m http.server 8000
-# その後、ブラウザで http://localhost:8000/index.html にアクセス
-```
-
 **Node.js (http-server) の場合:**
 ```bash
 # まず、http-serverをインストール（初回のみ）

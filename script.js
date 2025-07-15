@@ -74,8 +74,8 @@ class GameManager {
     // 手振り検出用の変数
     this.handHistory = []; // 手の位置履歴
     this.lastWaveTime = 0; // 最後に手振りを検出した時間
-    this.waveThreshold = 0.15; // 手振り検出の閾値（画面幅の15%）
-    this.waveTimeWindow = 500; // 手振り検出の時間窓（500ms）
+    this.waveThreshold = 0.1; // 手振り検出の閾値を緩く（画面幅の10%）
+    this.waveTimeWindow = 400; // 手振り検出の時間窓を短く（400ms）
 
     // 初期モードに基づいてカメラを初期化
     this.initCamera();
@@ -143,8 +143,8 @@ class GameManager {
             this.hands.setOptions({
                 maxNumHands: 2,
                 modelComplexity: 0, // 軽量モデルを使用（検出速度向上）
-                minDetectionConfidence: 0.5, // 検出閾値をデフォルトに戻す
-                minTrackingConfidence: 0.3, // 追跡閾値を適度に
+                minDetectionConfidence: 0.3, // 検出閾値を下げる（検出しやすく）
+                minTrackingConfidence: 0.1, // 追跡閾値を下げる（追跡しやすく）
                 selfieMode: true, // セルフィーモード（左右反転）
                 staticImageMode: false // 動画モード
             });
@@ -171,7 +171,7 @@ class GameManager {
                         const indexFingerTip = landmarks[8];
                         const fingerX = indexFingerTip.x * window.innerWidth;
                         const fingerY = indexFingerTip.y * window.innerHeight;
-                        this.checkLyrics(fingerX, fingerY, 50);
+                        this.checkLyrics(fingerX, fingerY, 70); // 判定範囲を広く
                     }
                 }
             });
@@ -1435,13 +1435,13 @@ class GameManager {
     // 古い履歴を削除（時間窓より古いもの）
     this.handHistory = this.handHistory.filter(h => currentTime - h.time <= this.waveTimeWindow);
     
-    // 手振りの検出（最低5個の履歴点が必要）
-    if (this.handHistory.length >= 5) {
+    // 手振りの検出（最低3個の履歴点があれば検出）
+    if (this.handHistory.length >= 3) {
       const movement = this.calculateHandMovement();
       
       // 横方向の動きが閾値を超えた場合を手振りと判定
       if (movement.horizontalRange > this.waveThreshold && 
-          currentTime - this.lastWaveTime > 300) { // 300ms間隔で手振り検出
+          currentTime - this.lastWaveTime > 200) { // 200ms間隔で手振り検出（より頻繁に）
         
         this.lastWaveTime = currentTime;
         
@@ -1481,7 +1481,7 @@ class GameManager {
     if (this.isFirstInteraction) return false;
     
     const lyrics = document.querySelectorAll('.lyric-bubble');
-    const waveRadius = 120; // 手振りの場合は広い判定範囲
+    const waveRadius = 150; // 手振りの場合はさらに広い判定範囲
     
     for (const el of lyrics) {
       if (el.style.pointerEvents === 'none') continue;

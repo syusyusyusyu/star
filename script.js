@@ -257,7 +257,7 @@ class GameManager {
       28  // 右足首
     ];
 
-    const allDetected = requiredLandmarks.every(index => landmarks[index] && landmarks[index].visibility > 0.7);
+    const allDetected = requiredLandmarks.every(index => landmarks[index] && landmarks[index].visibility > 0.75);
     console.log("allDetected:", allDetected);
     console.log("player isPlaying:", this.player?.isPlaying);
 

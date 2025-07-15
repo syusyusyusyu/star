@@ -71,6 +71,12 @@ class GameManager {
     this.viewerLyricsContainer.className = 'viewer-lyrics-container';
     this.gamecontainer.appendChild(this.viewerLyricsContainer);
 
+    // 手振り検出用の変数
+    this.handHistory = []; // 手の位置履歴
+    this.lastWaveTime = 0; // 最後に手振りを検出した時間
+    this.waveThreshold = 0.15; // 手振り検出の閾値（画面幅の15%）
+    this.waveTimeWindow = 500; // 手振り検出の時間窓（500ms）
+
     // 初期モードに基づいてカメラを初期化
     this.initCamera();
     this.updateInstructions(); // 初期指示を更新
@@ -136,12 +142,16 @@ class GameManager {
             }});
             this.hands.setOptions({
                 maxNumHands: 2,
-                modelComplexity: 1, // 0から1に変更（精度向上）
-                minDetectionConfidence: 0.3, // 0.5から0.3に下げる（検出しやすく）
-                minTrackingConfidence: 0.3, // 0.5から0.3に下げる（追跡しやすく）
-                delegate: 'CPU'
+                modelComplexity: 0, // 軽量モデルを使用（検出速度向上）
+                minDetectionConfidence: 0.5, // 検出閾値をデフォルトに戻す
+                minTrackingConfidence: 0.3, // 追跡閾値を適度に
+                selfieMode: true, // セルフィーモード（左右反転）
+                staticImageMode: false // 動画モード
             });
             this.hands.onResults((results) => {
+                // 手の検出状況を表示
+                this.updateHandDetectionIndicator(results.multiHandLandmarks);
+                
                 // 手のランドマークを3D描画
                 if (this.liveStageVisuals) {
                     this.liveStageVisuals.updateHandLandmarks(results);
@@ -149,11 +159,19 @@ class GameManager {
                 
                 if (results.multiHandLandmarks) {
                     for (const landmarks of results.multiHandLandmarks) {
-                        // 人差し指の先端 (Landmark index 8)
+                        // 手のひらの中心での歌詞判定と手振り検出
+                        const palmCenter = landmarks[0]; // 手のひらの中心
+                        const x = palmCenter.x * window.innerWidth;
+                        const y = palmCenter.y * window.innerHeight;
+                        
+                        // 手振りの検出
+                        this.detectHandWaving(palmCenter, x, y);
+                        
+                        // 従来の人差し指での歌詞判定も残す
                         const indexFingerTip = landmarks[8];
-                        const x = indexFingerTip.x * window.innerWidth;
-                        const y = indexFingerTip.y * window.innerHeight;
-                        this.checkLyrics(x, y, 50); // 判定範囲を調整
+                        const fingerX = indexFingerTip.x * window.innerWidth;
+                        const fingerY = indexFingerTip.y * window.innerHeight;
+                        this.checkLyrics(fingerX, fingerY, 50);
                     }
                 }
             });
@@ -211,7 +229,7 @@ class GameManager {
     }
 
     let lastProcessTime = 0;
-    const processInterval = 100; // 100msごとに処理 (約10FPS)
+    const processInterval = 33; // 33msごとに処理 (約30FPS) - さらに検出頻度を上げる
 
     const camera = new Camera(videoElement, {
       onFrame: async () => {
@@ -231,8 +249,8 @@ class GameManager {
         }
         await selfieSegmentation.send({image: videoElement});
       },
-      width: 640, // 最大解像度 (パフォーマンスに影響する可能性あり)
-      height: 480 // 最大解像度 (パフォーマンスに影響する可能性あり)
+      width: 480, // 解像度を下げて検出速度向上
+      height: 360 // 解像度を下げて検出速度向上
     });
     camera.start();
   }
@@ -341,6 +359,62 @@ class GameManager {
         break;
     }
     instructionsEl.textContent = text;
+  }
+
+  /**
+   * 手の検出状況を表示するインジケーターを更新
+   */
+  updateHandDetectionIndicator(multiHandLandmarks) {
+    // インジケーター要素が存在しない場合は作成
+    let indicator = document.getElementById('hand-detection-indicator');
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.id = 'hand-detection-indicator';
+      indicator.style.cssText = `
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 100;
+        transition: all 0.3s ease;
+        pointer-events: none;
+      `;
+      this.gamecontainer.appendChild(indicator);
+    }
+
+    // 検出状況に応じてインジケーターを更新
+    if (multiHandLandmarks && multiHandLandmarks.length > 0) {
+      const handCount = multiHandLandmarks.length;
+      indicator.textContent = `✋ ${handCount}つの手を検出中 - 準備OK！`;
+      indicator.style.backgroundColor = 'rgba(57, 197, 187, 0.9)';
+      indicator.style.color = 'white';
+      indicator.style.opacity = '1';
+    } else {
+      // 検出されていない場合のアドバイス
+      const tips = [
+        '💡 手のひらをカメラに向けてください',
+        '💡 明るい場所で手をかざしてください', 
+        '💡 カメラから30-60cm離れてください',
+        '💡 背景とのコントラストを意識してください'
+      ];
+      const randomTip = tips[Math.floor(Date.now() / 3000) % tips.length]; // 3秒ごとに変更
+      
+      indicator.textContent = randomTip;
+      indicator.style.backgroundColor = 'rgba(255, 107, 107, 0.9)';
+      indicator.style.color = 'white';
+      indicator.style.opacity = '0.95';
+    }
+
+    // Handモード以外では非表示
+    if (this.currentMode !== 'hand') {
+      indicator.style.display = 'none';
+    } else {
+      indicator.style.display = 'block';
+    }
   }
 
   /**
@@ -944,19 +1018,6 @@ class GameManager {
           console.log("現在のモード:", this.currentMode);
           
           if (!this.resultsDisplayed) {
-            // Bodyモードの場合のみ3秒遅延、その他のモードは即座に表示
-            if (this.currentMode === 'body') {
-              console.log("🎵 Bodyモード: 3秒後にリザルト画面を表示します");
-              setTimeout(() => {
-                if (!this.resultsDisplayed) {
-                  console.log("🎵 遅延後にリザルト画面を表示します");
-                  this.showResults();
-                }
-              }, 3000);
-            } else {
-              console.log("🎵 " + this.currentMode + "モード: 即座にリザルト画面を表示します");
-              this.showResults();
-            }
           } else {
             console.log("すでにリザルト画面が表示済みです");
           }
@@ -1350,6 +1411,93 @@ class GameManager {
       if (distanceSquared <= hitRadius * hitRadius) {
         this.clickLyric(el);
         this.createHitEffect(elX, elY);
+      }
+    }
+  }
+
+  /**
+   * 手振り動作の検出とポイント獲得
+   * 
+   * @param {Object} palmLandmark - 手のひらの中心ランドマーク
+   * @param {number} screenX - 画面上のX座標
+   * @param {number} screenY - 画面上のY座標
+   */
+  detectHandWaving(palmLandmark, screenX, screenY) {
+    const currentTime = performance.now();
+    
+    // 手の位置履歴を追加（正規化座標で記録）
+    this.handHistory.push({
+      x: palmLandmark.x,
+      y: palmLandmark.y,
+      time: currentTime
+    });
+    
+    // 古い履歴を削除（時間窓より古いもの）
+    this.handHistory = this.handHistory.filter(h => currentTime - h.time <= this.waveTimeWindow);
+    
+    // 手振りの検出（最低5個の履歴点が必要）
+    if (this.handHistory.length >= 5) {
+      const movement = this.calculateHandMovement();
+      
+      // 横方向の動きが閾値を超えた場合を手振りと判定
+      if (movement.horizontalRange > this.waveThreshold && 
+          currentTime - this.lastWaveTime > 300) { // 300ms間隔で手振り検出
+        
+        this.lastWaveTime = currentTime;
+        
+        // 歌詞付近での手振りをチェック
+        this.checkLyricsWithWaving(screenX, screenY);
+      }
+    }
+  }
+
+  /**
+   * 手の動きの範囲を計算
+   * 
+   * @return {Object} 横方向と縦方向の動きの範囲
+   */
+  calculateHandMovement() {
+    const xPositions = this.handHistory.map(h => h.x);
+    const yPositions = this.handHistory.map(h => h.y);
+    
+    const minX = Math.min(...xPositions);
+    const maxX = Math.max(...xPositions);
+    const minY = Math.min(...yPositions);
+    const maxY = Math.max(...yPositions);
+    
+    return {
+      horizontalRange: maxX - minX,
+      verticalRange: maxY - minY
+    };
+  }
+
+  /**
+   * 手振りによる歌詞判定（より広い範囲で判定）
+   * 
+   * @param {number} x - X座標
+   * @param {number} y - Y座標
+   */
+  checkLyricsWithWaving(x, y) {
+    if (this.isFirstInteraction) return false;
+    
+    const lyrics = document.querySelectorAll('.lyric-bubble');
+    const waveRadius = 120; // 手振りの場合は広い判定範囲
+    
+    for (const el of lyrics) {
+      if (el.style.pointerEvents === 'none') continue;
+      
+      const rect = el.getBoundingClientRect();
+      const elX = rect.left + rect.width / 2;
+      const elY = rect.top + rect.height / 2;
+      
+      const dx = x - elX, dy = y - elY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const hitRadius = waveRadius + Math.max(rect.width, rect.height) / 2;
+      
+      if (distance <= hitRadius) {
+        this.clickLyric(el);
+        this.createHitEffect(elX, elY); // 通常のヒットエフェクトを使用
+        break; // 1つの歌詞のみヒット
       }
     }
   }

@@ -136,12 +136,17 @@ class GameManager {
             }});
             this.hands.setOptions({
                 maxNumHands: 2,
-                modelComplexity: 0,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5,
+                modelComplexity: 1, // 0から1に変更（精度向上）
+                minDetectionConfidence: 0.3, // 0.5から0.3に下げる（検出しやすく）
+                minTrackingConfidence: 0.3, // 0.5から0.3に下げる（追跡しやすく）
                 delegate: 'CPU'
             });
             this.hands.onResults((results) => {
+                // 手のランドマークを3D描画
+                if (this.liveStageVisuals) {
+                    this.liveStageVisuals.updateHandLandmarks(results);
+                }
+                
                 if (results.multiHandLandmarks) {
                     for (const landmarks of results.multiHandLandmarks) {
                         // 人差し指の先端 (Landmark index 8)
@@ -1035,7 +1040,7 @@ class GameManager {
         // ボディモードの場合、カウントダウン分の時間を追加で考慮
         const extraTime = this.currentMode === 'body' ? 5000 : 0;
         // Bodyモードのみ長い余裕時間、その他のモードは短い余裕時間
-        const bufferTime = this.currentMode === 'body' ? 10000 : 3000;
+        const bufferTime = this.currentMode === 'body' ? 10000 : 0;
         this.setupResultCheckTimer(this.player.video.duration + extraTime + bufferTime);
       } else {
         console.log("曲の長さが取得できません。デフォルトタイマーを設定");
@@ -1615,6 +1620,9 @@ class LiveStageVisuals {
     window.addEventListener('resize', () => this.onResize());
 
     this.playerAvatar = {};
+    
+    // 手の描画用配列を初期化
+    this.handJoints = [];
 
     const penlightGeometry = new THREE.CylinderGeometry(2, 2, 40, 32);
     const penlightMaterial = new THREE.MeshBasicMaterial({ color: 0x39C5BB, transparent: true, opacity: 0.8 });
@@ -1696,6 +1704,55 @@ class LiveStageVisuals {
     if (this.playerAvatar.joints[16]) {
         this.rightPenlight.position.copy(this.playerAvatar.joints[16].position);
     }
+  }
+
+  updateHandLandmarks(handsResults) {
+    // 既存の手の描画をクリア
+    if (this.handJoints) {
+      this.handJoints.forEach(joint => this.scene.remove(joint));
+    }
+    
+    this.handJoints = [];
+
+    if (!handsResults.multiHandLandmarks) return;
+
+    handsResults.multiHandLandmarks.forEach((landmarks, handIndex) => {
+      // 手のひらの中心（ランドマーク0）を大きな球体で表示
+      const palmLandmark = landmarks[0];
+      const palmGeometry = new THREE.SphereGeometry(15, 32, 32);
+      const palmMaterial = new THREE.MeshBasicMaterial({ 
+        color: handIndex === 0 ? 0x39C5BB : 0xFF6B6B, // 左手：青、右手：ピンク
+        transparent: true,
+        opacity: 0.8
+      });
+      const palmJoint = new THREE.Mesh(palmGeometry, palmMaterial);
+      
+      // 手のひら位置を3D空間に変換
+      palmJoint.position.x = (palmLandmark.x - 0.5) * -window.innerWidth;
+      palmJoint.position.y = (1 - palmLandmark.y) * window.innerHeight - (window.innerHeight / 2);
+      palmJoint.position.z = (palmLandmark.z || 0) * -800;
+      
+      this.scene.add(palmJoint);
+      this.handJoints.push(palmJoint);
+
+      // 人差し指の先端（ランドマーク8）を小さな球体で表示
+      const fingerTip = landmarks[8];
+      const tipGeometry = new THREE.SphereGeometry(8, 16, 16);
+      const tipMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xFFFFFF, // 白色で目立たせる
+        transparent: true,
+        opacity: 0.9
+      });
+      const tipJoint = new THREE.Mesh(tipGeometry, tipMaterial);
+      
+      // 指先位置を3D空間に変換
+      tipJoint.position.x = (fingerTip.x - 0.5) * -window.innerWidth;
+      tipJoint.position.y = (1 - fingerTip.y) * window.innerHeight - (window.innerHeight / 2);
+      tipJoint.position.z = (fingerTip.z || 0) * -800;
+      
+      this.scene.add(tipJoint);
+      this.handJoints.push(tipJoint);
+    });
   }
 
   animate() {

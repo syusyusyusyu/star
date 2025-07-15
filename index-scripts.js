@@ -119,6 +119,59 @@ function createStars() {
 }
 
 /**
+ * モバイルデバイスかどうかを検出
+ * @return {boolean} モバイルデバイスの場合true
+ */
+function detectMobileDevice() {
+    // ユーザーエージェントによる検出
+    const mobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // タッチ対応の検出
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    // 画面サイズによる検出（768px以下をモバイルとみなす）
+    const smallScreen = window.innerWidth <= 768;
+    
+    // カメラアクセスの制限チェック（一部のモバイルブラウザでは制限あり）
+    const limitedCamera = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    return mobileUA || (hasTouch && smallScreen) || limitedCamera;
+}
+
+/**
+ * モバイルデバイス向けにモード選択を制限
+ */
+function restrictModeSelectionForMobile() {
+    const gameModeSelect = document.getElementById('game-mode');
+    const modeSelection = document.getElementById('mode-selection');
+    
+    if (gameModeSelect && modeSelection) {
+        // セレクトボックスを無効化してCursorモード固定
+        gameModeSelect.value = 'cursor';
+        gameModeSelect.disabled = true;
+        
+        // 視覚的にモバイル向け表示に変更
+        const label = modeSelection.querySelector('label');
+        if (label) {
+            label.textContent = 'Playモード: Cursorモード（モバイル専用）';
+        }
+        
+        // セレクトボックスのスタイルを変更
+        gameModeSelect.style.backgroundColor = '#4a5568';
+        gameModeSelect.style.color = '#a0aec0';
+        gameModeSelect.style.cursor = 'not-allowed';
+        
+        // 説明テキストも更新
+        const description = document.querySelector('.max-w-md p');
+        if (description) {
+            description.textContent = '歌詞の文字をタップしてポイントを獲得しよう！（モバイル最適化）';
+        }
+        
+        console.log('モバイルデバイスが検出されました。Cursorモード限定に設定されました。');
+    }
+}
+
+/**
  * クリックエフェクトの作成
  */
 function createClickEffect(element, x, y) {
@@ -145,6 +198,14 @@ function createClickEffect(element, x, y) {
 
 // ページロード時の処理
 document.addEventListener('DOMContentLoaded', () => {
+    // モバイルデバイス検出
+    const isMobile = detectMobileDevice();
+    
+    // モバイルの場合はモード選択を制限
+    if (isMobile) {
+        restrictModeSelectionForMobile();
+    }
+    
     createSongItems();
     createStars();
     

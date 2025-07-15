@@ -63,6 +63,7 @@ class GameManager {
     
     // 結果表示用のタイマーを追加（曲終了時に確実にリザルト画面へ移行するため）
     this.resultCheckTimer = null;
+    this.songProgressTimer = null; // 曲の進行状況監視タイマー
 
     // 鑑賞用歌詞表示のための追加設定
     this.displayedViewerLyrics = new Map(); // 表示済み鑑賞用歌詞を追跡
@@ -294,8 +295,8 @@ class GameManager {
         console.log("Body lost during countdown, clearing countdownTimer.");
         clearInterval(this.countdownTimer);
         this.countdownTimer = null;
-        this.countdownOverlay.classList.add('hidden');
-        this.loading.textContent = "全身が映るように調整してください...";
+        this.countdownOverlay.classList.remove('hidden');
+        this.countdownText.textContent = "全身が映るように調整してください";
       }
       // bodyDetectionReadyは一度trueになったらリセットしない
       // this.bodyDetectionReady = false;
@@ -350,7 +351,7 @@ class GameManager {
     if (this.currentMode === 'body' && !this.bodyDetectionReady) {
         console.log("playMusic: body mode and bodyDetectionReady is false. Showing adjustment message.");
         this.countdownOverlay.classList.remove('hidden');
-        this.countdownText.textContent = "全身が映るように調整してください...";
+        this.countdownText.textContent = "全身が映るように調整してください";
         this._operationInProgress = false; // ロック解除
         return;
     }
@@ -406,10 +407,60 @@ class GameManager {
         // 曲の長さを60秒と仮定
         this.setupResultCheckTimer(60000);
       }
+      
+      // 曲の終了を確実に検出するための監視タイマーを設定
+      // この監視タイマーは無効化（onFinishイベントとタイマーベースに依存）
+      // this.startSongProgressMonitor();
     } finally {
       // 操作が完全に完了するのを確実にするために長めの遅延を使用（安全対策）
       setTimeout(() => this._operationInProgress = false, 1000);
     }
+  }
+
+  /**
+   * 曲の進行状況を監視して終了を検出する
+   */
+  startSongProgressMonitor() {
+    // 既存の監視タイマーをクリア
+    if (this.songProgressTimer) {
+      clearInterval(this.songProgressTimer);
+    }
+    
+    this.songProgressTimer = setInterval(() => {
+      if (this.player && this.player.video) {
+        const currentTime = this.player.timer.position;
+        const duration = this.player.video.duration;
+        
+        // 曲の進行監視を無効化（onFinishイベントに任せる）
+        // 曲が本当に完全に終了した場合のみリザルト表示（ほぼ使われない緊急時のみ）
+        if (duration && currentTime >= duration) { // 曲の長さと同じかそれ以上の場合のみ
+          console.log("🎯 曲の完全終了を検出しました (progress monitor)", {
+            currentTime,
+            duration,
+            remaining: duration - currentTime
+          });
+          clearInterval(this.songProgressTimer);
+          if (!this.resultsDisplayed) {
+            this.showResults();
+          }
+        }
+        
+        // プレーヤー停止検出も無効化（onFinishイベントに任せる）
+        // 緊急時のみ：プレーヤーが完全に停止し、曲の95%以上進んでいる場合
+        if (!this.player.isPlaying && !this.isPaused && 
+            duration && currentTime >= duration * 0.95 && currentTime > 90000) {
+          console.log("⏹️ プレーヤー緊急停止を検出しました (progress monitor)", {
+            currentTime,
+            duration,
+            progress: (currentTime / duration * 100).toFixed(1) + '%'
+          });
+          clearInterval(this.songProgressTimer);
+          if (!this.resultsDisplayed) {
+            this.showResults();
+          }
+        }
+      }
+    }, 5000); // 5秒ごとにチェック（頻度を下げる）
   }
 
   /**
@@ -427,8 +478,13 @@ class GameManager {
     // 曲の終了時に結果を表示するタイマーを設定
     this.resultCheckTimer = setTimeout(() => {
       if (!this.isPaused && !this.resultsDisplayed) {
-        console.log("結果表示タイマーが発火しました");
+        console.log("⏰ 結果表示タイマーが発火しました - リザルト画面を表示します");
         this.showResults();
+      } else {
+        console.log("⏰ 結果表示タイマーが発火しましたが、条件を満たしません", {
+          isPaused: this.isPaused,
+          resultsDisplayed: this.resultsDisplayed
+        });
       }
     }, duration);
     
@@ -439,7 +495,7 @@ class GameManager {
         console.log("バックアップタイマーが発火しました");
         this.showResults();
       }
-    }, duration + 10000); // メインタイマーから10秒後
+    }, duration + 20000); // メインタイマーから20秒後に変更
   }
 
   /**
@@ -463,10 +519,7 @@ class GameManager {
         
         // 星を常に生成する（初回インタラクション後のみ）
         if (!this.isFirstInteraction) {
-          this.createTrailParticle(x, y);
-          if (Math.random() < (isTouch ? 0.03 : 0.01)) {
-            this.createShooting(x, y, dx, dy);
-          }
+          // パーティクルエフェクトは削除
         }
       }
     };
@@ -501,10 +554,7 @@ class GameManager {
       if (this.currentMode !== 'cursor') return;
       
       this.checkLyrics(e.clientX, e.clientY, 35);
-      if (Math.random() < 0.2) {
-        const angle = Math.random() * Math.PI * 2;
-        this.createShooting(e.clientX, e.clientY, Math.cos(angle) * 5, Math.sin(angle) * 5);
-      }
+      // createShootingエフェクトは削除
     });
     
     // 再生/一時停止ボタンのクリックイベント - ここが再生開始の唯一のトリガー
@@ -517,7 +567,17 @@ class GameManager {
       if (!this.apiLoaded) return;
       
       if (this.isFirstInteraction) {
-        // 初めての実行時は再生を開始
+        // ボディモードの場合は全身検出プロセスを開始
+        if (this.currentMode === 'body') {
+          this.isFirstInteraction = false;
+          this.countdownOverlay.classList.remove('hidden');
+          this.countdownText.textContent = "全身が映るように調整してください";
+          // カメラが既に初期化されているので、全身検出の監視を開始するだけ
+          // playMusic()は checkFullBodyDetection のカウントダウン完了後に呼び出される
+          return;
+        }
+        
+        // その他のモードでは通常通り再生を開始
         this.playMusic();
         return;
       }
@@ -716,6 +776,16 @@ class GameManager {
     if (this._operationInProgress) return; // 連打防止
     this._operationInProgress = true;
     
+    // 各種タイマーをクリア
+    if (this.resultCheckTimer) {
+      clearTimeout(this.resultCheckTimer);
+      this.resultCheckTimer = null;
+    }
+    if (this.songProgressTimer) {
+      clearInterval(this.songProgressTimer);
+      this.songProgressTimer = null;
+    }
+    
     // スコアと状態のリセット
     this.score = this.combo = this.currentLyricIndex = 0;
     this.startTime = Date.now();
@@ -864,9 +934,18 @@ class GameManager {
         },
         // 曲終了時（最重要：ここでリザルト画面を表示）
         onFinish: () => {
-          console.log("onFinish イベントが発火しました");
+          console.log("🎵 onFinish イベントが発火しました - 3秒後にリザルト画面を表示します");
+          console.log("resultsDisplayed状態:", this.resultsDisplayed);
           if (!this.resultsDisplayed) {
-            this.showResults();
+            // 曲が完全に終了してから3秒待ってからリザルト画面を表示
+            setTimeout(() => {
+              if (!this.resultsDisplayed) {
+                console.log("🎵 遅延後にリザルト画面を表示します");
+                this.showResults();
+              }
+            }, 3000);
+          } else {
+            console.log("すでにリザルト画面が表示済みです");
           }
         },
         // エラー発生時
@@ -944,7 +1023,15 @@ class GameManager {
 
       // タイマーを設定（曲の長さ分）
       if (this.player?.video?.duration) {
-        this.setupResultCheckTimer(this.player.video.duration + 2000);
+        console.log("曲の長さ:", this.player.video.duration, "ms");
+        // ボディモードの場合、カウントダウン分の時間を追加で考慮
+        const extraTime = this.currentMode === 'body' ? 5000 : 0;
+        // より余裕を持って曲終了後に結果表示（10秒の余裕を追加）
+        this.setupResultCheckTimer(this.player.video.duration + extraTime + 10000);
+      } else {
+        console.log("曲の長さが取得できません。デフォルトタイマーを設定");
+        // 曲の長さが取得できない場合はデフォルトで120秒後にリザルト表示（余裕を持たせる）
+        this.setupResultCheckTimer(120000);
       }
     } catch (e) {
       console.error("歌詞処理エラー:", e);
@@ -1346,22 +1433,13 @@ class GameManager {
    * @param {number} y - Y座標
    */
   createHitEffect(x, y) {
-    const ripple = document.createElement('div');
-    ripple.className = 'tap-ripple';
+    const ripple = document.createElement('div');    ripple.className = 'tap-ripple';
     ripple.style.left = `${x - 20}px`;
     ripple.style.top = `${y - 20}px`;
     
     this.gamecontainer.appendChild(ripple);
     setTimeout(() => ripple.remove(), 500);
   }
-
-  
-
-  
-
-  
-
-  
 
   /**
    * リザルト画面を表示する
@@ -1417,19 +1495,22 @@ class GameManager {
     if (finalComboDisplay) finalComboDisplay.textContent = `最大コンボ: ${this.maxCombo}`;
     if (rankDisplay) rankDisplay.textContent = `ランク: ${rank}`;
     
-    // 結果画面を表示
+    // 結果画面を表示（hiddenクラスを削除してから、showクラスを追加）
     resultsScreen.classList.remove('hidden');
+    resultsScreen.style.display = 'flex'; // 確実に表示されるようにする
+    
     setTimeout(() => {
       resultsScreen.classList.add('show');
+      console.log("リザルト画面のshowクラスを追加しました");
       
-      // 演出エフェクト（流れ星）
-      for (let i = 0; i < 15; i++) {
-        setTimeout(() => {
-          const x = Math.random() * window.innerWidth;
-          const y = Math.random() * window.innerHeight;
-          this.createShooting(x, y, Math.random() * 10 - 5, Math.random() * 10 - 5);
-        }, i * 200);
-      }
+      // 演出エフェクト（流れ星）は削除
+      // for (let i = 0; i < 15; i++) {
+      //   setTimeout(() => {
+      //     const x = Math.random() * window.innerWidth;
+      //     const y = Math.random() * window.innerHeight;
+      //     this.createShooting(x, y, Math.random() * 10 - 5, Math.random() * 10 - 5);
+      //   }, i * 200);
+      // }
     }, 100);
     
     // リザルト画面のボタン設定

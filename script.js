@@ -178,8 +178,8 @@ class GameManager {
                     });
                     this.visuals.updatePlayerAvatar(flippedLandmarks);
 
-                    // 全身検出の確認
-                    if (this.currentMode === 'body' && !this.bodyDetectionReady) {
+                    // 全身検出の確認（常に実行）
+                    if (this.currentMode === 'body') {
                         this.checkFullBodyDetection(flippedLandmarks);
                     }
 
@@ -245,6 +245,7 @@ class GameManager {
    * @param {Array} landmarks - MediaPipe Poseのランドマークデータ
    */
   checkFullBodyDetection(landmarks) {
+    console.log("checkFullBodyDetection called.");
     // 主要なランドマーク（頭、両肩、両腰、両足首）が存在するか確認
     const requiredLandmarks = [
       0, // 鼻
@@ -256,15 +257,19 @@ class GameManager {
       28  // 右足首
     ];
 
-    const allDetected = requiredLandmarks.every(index => landmarks[index] && landmarks[index].visibility > 0.8);
+    const allDetected = requiredLandmarks.every(index => landmarks[index] && landmarks[index].visibility > 0.7);
+    console.log("allDetected:", allDetected);
+    console.log("player isPlaying:", this.player?.isPlaying);
 
     if (allDetected) {
       if (this.fullBodyLostTimer) {
+        console.log("Full body re-detected, clearing fullBodyLostTimer.");
         clearTimeout(this.fullBodyLostTimer);
         this.fullBodyLostTimer = null;
-        if (this.countdownOverlay.classList.contains('hidden')) {
-            // 警告表示中だった場合のみメッセージをクリア
+        // 警告表示中だった場合は即座にメッセージをクリア
+        if (!this.countdownOverlay.classList.contains('hidden')) {
             this.countdownText.textContent = '';
+            this.countdownOverlay.classList.add('hidden');
         }
       }
       if (!this.countdownTimer && !this.bodyDetectionReady) {
@@ -286,16 +291,22 @@ class GameManager {
       }
     } else {
       if (this.countdownTimer) {
+        console.log("Body lost during countdown, clearing countdownTimer.");
         clearInterval(this.countdownTimer);
         this.countdownTimer = null;
         this.countdownOverlay.classList.add('hidden');
         this.loading.textContent = "全身が映るように調整してください...";
       }
-      this.bodyDetectionReady = false;
+      // bodyDetectionReadyは一度trueになったらリセットしない
+      // this.bodyDetectionReady = false;
 
-      // ゲームが開始している状態で全身がロストした場合
-      if (this.player?.isPlaying && !this.fullBodyLostTimer) {
+      console.log("Body not detected. Player is playing:", this.player?.isPlaying, "Full body lost timer active:", !!this.fullBodyLostTimer);
+
+      // 再生中または準備完了後で全身がロストした場合
+      if ((this.bodyDetectionReady || this.player?.isPlaying) && !this.fullBodyLostTimer) {
+        console.log("Setting full body lost timer.");
         this.fullBodyLostTimer = setTimeout(() => {
+          console.log("Full body lost timer expired, showing warning.");
           this.countdownOverlay.classList.remove('hidden');
           this.countdownText.textContent = "全身が画面から外れています！";
           // 必要であればゲームを一時停止するなどの処理を追加
@@ -331,11 +342,13 @@ class GameManager {
    * プレーヤーの初期化状態に応じて、TextAlivePlayerまたはフォールバックモードで再生
    */
   async playMusic() {
+    console.log("playMusic called.");
     // 操作が進行中なら何もしない（連打防止）
     if (this._operationInProgress) return;
     this._operationInProgress = true;
 
     if (this.currentMode === 'body' && !this.bodyDetectionReady) {
+        console.log("playMusic: body mode and bodyDetectionReady is false. Showing adjustment message.");
         this.countdownOverlay.classList.remove('hidden');
         this.countdownText.textContent = "全身が映るように調整してください...";
         this._operationInProgress = false; // ロック解除
@@ -485,7 +498,7 @@ class GameManager {
     
     // クリック/タップイベント
     this.gamecontainer.addEventListener('click', e => {
-      if (this.isFirstInteraction || this.currentMode !== 'cursor') return;
+      if (this.currentMode !== 'cursor') return;
       
       this.checkLyrics(e.clientX, e.clientY, 35);
       if (Math.random() < 0.2) {
@@ -611,9 +624,26 @@ class GameManager {
     styleSheet.insertRule(keyframes, styleSheet.cssRules.length);
   }
 
-  
-
-  
+  /**
+   * ランダムなテキスト（観客の応援メッセージ）を生成して表示
+   */
+  createRandomText() {
+    const randomText = document.createElement('div');
+    randomText.className = 'random-text';
+    randomText.textContent = this.randomTexts[Math.floor(Math.random() * this.randomTexts.length)];
+    
+    // 画面下部からランダムな位置に配置
+    randomText.style.left = `${Math.random() * 80 + 10}%`; // 10%から90%の範囲
+    randomText.style.bottom = `${Math.random() * 20 + 5}%`; // 5%から25%の範囲
+    
+    this.gamecontainer.appendChild(randomText);
+    
+    // 3秒後にフェードアウトして削除
+    setTimeout(() => {
+      randomText.style.opacity = '0';
+      setTimeout(() => randomText.remove(), 1000);
+    }, 3000);
+  }
 
   /**
    * 再生/一時停止を切り替える
@@ -1229,7 +1259,7 @@ class GameManager {
    * @param {HTMLElement} element - クリックされた歌詞要素
    */
   clickLyric(element) {
-    if (element.style.pointerEvents === 'none' || this.isFirstInteraction) return;
+    if (element.style.pointerEvents === 'none') return;
     
     // スコアとコンボを更新
     this.combo++;
@@ -1580,5 +1610,11 @@ class LiveStageVisuals {
   animate() {
     requestAnimationFrame(() => this.animate());
     this.renderer.render(this.scene, this.camera);
+  }
+
+  onResize() {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 }

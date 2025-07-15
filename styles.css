@@ -144,7 +144,7 @@ body {
     position: absolute;
     bottom: calc(20px + var(--safe-area-bottom));
     right: 20px;
-    z-index: 100;
+    z-index: 1100;
     display: flex;
     gap: 10px;
 }
@@ -754,6 +754,7 @@ body {
 
   #countdown-text {
     color: var(--primary-color);
+    font-size: 8em; /* 大きなフォントサイズ */
     text-shadow: 0 0 20px var(--primary-color);
   }
   

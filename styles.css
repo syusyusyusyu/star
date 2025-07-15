@@ -44,8 +44,6 @@ body {
     height: calc(var(--vh, 1vh) * 100);
     height: -webkit-fill-available;
     position: relative;
-    background: radial-gradient(ellipse at bottom, var(--bg-gradient-start) 0%, var(--bg-dark) 70%),
-              radial-gradient(ellipse at top right, var(--bg-accent-color) 0%, transparent 70%);
     overflow: hidden;
     touch-action: none;
     -webkit-user-select: none;
@@ -55,31 +53,7 @@ body {
     box-sizing: border-box;
 }
 
-/* ステージ要素 */
-#stage {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 300px;
-    height: 80px;
-    background: radial-gradient(circle, var(--primary-color), #1a1a2e);
-    border-radius: 150px 150px 0 0;
-    box-shadow: 0 0 30px rgba(57, 197, 187, 0.8);
-    z-index: 10;
-}
 
-#stage-light {
-    position: absolute;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 300px;
-    height: 200px;
-    background: radial-gradient(ellipse at bottom, rgba(57, 197, 187, 0.3) 0%, transparent 70%);
-    z-index: 5;
-    pointer-events: none;
-}
 
 #miku {
     position: absolute;
@@ -776,6 +750,11 @@ body {
     transition: all 0.3s ease;
     opacity: 0;
     transform: translateY(20px);
+  }
+
+  #countdown-text {
+    color: var(--primary-color);
+    text-shadow: 0 0 20px var(--primary-color);
   }
   
   .viewer-lyric-char.highlighted {

@@ -28,6 +28,13 @@ class GameManager {
     this.apiLoaded = false; // TextAlive APIがロード完了したかを追跡
     this._operationInProgress = false; // 操作のロック状態を追跡（連打防止）
     this.resultsDisplayed = false; // リザルト画面表示フラグを初期化（重要：リザルト画面重複表示防止）
+    // URLからモードを読み込む
+    const urlParams = new URLSearchParams(window.location.search);
+    this.currentMode = urlParams.get('mode') || 'cursor'; // デフォルトはカーソルモード
+    this.hands = null; // MediaPipe Handsインスタンス
+    this.pose = null; // MediaPipe Poseインスタンス
+    this.bodyDetectionReady = false; // ボディ検出準備完了フラグ
+    this.countdownTimer = null; // カウントダウンタイマー
     
     // 内部処理用のグループサイズを設定（パフォーマンス最適化）
     this.groupSize = 1;
@@ -40,18 +47,11 @@ class GameManager {
     });
     
     // 必要なDOM要素の取得
-    [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading] = 
-      ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading'].map(id => document.getElementById(id));
+    [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading, this.countdownOverlay, this.countdownText] = 
+      ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading', 'countdown-overlay', 'countdown-text'].map(id => document.getElementById(id));
     
     // 初期状態ではすべてのボタンを読み込み中と表示
     this.isPaused = true;
-    if (this.playpause) {
-      this.playpause.textContent = '読み込み中...';
-    }
-    if (this.restart) {
-      this.restart.textContent = '読み込み中...';
-    }
-    
     // ゲームの基本セットアップ
     this.setupEvents();
     this.initGame();
@@ -69,61 +69,163 @@ class GameManager {
     this.viewerLyricsContainer.className = 'viewer-lyrics-container';
     this.gamecontainer.appendChild(this.viewerLyricsContainer);
 
+    // 初期モードに基づいてカメラを初期化
     this.initCamera();
+    this.updateInstructions(); // 初期指示を更新
   }
 
   initCamera() {
-    const videoElement = document.createElement('video');
-    videoElement.style.display = 'none';
-    document.body.appendChild(videoElement);
+    let videoElement = document.getElementById('camera-video');
+    if (!videoElement) {
+        videoElement = document.createElement('video');
+        videoElement.id = 'camera-video';
+        videoElement.classList.add('hidden'); // デフォルトで非表示
+        document.body.appendChild(videoElement);
+    }
+    const segmentationCanvas = document.getElementById('segmentation-canvas');
+    const segmentationCtx = segmentationCanvas.getContext('2d');
 
-    this.visuals.setVideoTexture(videoElement);
+    // カメラとキャンバスの表示/非表示をモードに応じて切り替える
+    if (this.currentMode === 'hand' || this.currentMode === 'body') {
+        // videoElementは常にhiddenのまま
+        segmentationCanvas.classList.remove('hidden');
+    } else {
+        // videoElementは常にhiddenのまま
+        segmentationCanvas.classList.add('hidden');
+        // モードが切り替わった際に、以前のMediaPipeインスタンスを破棄
+        if (this.hands) {
+            this.hands.close();
+            this.hands = null;
+        }
+        if (this.pose) {
+            this.pose.close();
+            this.pose = null;
+        }
+        return; // カメラが不要なモードではここで処理を終了
+    }
 
-    const pose = new Pose({locateFile: (file) => {
-      return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    // Selfie Segmentationの初期化 (常に実行、背景除去のため)
+    const selfieSegmentation = new SelfieSegmentation({locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
     }});
-    pose.setOptions({
-      modelComplexity: 0,
-      smoothLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
+    selfieSegmentation.setOptions({
+      modelSelection: 0,
+      delegate: 'CPU'
     });
-    pose.onResults((results) => {
-      if (results.poseLandmarks) {
-        const flippedLandmarks = results.poseLandmarks.map(landmark => {
-          return { ...landmark, x: 1 - landmark.x };
-        });
-        this.visuals.updatePlayerAvatar(flippedLandmarks);
+    selfieSegmentation.onResults((results) => {
+      segmentationCtx.save();
+      segmentationCtx.clearRect(0, 0, segmentationCanvas.width, segmentationCanvas.height);
+      // 左右反転
+      segmentationCtx.translate(segmentationCanvas.width, 0);
+      segmentationCtx.scale(-1, 1);
+      segmentationCtx.drawImage(results.segmentationMask, 0, 0,
+                          segmentationCanvas.width, segmentationCanvas.height);
 
-        const rightHand = flippedLandmarks[20];
-        if (rightHand) {
-            const x = rightHand.x * window.innerWidth;
-            const y = rightHand.y * window.innerHeight;
-            this.checkLyrics(x, y, 80);
-        }
-
-        const leftHand = flippedLandmarks[19];
-        if (leftHand) {
-            const x = leftHand.x * window.innerWidth;
-            const y = leftHand.y * window.innerHeight;
-            this.checkLyrics(x, y, 80);
-        }
-      }
+      segmentationCtx.globalCompositeOperation = 'source-in';
+      segmentationCtx.drawImage(results.image, 0, 0, segmentationCanvas.width, segmentationCanvas.height);
+      segmentationCtx.restore();
     });
 
-    let lastPoseTime = 0;
-    const poseInterval = 100; // 100msごとに処理 (約10FPS)
+    // Handsの初期化 (handモードの場合のみ)
+    if (this.currentMode === 'hand') {
+        if (!this.hands) {
+            this.hands = new Hands({locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }});
+            this.hands.setOptions({
+                maxNumHands: 2,
+                modelComplexity: 0,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5,
+                delegate: 'CPU'
+            });
+            this.hands.onResults((results) => {
+                if (results.multiHandLandmarks) {
+                    for (const landmarks of results.multiHandLandmarks) {
+                        // 人差し指の先端 (Landmark index 8)
+                        const indexFingerTip = landmarks[8];
+                        const x = indexFingerTip.x * window.innerWidth;
+                        const y = indexFingerTip.y * window.innerHeight;
+                        this.checkLyrics(x, y, 50); // 判定範囲を調整
+                    }
+                }
+            });
+        }
+    } else if (this.hands) { // handモードではないがhandsが初期化されている場合
+        this.hands.close();
+        this.hands = null;
+    }
+
+    // Poseの初期化 (bodyモードの場合のみ)
+    if (this.currentMode === 'body') {
+        if (!this.pose) {
+            this.pose = new Pose({locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+            }});
+            this.pose.setOptions({
+                modelComplexity: 0,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5,
+                delegate: 'CPU'
+            });
+            this.pose.onResults((results) => {
+                if (results.poseLandmarks) {
+                    // Poseのランドマークも左右反転
+                    const flippedLandmarks = results.poseLandmarks.map(landmark => {
+                        return { ...landmark, x: 1 - landmark.x };
+                    });
+                    this.visuals.updatePlayerAvatar(flippedLandmarks);
+
+                    // 全身検出の確認
+                    if (this.currentMode === 'body' && !this.bodyDetectionReady) {
+                        this.checkFullBodyDetection(flippedLandmarks);
+                    }
+
+                    const rightHand = flippedLandmarks[20]; // 右手首
+                    if (rightHand) {
+                        const x = rightHand.x * window.innerWidth;
+                        const y = rightHand.y * window.innerHeight;
+                        this.checkLyrics(x, y, 80);
+                    }
+
+                    const leftHand = flippedLandmarks[19]; // 左手首
+                    if (leftHand) {
+                        const x = leftHand.x * window.innerWidth;
+                        const y = leftHand.y * window.innerHeight;
+                        this.checkLyrics(x, y, 80);
+                    }
+                }
+            });
+        }
+    } else if (this.pose) { // bodyモードではないがposeが初期化されている場合
+        this.pose.close();
+        this.pose = null;
+    }
+
+    let lastProcessTime = 0;
+    const processInterval = 100; // 100msごとに処理 (約10FPS)
 
     const camera = new Camera(videoElement, {
       onFrame: async () => {
+        // キャンバスの解像度をビデオの解像度に合わせる
+        segmentationCanvas.width = videoElement.videoWidth;
+        segmentationCanvas.height = videoElement.videoHeight;
+
         const now = performance.now();
-        if (now - lastPoseTime > poseInterval) {
-          lastPoseTime = now;
-          await pose.send({image: videoElement});
+        if (now - lastProcessTime > processInterval) {
+          lastProcessTime = now;
+          if (this.hands) {
+              await this.hands.send({image: videoElement});
+          }
+          if (this.pose) {
+              await this.pose.send({image: videoElement});
+          }
         }
+        await selfieSegmentation.send({image: videoElement});
       },
-      width: 640,
-      height: 360
+      width: 640, // 最大解像度 (パフォーマンスに影響する可能性あり)
+      height: 480 // 最大解像度 (パフォーマンスに影響する可能性あり)
     });
     camera.start();
   }
@@ -138,6 +240,75 @@ class GameManager {
   }
 
   /**
+   * 全身検出の確認とカウントダウンの開始
+   * @param {Array} landmarks - MediaPipe Poseのランドマークデータ
+   */
+  checkFullBodyDetection(landmarks) {
+    // 主要なランドマーク（頭、両肩、両腰、両足首）が存在するか確認
+    const requiredLandmarks = [
+      0, // 鼻
+      11, // 左肩
+      12, // 右肩
+      23, // 左腰
+      24, // 右腰
+      27, // 左足首
+      28  // 右足首
+    ];
+
+    const allDetected = requiredLandmarks.every(index => landmarks[index] && landmarks[index].visibility > 0.8);
+
+    if (allDetected) {
+      if (!this.countdownTimer) {
+        let count = 5;
+        this.countdownOverlay.classList.remove('hidden');
+        this.countdownText.textContent = count;
+        this.countdownTimer = setInterval(() => {
+          count--;
+          if (count > 0) {
+            this.countdownText.textContent = count;
+          } else {
+            clearInterval(this.countdownTimer);
+            this.countdownTimer = null;
+            this.bodyDetectionReady = true;
+            this.countdownOverlay.classList.add('hidden');
+            this.playMusic(); // カウントダウン終了後、音楽再生を開始
+          }
+        }, 1000);
+      }
+    } else {
+      if (this.countdownTimer) {
+        clearInterval(this.countdownTimer);
+        this.countdownTimer = null;
+        this.countdownOverlay.classList.add('hidden');
+        this.loading.textContent = "全身が映るように調整してください...";
+      }
+      this.bodyDetectionReady = false;
+    }
+  }
+
+  /**
+   * ゲームの指示テキストを更新する
+   */
+  updateInstructions() {
+    const instructionsEl = document.getElementById('instructions');
+    if (!instructionsEl) return;
+
+    let text = '';
+    switch (this.currentMode) {
+      case 'cursor':
+        text = '歌詞の文字にマウスを当ててポイントを獲得しよう！';
+        break;
+      case 'hand':
+        text = 'カメラに手を映して歌詞に触れてポイントを獲得しよう！';
+        break;
+      case 'body':
+        text = 'カメラに全身を映して歌詞に触れてポイントを獲得しよう！';
+        break;
+    }
+    instructionsEl.textContent = text;
+  }
+
+  /**
    * 音楽再生を開始する
    * プレーヤーの初期化状態に応じて、TextAlivePlayerまたはフォールバックモードで再生
    */
@@ -145,6 +316,13 @@ class GameManager {
     // 操作が進行中なら何もしない（連打防止）
     if (this._operationInProgress) return;
     this._operationInProgress = true;
+
+    if (this.currentMode === 'body' && !this.bodyDetectionReady) {
+        this.countdownOverlay.classList.remove('hidden');
+        this.countdownText.textContent = "全身が映るように調整してください...";
+        this._operationInProgress = false; // ロック解除
+        return;
+    }
     
     try {
       this.isPaused = false;
@@ -264,20 +442,20 @@ class GameManager {
     
     // マウス移動イベント
     this.gamecontainer.addEventListener('mousemove', e => {
-      if (!touched) handleMove(e.clientX, e.clientY, false);
+      if (!touched && this.currentMode === 'cursor') handleMove(e.clientX, e.clientY, false);
     });
     
     // タッチイベントの最適化
     this.gamecontainer.addEventListener('touchstart', e => {
       touched = true;
-      if (e.touches && e.touches[0]) {
+      if (e.touches && e.touches[0] && this.currentMode === 'cursor') {
         lastX = e.touches[0].clientX;
         lastY = e.touches[0].clientY;
       }
     }, {passive: true});
     
     this.gamecontainer.addEventListener('touchmove', e => {
-      if (!this.isFirstInteraction && e.touches && e.touches[0]) {
+      if (!this.isFirstInteraction && e.touches && e.touches[0] && this.currentMode === 'cursor') {
         e.preventDefault(); // スクロール防止
         handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
       }
@@ -289,7 +467,7 @@ class GameManager {
     
     // クリック/タップイベント
     this.gamecontainer.addEventListener('click', e => {
-      if (this.isFirstInteraction) return;
+      if (this.isFirstInteraction || this.currentMode !== 'cursor') return;
       
       this.checkLyrics(e.clientX, e.clientY, 35);
       if (Math.random() < 0.2) {
@@ -350,6 +528,7 @@ class GameManager {
    */
   initGame() {
     this.visuals = new LiveStageVisuals(this.gamecontainer); // ← これを createAudience の直後に追加
+    this.createAudiencePenlights();
     this.lyricsData = [];
     
     // フォールバック用の歌詞データ - フレーズごとに区切る
@@ -385,6 +564,33 @@ class GameManager {
         this.comboEl.textContent = `コンボ: 0`;
       }
     }, 1000);
+  }
+
+  createAudiencePenlights() {
+    const audienceArea = document.getElementById('audience-area');
+    if (!audienceArea) return;
+
+    const penlightColors = ['#ff4b81', '#4bffff', '#4bff4b', '#ffff4b', '#ff4bff'];
+    const numPenlights = 50;
+
+    for (let i = 0; i < numPenlights; i++) {
+        const penlight = document.createElement('div');
+        penlight.className = 'absolute w-1 h-8 rounded-full';
+        penlight.style.backgroundColor = penlightColors[Math.floor(Math.random() * penlightColors.length)];
+        penlight.style.left = `${Math.random() * 100}%`;
+        penlight.style.bottom = `${Math.random() * 60}%`; // Lower 60% of the audience area
+        penlight.style.transformOrigin = 'bottom center';
+        penlight.style.animation = `sway ${2 + Math.random() * 2}s ease-in-out infinite alternate`;
+        audienceArea.appendChild(penlight);
+    }
+
+    // Add a keyframe animation for the swaying motion
+    const styleSheet = document.styleSheets[0];
+    const keyframes = `@keyframes sway {
+        0% { transform: rotate(-15deg); }
+        100% { transform: rotate(15deg); }
+    }`;
+    styleSheet.insertRule(keyframes, styleSheet.cssRules.length);
   }
 
   
@@ -573,9 +779,11 @@ class GameManager {
             // すべてのボタンのテキストを更新
             if (this.playpause) {
               this.playpause.textContent = '再生';
+              this.playpause.disabled = false;
             }
             if (this.restart) {
               this.restart.textContent = '最初から';
+              this.restart.disabled = false;
             }
             
             if (this.loading) this.loading.textContent = "準備完了-「再生」ボタンを押してね";
@@ -643,9 +851,11 @@ class GameManager {
       // すべてのボタンのテキストを更新
       if (this.playpause) {
         this.playpause.textContent = '再生';
+        this.playpause.disabled = false;
       }
       if (this.restart) {
         this.restart.textContent = '最初から';
+        this.restart.disabled = false;
       }
       
       if (this.loading) this.loading.textContent = "準備完了 - 下の「再生」ボタンを押してください";

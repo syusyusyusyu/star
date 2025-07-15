@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>マジカルミライ - 初音ミクのアリーナライブ</title>
+    <title>Lyricほにゃらら</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="https://unpkg.com/textalive-app-api/dist/index.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
@@ -12,16 +13,34 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
     <script src="game-loader.js"></script>
     <script src="script.js"></script>
 </head>
 <body class="browser-bar-adjust">
+    <video id="camera-video" class="hidden"></video>
+    <canvas id="segmentation-canvas" class="fixed top-0 left-0 w-full h-full z-[1]"></canvas>
+    <div id="countdown-overlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center bg-black bg-opacity-70 z-[1000] hidden">
+        <span id="countdown-text" class="text-white text-9xl font-bold"></span>
+    </div>
+    <div id="live-background" class="fixed top-0 left-0 w-full h-full z-[-1]">
+        <div id="stage-area" class="absolute top-0 left-0 w-full h-3/5 bg-gray-900 overflow-hidden flex justify-center items-end">
+            <!-- Stage Floor -->
+            <div class="w-full h-1/4 bg-black/30" style="perspective: 50px;"><div class="w-full h-full bg-gray-700" style="transform: rotateX(30deg);"></div></div>
+            <!-- Stage Lights -->
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[200%] h-[200px] bg-gradient-to-t from-purple-600/30 to-transparent rounded-[100%] animate-pulse"></div>
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[150%] h-[150px] bg-gradient-to-t from-blue-500/40 to-transparent rounded-[100%]" style="animation-delay: 500ms;"></div>
+        </div>
+        <div id="audience-area" class="absolute bottom-0 left-0 w-full h-2/5">
+        </div>
+    </div>
     <div id="game-container">
         <div id="miku"></div>
         <div id="song-info">
-            <div id="song-title">マジカルミライ2025</div>
-            <div id="loading">初音ミクのアリーナライブ</div>
+            <div id="song-title">Lyricほにゃらら</div>
+            <div id="loading">ゲームをロード中...</div>
         </div>
+        
         <div id="score-container">
             <div id="score">0</div>
             <div id="combo">コンボ: 0</div>

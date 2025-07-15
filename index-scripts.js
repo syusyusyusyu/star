@@ -80,9 +80,12 @@ function createSongItems() {
  */
 function saveSongSelection(songId) {
     const selectedSong = songsData.find(song => song.id === songId);
+    const gameModeSelect = document.getElementById('game-mode');
+    const selectedMode = gameModeSelect ? gameModeSelect.value : 'cursor'; // デフォルトはカーソルモード
+
     if (selectedSong) {
         localStorage.setItem('selectedSong', JSON.stringify(selectedSong));
-        window.location.href = 'game.html';
+        window.location.href = `game.html?mode=${selectedMode}`;
     }
 }
 

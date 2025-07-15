@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>マジカルミライ 2025 - 初音ミクのアリーナライブ</title>
+    <title>Lyricほにゃらら</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -59,6 +59,16 @@
         <div class="max-w-md mx-auto text-center mb-4 sm:mb-6 bg-black/30 p-2 sm:p-2 rounded-lg backdrop-blur-sm">
             <p class="text-white/90 text-sm sm:text-base">歌詞の文字にカーソルをあててポイントを獲得しよう！</p>
         </div>
+
+        <!-- モード選択 -->
+        <div id="mode-selection" class="mt-4 mb-6 text-center">
+            <label for="game-mode" class="text-white mr-2 text-lg">プレイモード選択:</label>
+            <select id="game-mode" class="p-2 rounded bg-gray-700 text-white text-lg">
+                <option value="cursor">カーソルモード</option>
+                <option value="hand">ハンドモード</option>
+                <option value="body">ボディモード</option>
+            </select>
+        </div>
         
         <!-- 曲選択 -->
         <div class="max-w-lg w-full mx-auto">
@@ -67,10 +77,6 @@
             </ul>
         </div>
     </div>
-    
-    <!-- ミクのシルエット -->
-    <div class="miku-silhouette absolute bottom-4 sm:bottom-8 left-1/2 transform -translate-x-1/2 w-24 sm:w-32 h-36 sm:h-48 z-20 hidden sm:block"></div>
-
     <script src="index-scripts.js"></script>
 </body>
 </html>

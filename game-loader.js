@@ -33,8 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // GameManagerが初期化される前にグローバル変数として設定
     window.songConfig = {
         apiToken: songData.apiToken,
-        songUrl: songData.songUrl,
-        videoId: songData.videoId || null
+        songUrl: songData.songUrl
     };
 });
 

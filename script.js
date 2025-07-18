@@ -1060,7 +1060,6 @@ class GameManager {
           console.log("現在のモード:", this.currentMode);
           
           if (!this.resultsDisplayed) {
-            this.showResults();
           } else {
             console.log("すでにリザルト画面が表示済みです");
           }
@@ -1113,7 +1112,6 @@ class GameManager {
    * @param {Object} video - TextAliveから取得した動画データ
    */
   processLyrics(video) {
-    console.log("processLyrics called with video:", video);
     try {
       this.lyricsData = [];
       let phrase = video.firstPhrase;
@@ -1138,7 +1136,6 @@ class GameManager {
         }
         phrase = phrase.next;
       }
-      console.log("lyricsData after processing:", this.lyricsData);
 
       // タイマーを設定（曲の長さ分）
       if (this.player?.video?.duration) {
@@ -1168,7 +1165,6 @@ class GameManager {
    */
   updateLyrics(position) {
     if (this.isPaused || this.isFirstInteraction) return;
-    console.log("updateLyrics called. Position:", position, "lyricsData length:", this.lyricsData.length);
     
     for (const lyric of this.lyricsData) {
       // 表示するタイミングになった歌詞を処理
@@ -1176,7 +1172,6 @@ class GameManager {
           lyric.time > position - 200 && 
           !this.displayedLyrics.has(lyric.time)) {
         
-        console.log("Displaying lyric:", lyric.text, "at time:", lyric.time);
         this.displayLyric(lyric.text);
         this.displayedLyrics.add(lyric.time);
         

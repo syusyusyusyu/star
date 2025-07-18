@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedSongData = JSON.parse(localStorage.getItem('selectedSong') || 'null');
     
     // 選択された曲または既定値を使用
-    const songData = selectedSongData ? selectedSongData : defaultSong;
+    const songData = selectedSongData || defaultSong;
     
     // UI更新
     document.getElementById('song-title').textContent = songData.title;

@@ -981,7 +981,7 @@ class GameManager {
       this.fallback();
       return;
     }
-    
+  
     try {
       // プレーヤーの作成
       this.player = new TextAliveApp.Player({
@@ -990,14 +990,19 @@ class GameManager {
       });
       document.body.appendChild(this.player.mediaElement);
       this.isPlayerInit = true;
-      
+
       // 各種イベントリスナーを設定
       this.player.addListener({
         // アプリ準備完了時
         onAppReady: (app) => {
           if (app && !app.managed) {
             try {
-              this.player.createFromSongUrl(this.songUrl);
+              // videoId優先でロード
+              if (window.songConfig?.videoId) {
+                this.player.createFromVideoId(window.songConfig.videoId);
+              } else {
+                this.player.createFromSongUrl(this.songUrl);
+              }
             } catch (e) {
               console.error("Song creation error:", e);
               this.fallback();

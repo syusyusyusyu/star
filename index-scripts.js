@@ -4,8 +4,9 @@ const songsData = [
         id: 1,
         title: "ストリートライト",
         artist: "加賀(ネギシャワーP)",
-        apiToken: "HmfsoBVch26BmLCm",
-        songUrl: "https://piapro.jp/t/ULcJ/20250205120202"
+        apiToken: "s0Fmi395Nv8PCeQt",
+        songUrl: null, // videoIdを使う場合はnullでOK
+        videoId: "s51tGzipYsdH2JoC"
     },
     {
         id: 2,

@@ -5,7 +5,7 @@ const songsData = [
         title: "ストリートライト",
         artist: "加賀(ネギシャワーP)",
         apiToken: "s51tGzipYsdH2JoC",
-        songUrl: "http://www.nicovideo.jp/watch/sm35288422"
+        songUrl: "http://www.youtube.com/watch?v=lzyDD8bMDKs"
     },
     {
         id: 2,

@@ -1,3 +1,6 @@
+// このアプリはTextAlive公式SDK（TextAliveApp.Player）経由のみでAPIを利用します。
+// 直接fetchやXMLHttpRequestでapi.textalive.jpへアクセスしません。
+// CORSエラー回避・公式ガイドライン遵守のため、SDK以外のAPI通信は禁止です。
 // 曲のデータ
 const songsData = [
     {
@@ -6,7 +9,7 @@ const songsData = [
         artist: "加賀(ネギシャワーP)",
         apiToken: "s0Fmi395Nv8PCeQt",
         songUrl: null, // videoIdを使う場合はnullでOK
-        videoId: "s51tGzipYsdH2JoC"
+        videoId: "sm35288422"
     },
     {
         id: 2,

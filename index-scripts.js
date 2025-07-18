@@ -85,7 +85,15 @@ function saveSongSelection(songId) {
     const selectedMode = gameModeSelect ? gameModeSelect.value : 'cursor'; // デフォルトはカーソルモード
 
     if (selectedSong) {
-        localStorage.setItem('selectedSong', JSON.stringify(selectedSong));
+        // videoIdも含めて保存
+        localStorage.setItem('selectedSong', JSON.stringify({
+            id: selectedSong.id,
+            title: selectedSong.title,
+            artist: selectedSong.artist,
+            apiToken: selectedSong.apiToken,
+            songUrl: selectedSong.songUrl || null,
+            videoId: selectedSong.videoId || null
+        }));
         window.location.href = `game.html?mode=${selectedMode}`;
     }
 }

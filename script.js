@@ -1000,8 +1000,11 @@ class GameManager {
               // videoId優先でロード
               if (window.songConfig?.videoId) {
                 this.player.createFromVideoId(window.songConfig.videoId);
-              } else {
+              } else if (this.songUrl) {
                 this.player.createFromSongUrl(this.songUrl);
+              } else {
+                // どちらもなければフォールバック
+                this.fallback();
               }
             } catch (e) {
               console.error("Song creation error:", e);

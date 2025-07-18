@@ -2,8 +2,8 @@
 const songsData = [
     {
         id: 1,
-        title: "ストリートライト",
-        artist: "加賀(ネギシャワーP)",
+        title: "ファンサ",
+        artist: "夏川椎菜",
         apiToken: "s51tGzipYsdH2JoC",
         songUrl: "http://www.youtube.com/watch?v=lzyDD8bMDKs"
     },

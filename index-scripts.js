@@ -1,15 +1,11 @@
-// このアプリはTextAlive公式SDK（TextAliveApp.Player）経由のみでAPIを利用します。
-// 直接fetchやXMLHttpRequestでapi.textalive.jpへアクセスしません。
-// CORSエラー回避・公式ガイドライン遵守のため、SDK以外のAPI通信は禁止です。
 // 曲のデータ
 const songsData = [
     {
         id: 1,
         title: "ストリートライト",
         artist: "加賀(ネギシャワーP)",
-        apiToken: "s0Fmi395Nv8PCeQt",
-        songUrl: null, // videoIdを使う場合はnullでOK
-        videoId: "sm35288422"
+        apiToken: "HmfsoBVch26BmLCm",
+        songUrl: "https://piapro.jp/t/ULcJ/20250205120202"
     },
     {
         id: 2,
@@ -88,15 +84,7 @@ function saveSongSelection(songId) {
     const selectedMode = gameModeSelect ? gameModeSelect.value : 'cursor'; // デフォルトはカーソルモード
 
     if (selectedSong) {
-        // videoIdも含めて保存
-        localStorage.setItem('selectedSong', JSON.stringify({
-            id: selectedSong.id,
-            title: selectedSong.title,
-            artist: selectedSong.artist,
-            apiToken: selectedSong.apiToken,
-            songUrl: selectedSong.songUrl || null,
-            videoId: selectedSong.videoId || null
-        }));
+        localStorage.setItem('selectedSong', JSON.stringify(selectedSong));
         window.location.href = `game.html?mode=${selectedMode}`;
     }
 }

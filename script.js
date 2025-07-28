@@ -1060,6 +1060,7 @@ class GameManager {
           console.log("現在のモード:", this.currentMode);
           
           if (!this.resultsDisplayed) {
+            this.showResults();
           } else {
             console.log("すでにリザルト画面が表示済みです");
           }

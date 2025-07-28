@@ -347,7 +347,8 @@ class GameManager {
             this.countdownTimer = null;
             this.bodyDetectionReady = true;
             this.countdownOverlay.classList.add('hidden');
-            this.playMusic(); // カウントダウン終了後、音楽再生を開始
+            // カウントダウン終了後、音楽再生を開始
+            this.playMusic();
           }
         }, 1000);
       }

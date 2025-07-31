@@ -1733,13 +1733,8 @@ class GameManager {
     
     // イベントハンドラ追加のヘルパー関数
     const addEvents = (element, handler) => {
-      if (!element) return;
-      element.addEventListener('click', handler);
-      element.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        handler();
-      }, {passive: false});
-    };
+
+    if (!text) return;
     
     // タイトルに戻るボタン
     addEvents(backToTitle, () => {

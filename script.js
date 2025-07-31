@@ -15,6 +15,7 @@ class GameManager {
     this.apiToken = window.songConfig?.apiToken;
     this.songUrl = window.songConfig?.songUrl;
     this.score = this.combo = this.maxCombo = 0;
+    this.currentLyricIndex = 0; // 歌詞表示インデックスを初期化
     this.startTime = Date.now();
     this.isPlaying = this.isPlayerInit = false;
     this.isFirstInteraction = true; // 初回インタラクションフラグ
@@ -209,7 +210,7 @@ class GameManager {
                         const indexFingerTip = landmarks[8];
                         const fingerX = indexFingerTip.x * window.innerWidth;
                         const fingerY = indexFingerTip.y * window.innerHeight;
-                        this.checkLyrics(fingerX, fingerY, 70); // 判定範囲を広く
+                        this.checkLyrics(fingerX, fingerY, 40); // 判定範囲を縮小
                     }
                 }
             });
@@ -1173,21 +1174,23 @@ class GameManager {
    */
   updateLyrics(position) {
     if (this.isPaused || this.isFirstInteraction) return;
-    
-    for (const lyric of this.lyricsData) {
-      // 表示するタイミングになった歌詞を処理
-      if (lyric.time <= position && 
-          lyric.time > position - 200 && 
-          !this.displayedLyrics.has(lyric.time)) {
-        
+
+    while (this.currentLyricIndex < this.lyricsData.length &&
+           this.lyricsData[this.currentLyricIndex].time <= position) {
+      
+      const lyric = this.lyricsData[this.currentLyricIndex];
+
+      if (!this.displayedLyrics.has(lyric.time)) {
         this.displayLyric(lyric.text);
         this.displayedLyrics.add(lyric.time);
         
-        // 歌詞の表示時間は最低3秒、最大8秒
+        const displayDuration = lyric.displayDuration || 5000;
         setTimeout(() => {
           this.displayedLyrics.delete(lyric.time);
-        }, Math.min(8000, Math.max(3000, lyric.displayDuration)));
+        }, Math.min(8000, Math.max(3000, displayDuration)));
       }
+      
+      this.currentLyricIndex++;
     }
   }
 
@@ -1249,36 +1252,18 @@ class GameManager {
       
       // 現在の時間に対応する歌詞を表示
       while (this.currentLyricIndex < this.lyricsData.length && 
-             this.lyricsData[this.currentLyricIndex].time <= now && 
-             processed < 2) { // グループ処理なので1回の処理量を減らす（パフォーマンス対策）
+             this.lyricsData[this.currentLyricIndex].time <= now) { 
         
-        const lyricGroup = this.lyricsData[this.currentLyricIndex];
+        const lyric = this.lyricsData[this.currentLyricIndex];
         
-        if (!this.displayedLyrics.has(lyricGroup.time)) {
-          // グループ内の各文字を個別に表示（時間差で）
-          lyricGroup.originalChars.forEach((charData, idx) => {
-            // 各文字の表示時間にオフセットを適用
-            setTimeout(() => {
-              // 既に表示済み判定がついていない場合のみ表示
-              if (!this.displayedLyrics.has(lyricGroup.time + "-" + idx)) {
-                this.displayLyric(charData.text);
-                this.displayedLyrics.add(lyricGroup.time + "-" + idx);
-                
-                // しばらくしたら削除フラグを消す
-                setTimeout(() => {
-                  this.displayedLyrics.delete(lyricGroup.time + "-" + idx);
-                }, 8000);
-              }
-            }, charData.timeOffset || (idx * 50)); // オフセットがなければ50msずつずらす
-          });
+        if (!this.displayedLyrics.has(lyric.time)) {
+          this.displayLyric(lyric.text);
+          this.displayedLyrics.add(lyric.time);
           
-          this.displayedLyrics.add(lyricGroup.time);
-          processed++;
-          
-          // グループ全体のフラグを一定時間後に削除
+          // 一定時間後に削除フラグを消す
           setTimeout(() => {
-            this.displayedLyrics.delete(lyricGroup.time);
-          }, 8000 + (lyricGroup.originalChars.length * 100)); // 最後の文字の表示終了から8秒後
+            this.displayedLyrics.delete(lyric.time);
+          }, 8000);
         }
         
         this.currentLyricIndex++;
@@ -1316,12 +1301,6 @@ class GameManager {
    */
   displayLyric(text) {
     if (!text) return;
-
-    // 既に同じテキストが表示されていないか確認（重複防止） 
-    const existingBubbles = document.querySelectorAll('.lyric-bubble');
-    for (let bubble of existingBubbles) {
-      if (bubble.textContent === text) return;
-    }
 
     // 歌詞バブルを作成
     const bubble = document.createElement('div');
@@ -1531,7 +1510,7 @@ class GameManager {
     if (this.isFirstInteraction) return false;
     
     const lyrics = document.querySelectorAll('.lyric-bubble');
-    const waveRadius = 150; // 手振りの場合はさらに広い判定範囲
+    const waveRadius = 120; // 手振りの場合はさらに広い判定範囲（少し縮小）
     
     for (const el of lyrics) {
       if (el.style.pointerEvents === 'none') continue;

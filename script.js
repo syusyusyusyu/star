@@ -1138,7 +1138,7 @@ class GameManager {
                 displayDuration: char.endTime - char.startTime
               });
             }
-            char = char.next;
+            char = char.next; // この行を正しい位置に戻す
           }
           word = word.next;
         }

@@ -1734,7 +1734,6 @@ class GameManager {
     // イベントハンドラ追加のヘルパー関数
     const addEvents = (element, handler) => {
 
-    if (!text) return;
     
     // タイトルに戻るボタン
     addEvents(backToTitle, () => {

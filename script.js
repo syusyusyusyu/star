@@ -596,7 +596,13 @@ class GameManager {
     if (this.resultCheckTimer) {
       clearTimeout(this.resultCheckTimer);
     }
-    
+
+    // Handモードで曲が再生されていない場合はタイマーをセットしない
+    if (this.currentMode === 'hand' && !(this.player && this.player.isPlaying)) {
+      console.log('Handモードかつ曲未再生のため、強制終了タイマーをセットしません');
+      return;
+    }
+
     // 曲の終了時に結果を表示するタイマーを設定
     this.resultCheckTimer = setTimeout(() => {
       if (!this.isPaused && !this.resultsDisplayed) {
@@ -609,11 +615,11 @@ class GameManager {
         });
       }
     }, duration);
-    
+
     // バックアップとして、さらに長い時間が経過した場合も強制的に結果を表示
     // （何らかの理由で上のタイマーが機能しなかった場合の保険）
     setTimeout(() => {
-      if (!this.resultsDisplayed) {
+      if (!this.isPaused && !this.resultsDisplayed) {
         console.log("バックアップタイマーが発火しました");
         this.showResults();
       }

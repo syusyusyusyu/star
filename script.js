@@ -48,7 +48,6 @@ class GameManager {
     this.bodyDetectionReady = false; // ボディ検出準備完了フラグ
     this.countdownTimer = null; // カウントダウンタイマー
     this.fullBodyLostTimer = null; // 全身ロスト時のタイマー
-    this.currentLyricIndex = 0; // 処理中の歌詞インデックス
     
     // 内部処理用のグループサイズを設定（パフォーマンス最適化）
     this.groupSize = 1;
@@ -910,8 +909,7 @@ class GameManager {
     }
     
     // スコアと状態のリセット
-    this.score = this.combo = 0;
-    this.currentLyricIndex = 0; // 歌詞インデックスをリセット
+    this.score = this.combo = this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.songStartTime = Date.now(); // 曲の開始時間をリセット
     this.isPaused = false;
@@ -1169,19 +1167,21 @@ class GameManager {
    */
   updateLyrics(position) {
     if (this.isPaused || this.isFirstInteraction) return;
-
-    // 再生時間を超えた未表示の歌詞をすべて表示
-    while (
-      this.lyricsData[this.currentLyricIndex] &&
-      this.lyricsData[this.currentLyricIndex].time < position
-    ) {
-      const lyric = this.lyricsData[this.currentLyricIndex];
-
-      // 歌詞の表示
-      this.displayLyric(lyric.text);
-
-      // 処理済みインデックスを更新
-      this.currentLyricIndex++;
+    
+    for (const lyric of this.lyricsData) {
+      // 表示するタイミングになった歌詞を処理
+      if (lyric.time <= position && 
+          lyric.time > position - 200 && 
+          !this.displayedLyrics.has(lyric.time)) {
+        
+        this.displayLyric(lyric.text);
+        this.displayedLyrics.add(lyric.time);
+        
+        // 歌詞の表示時間は最低3秒、最大8秒
+        setTimeout(() => {
+          this.displayedLyrics.delete(lyric.time);
+        }, Math.min(8000, Math.max(3000, lyric.displayDuration)));
+      }
     }
   }
 
@@ -1733,7 +1733,12 @@ class GameManager {
     
     // イベントハンドラ追加のヘルパー関数
     const addEvents = (element, handler) => {
-      if (element) element.addEventListener('click', handler);
+      if (!element) return;
+      element.addEventListener('click', handler);
+      element.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        handler();
+      }, {passive: false});
     };
     
     // タイトルに戻るボタン

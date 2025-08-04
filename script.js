@@ -1145,7 +1145,7 @@ class GameManager {
         // ボディモードの場合、カウントダウン分の時間を追加で考慮
         const extraTime = this.currentMode === 'body' ? 5000 : 0;
         // Bodyモードのみ長い余裕時間、その他のモードは短い余裕時間
-        const bufferTime = this.currentMode === 'body' ? 0 : 0;
+        const bufferTime = this.currentMode === 'body' ? 5000 : 0;
         this.setupResultCheckTimer(this.player.video.duration + extraTime + bufferTime);
       } else {
         console.log("曲の長さが取得できません。デフォルトタイマーを設定");

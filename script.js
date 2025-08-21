@@ -1139,19 +1139,27 @@ class GameManager {
         phrase = phrase.next;
       }
 
-      // タイマーを設定（曲の長さ分）
-      if (this.player?.video?.duration) {
-        console.log("曲の長さ:", this.player.video.duration, "ms");
-        // ボディモードの場合、カウントダウン分の時間を追加で考慮
-        const extraTime = this.currentMode === 'body' ? 5000 : 0;
-        // Bodyモードのみ長い余裕時間、その他のモードは短い余裕時間
-        const bufferTime = this.currentMode === 'body' ? 5000 : 0;
-        this.setupResultCheckTimer(this.player.video.duration + extraTime + bufferTime);
+      // TextAliveプレーヤー利用時は onFinish イベントでのみリザルト表示する
+      // （ユーザー要望：曲が完全に終わったらリザルト画面へ）
+      // フォールバック時のみ安全のためのタイマーを設定する
+      if (!this.player || !this.isPlayerInit) {
+        if (this.player?.video?.duration) {
+          console.log("曲の長さ:", this.player.video.duration, "ms");
+          const extraTime = this.currentMode === 'body' ? 5000 : 0; // ボディモードのカウントダウン猶予
+          const bufferTime = this.currentMode === 'body' ? 5000 : 0; // 念のためのバッファ
+          this.setupResultCheckTimer(this.player.video.duration + extraTime + bufferTime);
+        } else {
+          console.log("曲の長さが取得できません。デフォルトタイマーを設定 (フォールバック)");
+          const defaultTime = this.currentMode === 'body' ? 120000 : 90000;
+          this.setupResultCheckTimer(defaultTime);
+        }
       } else {
-        console.log("曲の長さが取得できません。デフォルトタイマーを設定");
-        // Bodyモードのみ長いデフォルト時間、その他のモードは短いデフォルト時間
-        const defaultTime = this.currentMode === 'body' ? 120000 : 90000;
-        this.setupResultCheckTimer(defaultTime);
+        console.log('TextAlive使用中: resultCheckTimerは設定せず onFinish を待機');
+        // 既存の resultCheckTimer があればクリア（安全策）
+        if (this.resultCheckTimer) {
+          clearTimeout(this.resultCheckTimer);
+          this.resultCheckTimer = null;
+        }
       }
     } catch (e) {
       console.error("歌詞処理エラー:", e);

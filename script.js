@@ -76,6 +76,8 @@ class GameManager {
     // 結果表示用のタイマーを追加（曲終了時に確実にリザルト画面へ移行するため）
     this.resultCheckTimer = null;
     this.songProgressTimer = null; // 曲の進行状況監視タイマー
+    this.finishWatchInterval = null; // onFinish未発火監視用（既存）
+    this.finishFallbackTimeout = null; // 最終フォールバック用タイマー（新規）
 
     // 鑑賞用歌詞表示のための追加設定
     this.displayedViewerLyrics = new Map(); // 表示済み鑑賞用歌詞を追跡
@@ -1047,9 +1049,7 @@ class GameManager {
             if (!this.player || !this.player.video || this.resultsDisplayed) return;
             const duration = this.player.video.duration;
             const pos = this.player.timer.position;
-            // 終了0.5秒以内 & 再生が停止している or isPlayingがfalse など
             if (duration && pos >= duration - 500) {
-              // 少し待って onFinish が来なければリザルト表示
               setTimeout(() => {
                 if (!this.resultsDisplayed && this.player && this.player.timer.position >= duration - 200) {
                   console.log('フォールバック監視によるリザルト表示');
@@ -1057,8 +1057,33 @@ class GameManager {
                 }
               }, 600);
               clearInterval(this.finishWatchInterval);
+              this.finishWatchInterval = null;
             }
           }, 1000);
+          // 追加: 絶対的フォールバック（onFinish不発対策）
+          if (this.finishFallbackTimeout) {
+            clearTimeout(this.finishFallbackTimeout);
+            this.finishFallbackTimeout = null;
+          }
+          const d = this.player?.video?.duration;
+          if (d) {
+            // ボディモードのカウントダウン分+バッファ（3秒）を考慮
+            const extra = this.currentMode === 'body' ? 5000 : 0;
+            this.finishFallbackTimeout = setTimeout(() => {
+              if (!this.resultsDisplayed) {
+                console.warn('finishFallbackTimeout発火: onFinish未検出のためリザルト表示');
+                this.showResults();
+              }
+            }, d + extra + 3000);
+          } else {
+            // 曲長不明時の安全策 2分
+            this.finishFallbackTimeout = setTimeout(() => {
+              if (!this.resultsDisplayed) {
+                console.warn('finishFallbackTimeout(デフォルト)発火: 曲長不明でリザルト表示');
+                this.showResults();
+              }
+            }, 120000);
+          }
         },
         // 一時停止時
         onPause: () => {
@@ -1085,6 +1110,7 @@ class GameManager {
           console.log("resultsDisplayed状態:", this.resultsDisplayed);
           console.log("現在のモード:", this.currentMode);
           if (this.finishWatchInterval) { clearInterval(this.finishWatchInterval); this.finishWatchInterval = null; }
+          if (this.finishFallbackTimeout) { clearTimeout(this.finishFallbackTimeout); this.finishFallbackTimeout = null; }
           if (!this.resultsDisplayed) {
             this.showResults();
           } else {
@@ -1693,6 +1719,7 @@ class GameManager {
     console.log("結果画面を表示します");
     this.resultsDisplayed = true;
     if (this.finishWatchInterval) { clearInterval(this.finishWatchInterval); this.finishWatchInterval = null; }
+    if (this.finishFallbackTimeout) { clearTimeout(this.finishFallbackTimeout); this.finishFallbackTimeout = null; }
     // 結果表示前にプレーヤーが再生中なら一時停止する
     // エラー修正: .catch()メソッドの使用から、try-catch形式に変更
     if (this.player?.isPlaying) {

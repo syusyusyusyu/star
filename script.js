@@ -1032,6 +1032,7 @@ class GameManager {
         // 時間更新時（歌詞表示タイミング制御）
         onTimeUpdate: (pos) => {
           if (!this.isPaused) this.updateLyrics(pos);
+          this.lastPlayerPosition = pos; // 最終再生位置を記録
         },
         // 再生開始時
         onPlay: () => {
@@ -1040,6 +1041,24 @@ class GameManager {
           if (!this.randomTextInterval) {
             this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
           }
+          // 終了検出フォールバック監視（既存があればクリア）
+          if (this.finishWatchInterval) clearInterval(this.finishWatchInterval);
+          this.finishWatchInterval = setInterval(() => {
+            if (!this.player || !this.player.video || this.resultsDisplayed) return;
+            const duration = this.player.video.duration;
+            const pos = this.player.timer.position;
+            // 終了0.5秒以内 & 再生が停止している or isPlayingがfalse など
+            if (duration && pos >= duration - 500) {
+              // 少し待って onFinish が来なければリザルト表示
+              setTimeout(() => {
+                if (!this.resultsDisplayed && this.player && this.player.timer.position >= duration - 200) {
+                  console.log('フォールバック監視によるリザルト表示');
+                  this.showResults();
+                }
+              }, 600);
+              clearInterval(this.finishWatchInterval);
+            }
+          }, 1000);
         },
         // 一時停止時
         onPause: () => {
@@ -1048,18 +1067,24 @@ class GameManager {
           clearInterval(this.randomTextInterval);
           this.randomTextInterval = null;
         },
-        // 停止時
+        // 停止時（自動リスタートを廃止し、終了間際ならリザルトを表示）
         onStop: () => {
           this.isPaused = true;
           this.playpause.textContent = '再生';
-          this.restartGame();
+          const duration = this.player?.video?.duration;
+          if (!this.resultsDisplayed && duration && this.lastPlayerPosition && duration - this.lastPlayerPosition < 1500) {
+            console.log('onStop 終了直前停止を検出 → リザルト表示');
+            this.showResults();
+          } else {
+            console.log('onStop 通常停止（再生ボタン待機）');
+          }
         },
         // 曲終了時（最重要：ここでリザルト画面を表示）
         onFinish: () => {
           console.log("🎵 onFinish イベントが発火しました");
           console.log("resultsDisplayed状態:", this.resultsDisplayed);
           console.log("現在のモード:", this.currentMode);
-          
+          if (this.finishWatchInterval) { clearInterval(this.finishWatchInterval); this.finishWatchInterval = null; }
           if (!this.resultsDisplayed) {
             this.showResults();
           } else {
@@ -1493,8 +1518,7 @@ class GameManager {
       
       // 横方向の動きが閾値を超えた場合を手振りと判定
       if (movement.horizontalRange > this.waveThreshold && 
-          currentTime - this.lastWaveTime > 200) { // 200ms間隔で手振り検出（より頻繁に）
-        
+          currentTime - this.lastWaveTime > 200) { // 200ms間隔で手振り検出（より頻繁に）        
         this.lastWaveTime = currentTime;
         
         // 歌詞付近での手振りをチェック
@@ -1668,7 +1692,7 @@ class GameManager {
     }
     console.log("結果画面を表示します");
     this.resultsDisplayed = true;
-    
+    if (this.finishWatchInterval) { clearInterval(this.finishWatchInterval); this.finishWatchInterval = null; }
     // 結果表示前にプレーヤーが再生中なら一時停止する
     // エラー修正: .catch()メソッドの使用から、try-catch形式に変更
     if (this.player?.isPlaying) {
@@ -1706,6 +1730,7 @@ class GameManager {
     const finalComboDisplay = document.getElementById('final-combo-display');
     const rankDisplay = document.getElementById('rank-display');
     
+       
     if (finalScoreDisplay) finalScoreDisplay.textContent = this.score;
     if (finalComboDisplay) finalComboDisplay.textContent = `最大コンボ: ${this.maxCombo}`;
     if (rankDisplay) rankDisplay.textContent = `ランク: ${rank}`;

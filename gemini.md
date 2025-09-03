@@ -35,9 +35,8 @@ TextAlive App API 前提の構成を廃止し、**youtube-transcript-api + Expre
 例:
 
 ```bash
-npm install -g http-server
-http-server -p 8000
-# http://localhost:8000/index.html
+node server.js
+http://localhost:3000/index.html
 ```
 
 ## 遊び方

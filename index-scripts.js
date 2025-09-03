@@ -1,91 +1,51 @@
-// 曲のデータ
-const songsData = [
-    {
-        id: 1,
-        title: "ストリートライト",
-        artist: "加賀(ネギシャワーP)",
-        apiToken: "HmfsoBVch26BmLCm",
-        songUrl: "https://piapro.jp/t/ULcJ/20250205120202"
-    },
-    {
-        id: 2,
-        title: "アリフレーション",
-        artist: "雨良 Amala",
-        apiToken: "rdja5JxMEtcYmyKP",
-        songUrl: "https://piapro.jp/t/SuQO/20250127235813"
-    },
-    {
-        id: 3,
-        title: "インフォーマルダイブ",
-        artist: "99piano",
-        apiToken: "CqbpJNJHwoGvXhlD",
-        songUrl: "https://piapro.jp/t/Ppc9/20241224135843"
-    },
-    {
-        id: 4,
-        title: "ハロー、フェルミ。",
-        artist: "ど～ぱみん",
-        apiToken: "o1B1ZygOqyhK5B3D",
-        songUrl: "https://piapro.jp/t/oTaJ/20250204234235"
-    },
-    {
-        id: 5,
-        title: "パレードレコード",
-        artist: "きさら",
-        apiToken: "G8MU8Wf87RotH8OR",
-        songUrl: "https://piapro.jp/t/GCgy/20250202202635"
-    },
-    {
-        id: 6,
-        title: "ロンリーラン",
-        artist: "海風太陽",
-        apiToken: "fI0SyBEEBzlB2f5C",
-        songUrl: "https://piapro.jp/t/CyPO/20250128183915"
+/**
+ * YouTube URLからビデオIDを抽出
+ * @param {string} url - YouTube URL
+ * @return {string|null} ビデオID
+ */
+function extractVideoId(url) {
+    const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+        /youtube\.com\/v\/([^&\n?#]+)/
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) return match[1];
     }
-];
+    return null;
+}
 
 /**
- * 曲選択アイテムを生成して追加する関数
+ * YouTube URLの妥当性をチェック
+ * @param {string} url - チェックするURL
+ * @return {boolean} 妥当なURLの場合true
  */
-function createSongItems() {
-    const songList = document.getElementById('song-list');
-    const fragment = document.createDocumentFragment();
+function isValidYouTubeUrl(url) {
+    if (!url || typeof url !== 'string') return false;
     
-    songsData.forEach(song => {
-        const li = document.createElement('li');
-        li.className = 'song-item bg-black/40 rounded-lg backdrop-blur-sm border border-miku/30';
-        li.dataset.songId = song.id;
-        
-        li.innerHTML = `
-            <button class="w-full p-4 text-left flex justify-between items-center focus:outline-none">
-                <div>
-                    <h3 class="text-xl text-miku font-medium">${song.title}</h3>
-                    <p class="text-white/70 text-sm">${song.artist}</p>
-                </div>
-                <div class="bg-miku text-white px-4 py-2 rounded-lg">
-                    プレイ
-                </div>
-            </button>
-        `;
-        
-        fragment.appendChild(li);
-    });
-    
-    songList.appendChild(fragment);
+    const videoId = extractVideoId(url);
+    return videoId && videoId.length === 11;
 }
 
 /**
  * ゲーム情報をローカルストレージに保存して画面遷移
- * @param {number} songId - 選択された曲のID
+ * @param {string} youtubeUrl - YouTube URL
  */
-function saveSongSelection(songId) {
-    const selectedSong = songsData.find(song => song.id === songId);
+function startGame(youtubeUrl) {
+    const videoId = extractVideoId(youtubeUrl);
     const gameModeSelect = document.getElementById('game-mode');
-    const selectedMode = gameModeSelect ? gameModeSelect.value : 'cursor'; // デフォルトはカーソルモード
+    const selectedMode = gameModeSelect ? gameModeSelect.value : 'cursor';
 
-    if (selectedSong) {
-        localStorage.setItem('selectedSong', JSON.stringify(selectedSong));
-        window.location.href = `game.html?mode=${selectedMode}`;
+    if (videoId) {
+        const gameData = {
+            videoId: videoId,
+            youtubeUrl: youtubeUrl,
+            mode: selectedMode
+        };
+        
+        localStorage.setItem('gameData', JSON.stringify(gameData));
+        window.location.href = `game.html?mode=${selectedMode}&v=${videoId}`;
     }
 }
 
@@ -146,14 +106,14 @@ function restrictModeSelectionForMobile() {
     const modeSelection = document.getElementById('mode-selection');
     
     if (gameModeSelect && modeSelection) {
-        // セレクトボックスを無効化してCursorモード固定
+        // セレクトボックスを無効化してカーソルモード固定
         gameModeSelect.value = 'cursor';
         gameModeSelect.disabled = true;
         
         // 視覚的にモバイル向け表示に変更
         const label = modeSelection.querySelector('label');
         if (label) {
-            label.textContent = 'Playモード: Cursorモード（モバイル専用）';
+            label.textContent = 'プレイモード: カーソルモード（モバイル専用）';
         }
         
         // セレクトボックスのスタイルを変更
@@ -161,13 +121,22 @@ function restrictModeSelectionForMobile() {
         gameModeSelect.style.color = '#a0aec0';
         gameModeSelect.style.cursor = 'not-allowed';
         
-        // 説明テキストも更新
-        const description = document.querySelector('.max-w-md p');
-        if (description) {
-            description.textContent = '歌詞の文字をタップしてポイントを獲得しよう！（モバイル最適化）';
-        }
-        
-        console.log('モバイルデバイスが検出されました。Cursorモード限定に設定されました。');
+        console.log('モバイルデバイスが検出されました。カーソルモード限定に設定されました。');
+    }
+}
+
+/**
+ * 入力フィールドのバリデーション表示を更新
+ * @param {HTMLInputElement} input - 入力フィールド
+ * @param {boolean} isValid - 妥当性
+ */
+function updateValidationState(input, isValid) {
+    if (isValid) {
+        input.classList.remove('border-red-500', 'bg-red-900/30');
+        input.classList.add('border-green-500', 'bg-green-900/30');
+    } else {
+        input.classList.remove('border-green-500', 'bg-green-900/30');
+        input.classList.add('border-red-500', 'bg-red-900/30');
     }
 }
 
@@ -206,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
         restrictModeSelectionForMobile();
     }
     
-    createSongItems();
     createStars();
     
     // リサイズ時に星の数を調整
@@ -215,38 +183,62 @@ document.addEventListener('DOMContentLoaded', () => {
         window.resizeTimer = setTimeout(createStars, 250);
     });
     
-    // 曲選択処理
-    document.getElementById('song-list').addEventListener('click', (e) => {
-        const songItem = e.target.closest('.song-item');
-        if (!songItem) return;
-        
-        const button = songItem.querySelector('button');
-        if (!button || !e.target.closest('button')) return;
-        
-        const songId = parseInt(songItem.dataset.songId);
-        
-        // クリックエフェクト
-        createClickEffect(button, e.clientX, e.clientY);
-        
-        // ホバーエフェクトを追加
-        songItem.classList.add('animate-pulse-miku');
-        
-        // 0.5秒後に画面遷移
-        setTimeout(() => saveSongSelection(songId), 500);
-    });
+    // YouTube URL入力フィールドの処理
+    const youtubeUrlInput = document.getElementById('youtube-url');
+    const startGameButton = document.getElementById('start-game');
     
-    // ホバーエフェクト
-    document.getElementById('song-list').addEventListener('mouseover', (e) => {
-        const songItem = e.target.closest('.song-item');
-        if (songItem && e.target.closest('button')) {
-            songItem.classList.add('animate-pulse-miku');
-        }
-    });
+    if (youtubeUrlInput) {
+        // 入力時のリアルタイムバリデーション
+        youtubeUrlInput.addEventListener('input', (e) => {
+            const url = e.target.value.trim();
+            const isValid = url === '' || isValidYouTubeUrl(url);
+            
+            if (url !== '') {
+                updateValidationState(youtubeUrlInput, isValid);
+            } else {
+                // 空の場合は通常状態に戻す
+                youtubeUrlInput.classList.remove('border-red-500', 'bg-red-900/30', 'border-green-500', 'bg-green-900/30');
+            }
+            
+            // ボタンの状態を更新
+            if (startGameButton) {
+                startGameButton.disabled = !isValid || url === '';
+                startGameButton.classList.toggle('opacity-50', !isValid || url === '');
+                startGameButton.classList.toggle('cursor-not-allowed', !isValid || url === '');
+            }
+        });
+        
+        // Enter キーでゲーム開始
+        youtubeUrlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const url = e.target.value.trim();
+                if (isValidYouTubeUrl(url)) {
+                    // クリックエフェクト
+                    if (startGameButton) {
+                        createClickEffect(startGameButton);
+                    }
+                    setTimeout(() => startGame(url), 300);
+                }
+            }
+        });
+    }
     
-    document.getElementById('song-list').addEventListener('mouseout', (e) => {
-        const songItem = e.target.closest('.song-item');
-        if (songItem) {
-            songItem.classList.remove('animate-pulse-miku');
-        }
-    });
+    // 再生ボタンクリック処理
+    if (startGameButton) {
+        startGameButton.addEventListener('click', (e) => {
+            const url = youtubeUrlInput ? youtubeUrlInput.value.trim() : '';
+            
+            if (isValidYouTubeUrl(url)) {
+                // クリックエフェクト
+                createClickEffect(startGameButton, e.clientX, e.clientY);
+                
+                // 0.3秒後に画面遷移
+                setTimeout(() => startGame(url), 300);
+            }
+        });
+        
+        // 初期状態ではボタンを無効化
+        startGameButton.disabled = true;
+        startGameButton.classList.add('opacity-50', 'cursor-not-allowed');
+    }
 });

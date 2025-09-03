@@ -57,24 +57,34 @@
         
         <!-- 説明テキスト -->
         <div class="max-w-md mx-auto text-center mb-4 sm:mb-6 bg-black/30 p-2 sm:p-2 rounded-lg backdrop-blur-sm">
-            <p class="text-white/90 text-sm sm:text-base">歌詞の文字に触れてポイントを獲得しよう！</p>
+            <p class="text-white/90 text-sm sm:text-base">YouTube動画と字幕を同期してリズムゲーム！</p>
+        </div>
+
+        <!-- YouTube URL入力 -->
+        <div class="max-w-lg w-full mx-auto mb-6">
+            <div class="bg-black/30 p-4 rounded-lg backdrop-blur-sm">
+                <label for="youtube-url" class="block text-white mb-2 text-lg">YouTube URL:</label>
+                <input type="text" id="youtube-url" placeholder="https://www.youtube.com/watch?v=..." 
+                       class="w-full p-3 rounded bg-gray-700 text-white placeholder-gray-400 text-sm sm:text-base">
+            </div>
         </div>
 
         <!-- モード選択 -->
-        <div id="mode-selection" class="mt-4 mb-6 text-center">
-            <label for="game-mode" class="text-white mr-2 text-lg">Playモード選択:</label>
-            <select id="game-mode" class="p-2 rounded bg-gray-700 text-white text-lg">
-                <option value="cursor">Cursorモード</option>
-                <option value="hand">Handモード</option>
-                <option value="body">Bodyモード</option>
+        <div id="mode-selection" class="mb-6 text-center">
+            <label for="game-mode" class="block text-white mb-2 text-lg">プレイモード選択:</label>
+            <select id="game-mode" class="p-3 rounded bg-gray-700 text-white text-lg">
+                <option value="cursor">カーソルモード</option>
+                <option value="hand">ハンドモード</option>
+                <option value="body">ボディモード</option>
             </select>
         </div>
         
-        <!-- 曲選択 -->
-        <div class="max-w-lg w-full mx-auto">
-            <ul class="space-y-2 sm:space-y-3" id="song-list">
-                <!-- 曲アイテムは動的に生成されます -->
-            </ul>
+        <!-- 再生ボタン -->
+        <div class="text-center">
+            <button id="start-game" 
+                    class="px-8 py-3 bg-miku hover:bg-mikuDark text-white rounded-lg text-lg font-bold transition-colors duration-300 animate-pulse-miku">
+                再生
+            </button>
         </div>
     </div>
     <script src="index-scripts.js"></script>

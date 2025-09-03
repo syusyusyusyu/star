@@ -3,67 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Lyricほにゃらら</title>
+    <title>Lyric Stage</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <script src="https://unpkg.com/textalive-app-api/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+    <!-- YouTube IFrame Player API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <!-- Three.js for 3D Stage -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
+    <!-- MediaPipe for Body/Hand Tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="game-loader.js"></script>
     <script src="script.js"></script>
 </head>
 <body class="browser-bar-adjust">
+    <!-- Camera video for MediaPipe -->
     <video id="camera-video" class="hidden"></video>
-    <canvas id="segmentation-canvas" class="fixed top-0 left-0 w-full h-full z-[1]"></canvas>
+    
+    <!-- Three.js canvas for 3D stage -->
+    <canvas id="stage-canvas" class="fixed top-0 left-0 w-full h-full z-[-1]"></canvas>
+    
+    <!-- Segmentation canvas for background removal -->
+    <canvas id="segmentation-canvas" class="fixed top-0 left-0 w-full h-full z-[1] pointer-events-none"></canvas>
+    
+    <!-- Countdown overlay -->
     <div id="countdown-overlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center bg-black bg-opacity-70 z-[1000] hidden">
         <span id="countdown-text" class="text-white text-9xl font-bold"></span>
     </div>
-    <div id="live-background" class="fixed top-0 left-0 w-full h-full z-[-1]">
-        <div id="stage-area" class="absolute top-0 left-0 w-full h-3/5 bg-gray-900 overflow-hidden flex justify-center items-end">
-            <!-- Stage Floor -->
-            <div class="w-full h-1/4 bg-black/30" style="perspective: 50px;"><div class="w-full h-full bg-gray-700" style="transform: rotateX(30deg);"></div></div>
-            <!-- Stage Lights -->
-            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[200%] h-[200px] bg-gradient-to-t from-purple-600/30 to-transparent rounded-[100%] animate-pulse"></div>
-            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[150%] h-[150px] bg-gradient-to-t from-blue-500/40 to-transparent rounded-[100%]" style="animation-delay: 500ms;"></div>
-        </div>
-        <div id="audience-area" class="absolute bottom-0 left-0 w-full h-2/5">
-        </div>
-    </div>
+    
     <div id="game-container">
-        <div id="miku"></div>
-        <div id="song-info">
-            <div id="song-title">Lyricほにゃらら</div>
-            <div id="loading">ゲームをロード中...</div>
+        <!-- YouTube Player -->
+        <div id="youtube-player-container" class="absolute bottom-4 left-4 w-80 h-45 z-10 bg-black rounded-lg overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
+            <div id="youtube-player"></div>
         </div>
         
-        <div id="score-container">
-            <div id="score">0</div>
-            <div id="combo">コンボ: 0</div>
+        <!-- Lyrics display area -->
+        <div id="lyrics-container" class="fixed inset-x-0 bottom-1/3 z-20 pointer-events-none">
+            <div id="lyrics-display" class="text-center text-white text-4xl font-bold tracking-wider drop-shadow-lg">
+                <!-- Lyrics will be displayed here -->
+            </div>
+        </div>
+        
+        <!-- Song info -->
+        <div id="song-info" class="absolute top-4 left-4 z-10">
+            <div id="song-title" class="text-white text-2xl font-bold drop-shadow-lg">Lyric Stage</div>
+            <div id="loading" class="text-white text-lg drop-shadow-lg">ゲームをロード中...</div>
+        </div>
+        
+        <!-- Score display -->
+        <div id="score-container" class="absolute top-1/4 right-4 z-10 text-right">
+            <div id="score" class="text-white text-4xl font-bold drop-shadow-lg">0</div>
+            <div id="combo" class="text-white text-xl drop-shadow-lg">コンボ: 0</div>
         </div> 
-        <div id="instructions">歌詞の文字にマウスを当ててポイントを獲得しよう！</div>
-        <div id="controls">
-            <button id="play-pause" aria-label="再生/一時停止">再生</button>
-            <button id="restart" aria-label="最初から">最初から</button>
+        
+        <!-- Instructions -->
+        <div id="instructions" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+            <div class="text-white text-lg text-center drop-shadow-lg bg-black/30 px-4 py-2 rounded-lg">
+                歌詞の文字に触れてポイントを獲得しよう！
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div id="controls" class="absolute bottom-1/2 right-4 transform translate-y-1/2 z-10 flex flex-col gap-2">
+            <button id="play-pause" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg" aria-label="再生/一時停止">再生</button>
+            <button id="restart" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg" aria-label="最初から">最初から</button>
         </div>
     </div>
-    <div id="results-screen" class="hidden">
-        <div class="results-container">
-            <h2>リザルト</h2>
-            <div class="results-content">
+    
+    <!-- Results screen -->
+    <div id="results-screen" class="fixed inset-0 flex justify-center items-center bg-black/80 z-[2000] hidden">
+        <div class="results-container bg-gray-800 p-8 rounded-lg text-center">
+            <h2 class="text-white text-4xl font-bold mb-6">リザルト</h2>
+            <div class="results-content mb-6">
                 <div class="results-score-section">
-                    <div id="final-score-display">0</div>
-                    <div id="final-combo-display">最大コンボ: 0</div>
-                    <div id="rank-display">ランク: S</div>
+                    <div id="final-score-display" class="text-yellow-400 text-6xl font-bold mb-2">0</div>
+                    <div id="final-combo-display" class="text-white text-2xl mb-2">最大コンボ: 0</div>
+                    <div id="rank-display" class="text-green-400 text-3xl font-bold">ランク: S</div>
                 </div>
             </div>
-            <div class="results-buttons">
-                <button id="back-to-title">タイトルへ戻る</button>
-                <button id="replay-song">もう一度プレイ</button>
+            <div class="results-buttons flex gap-4 justify-center">
+                <button id="back-to-title" class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">タイトルへ戻る</button>
+                <button id="replay-song" class="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg">もう一度プレイ</button>
             </div>
         </div>
     </div>

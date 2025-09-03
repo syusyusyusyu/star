@@ -516,44 +516,20 @@ class LyricStageGame {
       const response = await fetch(`/captions?v=${this.gameData.videoId}&lang=ja`);
       const data = await response.json();
       
-      if (response.ok && data.captions && data.captions.length > 0) {
+      if (data.captions && data.captions.length > 0) {
         this.captions = data.captions;
         console.log(`Loaded ${this.captions.length} captions`);
         
         const loadingElement = document.getElementById('loading');
         if (loadingElement) {
-          if (data.demo || data.fallback) {
-            loadingElement.textContent = data.message || 'デモ字幕で準備完了！';
-            loadingElement.style.color = '#ffaa00'; // オレンジ色で注意喚起
-          } else {
-            loadingElement.textContent = '字幕読み込み完了！';
-            loadingElement.style.color = '#00ff00'; // 緑色で正常
-          }
-        }
-        
-        // メッセージがある場合は表示
-        if (data.message) {
-          console.log('Caption loading message:', data.message);
+          loadingElement.textContent = '字幕読み込み完了！';
         }
       } else {
-        throw new Error(data.error || 'No captions available');
+        throw new Error('No captions available');
       }
     } catch (error) {
       console.error('Failed to load captions:', error);
-      
-      // フォールバック：クライアント側でもデモ字幕を用意
-      console.log('Using client-side fallback captions...');
-      this.captions = [
-        { start: 0, end: 4, duration: 4, text: "ようこそ Lyric Stage へ！", words: ["ようこそ", "Lyric", "Stage", "へ！"] },
-        { start: 4, end: 8, duration: 4, text: "音楽に合わせて歌詞をタッチしよう", words: ["音楽に合わせて", "歌詞を", "タッチしよう"] },
-        { start: 8, end: 12, duration: 4, text: "リズムに乗って楽しもう！", words: ["リズムに乗って", "楽しもう！"] }
-      ];
-      
-      const loadingElement = document.getElementById('loading');
-      if (loadingElement) {
-        loadingElement.textContent = 'デモモードで準備完了！（ネットワークエラーのため）';
-        loadingElement.style.color = '#ffaa00';
-      }
+      this.showError('字幕の読み込みに失敗しました。');
     }
   }
 

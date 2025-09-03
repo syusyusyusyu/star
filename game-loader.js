@@ -1,69 +1,53 @@
-// デフォルトの曲データ
-const defaultSong = {
-    id: 1,
-    title: "SUPERHERO",
-    artist: "めろくる",
-    apiToken: "wifkp8ak1TEhQ8pI",
-    songUrl: "https://piapro.jp/t/hZ35/20240130103028"
-};
-
-// 色のバリエーション
-const colorVariations = {
-    easy: 'rgba(57, 197, 187, 0.1)',
-    normal: 'rgba(255, 165, 0, 0.1)',
-    hard: 'rgba(255, 105, 180, 0.1)'
-};
+/**
+ * Lyric Stage Game Loader
+ * YouTube IFrame Player API + Express.js サーバーによる字幕取得システム用
+ */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 曲情報の取得と設定
-    const selectedSongData = JSON.parse(localStorage.getItem('selectedSong') || 'null');
+    console.log('Game loader initialized');
     
-    // 選択された曲または既定値を使用
-    const songData = selectedSongData || defaultSong;
+    // ゲームデータの取得
+    const gameDataStr = localStorage.getItem('gameData');
+    if (!gameDataStr) {
+        console.error('No game data found, redirecting to title');
+        window.location.href = 'index.html';
+        return;
+    }
+    
+    const gameData = JSON.parse(gameDataStr);
+    console.log('Game data loaded:', gameData);
     
     // UI更新
-    document.getElementById('song-title').textContent = songData.title;
-    document.getElementById('loading').textContent = `${songData.title} をロード中...`;
+    const songTitle = document.getElementById('song-title');
+    const loading = document.getElementById('loading');
     
-    document.documentElement.style.setProperty(
-        '--bg-accent-color', 
-        colorVariations[songData.difficulty] || 'rgba(57, 197, 187, 0.1)'
-    );
+    if (songTitle) {
+        songTitle.textContent = `YouTube Video: ${gameData.videoId}`;
+    }
     
-    // GameManagerが初期化される前にグローバル変数として設定
-    window.songConfig = {
-        apiToken: songData.apiToken,
-        songUrl: songData.songUrl
-    };
+    if (loading) {
+        loading.textContent = 'ゲームシステムを初期化中...';
+    }
+    
+    // モード別の指示テキスト更新
+    const instructions = document.getElementById('instructions');
+    if (instructions) {
+        const modeInstructions = {
+            cursor: '歌詞の文字をクリック/タップしてポイントを獲得しよう！',
+            hand: 'カメラに手を映し、人差し指で歌詞に触れよう！',
+            body: 'カメラに全身を映し、手で歌詞に触れよう！'
+        };
+        
+        const instructionText = instructions.querySelector('div');
+        if (instructionText) {
+            instructionText.textContent = modeInstructions[gameData.mode] || modeInstructions.cursor;
+        }
+    }
 });
 
-// script.jsの初期化関数を削除し、ここだけで処理する
-window.addEventListener('load', () => {
-    let attempts = 0;
-    const maxAttempts = 5;
-    
-    const initGameManager = () => {
-        attempts++;
-        
-        if (window.songConfig && typeof GameManager === 'function' && !window.gameManager) {
-            try {
-                window.gameManager = new GameManager();
-                
-                // ページ離脱時のクリーンアップ
-                window.addEventListener('beforeunload', () => {
-                    if (window.gameManager) window.gameManager.cleanup();
-                });
-            } catch (error) {
-                console.error("Game manager initialization error:", error);
-                if (attempts < maxAttempts) {
-                    setTimeout(initGameManager, 300);
-                }
-            }
-        } else if (attempts < maxAttempts && !window.gameManager) {
-            setTimeout(initGameManager, 300);
-        }
-    };
-    
-    // script.jsが確実に読み込まれるよう少し待機
-    setTimeout(initGameManager, 1000);
+// ページ離脱時のクリーンアップ
+window.addEventListener('beforeunload', () => {
+    if (window.game && typeof window.game.cleanup === 'function') {
+        window.game.cleanup();
+    }
 });

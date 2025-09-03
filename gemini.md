@@ -1,8 +1,8 @@
-# Lyric Stage
+# Lyricほにゃらら
 
 ## プロジェクト概要
 このプロジェクト「Lyric Stage」は、**YouTube動画と字幕を同期**して表示し、ユーザーが表示された歌詞にインタラクトすることでスコアを獲得する革新的なリズムゲームです。
-TextAlive App API 前提の構成を廃止し、**YouTube IFrame Player API + Express.js サーバーによる字幕取得**を基盤とする構成にリニューアルしました。
+TextAlive App API 前提の構成を廃止し、**youtube-transcript-api + Express.js サーバーによる字幕取得**を基盤とする構成にリニューアルしました。
 
 主要な特徴は以下の通りです。
 - **字幕同期とインタラクション**: YouTube動画再生に合わせて字幕を正確なタイミングで表示。字幕は1文字ずつ進行し、ユーザーが表示された歌詞に触れる（クリック、タップ、または身体の動き）ことでスコアを獲得し、コンボを繋げます。
@@ -20,7 +20,7 @@ TextAlive App API 前提の構成を廃止し、**YouTube IFrame Player API + Ex
 
 - **YouTube IFrame Player API**: YouTube動画の再生制御、現在時間の取得に利用。
 - `https://www.youtube.com/iframe_api`
-- **Express.js（バックエンド）**: YouTube字幕XML（`https://video.google.com/timedtext`）を取得し、JSONに変換してフロントへ返却。
+- **Express.js（バックエンド）**: 
 - **Three.js**: 3Dライブステージのレンダリング。
 - `https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js`
 - **MediaPipe Pose**: Webカメラから全身ランドマークを取得し、ボディモードでの入力に利用。
@@ -44,7 +44,7 @@ http-server -p 8000
 
 1. **タイトル画面**: YouTube URL入力欄に動画URLを貼り、「再生」ボタンを押す。
 2. **プレイモード選択**:
-- **カーソルモード**: マウスクリック / タップで歌詞に触れる
+- **カーソルモード**: タップで歌詞に触れる
 - **ハンドモード**: Webカメラで手を検出して操作
 - **ボディモード**: Webカメラで全身を検出して操作
 3. **ゲームプレイ**:
@@ -62,11 +62,11 @@ http-server -p 8000
 - `styles.css`: ゲーム画面用スタイル。字幕・スコア表示・UI要素。
 - `index-styles.css`: タイトル画面用スタイル。入力欄・ボタン・背景演出。
 - `index-scripts.js`: タイトル画面のイベント処理。URL解析・モード選択・画面遷移。
-- `server.js`: Expressサーバー。字幕XMLを取得・JSON変換して `/captions` API で提供。
+- `server.js`: Expressサーバー。
 
 ## 使用技術
 - **HTML5 / CSS3 / JavaScript (ES6+)**
-- **YouTube IFrame Player API**（動画再生と現在時間の取得）
+- **youtube-transcript-api**（動画再生と字幕の取得）
 - **Express.js**（字幕APIサーバー）
 - **Three.js**（3D演出）
 - **MediaPipe Pose / Hands / Selfie Segmentation**（カメラ入力・動作検出・背景合成）

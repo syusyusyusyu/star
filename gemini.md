@@ -16,11 +16,11 @@ TextAlive App API 前提の構成を廃止し、**youtube-transcript-api + Expre
 以下のすべてのファイル（`game-loader.js`, `game.html`, `index-scripts.js`, `index-styles.css`, `index.html`, `script.js`, `styles.css`）をWebサーバーの公開ディレクトリに配置してください。
 
 ### 2. 依存関係
-このプロジェクトは外部ライブラリをCDN経由で読み込むため、`npm install` は不要です。必要なライブラリはHTMLファイル内で読み込まれます。
+本プロジェクトは、クライアントサイドとサーバーサイドのコンポーネントで構成されており、それぞれ異なる依存関係を持ちます。
 
-- **youtube-transcript-api**: YouTube動画の再生制御。
-- `youtube-transcript-api`
-- **Express.js（バックエンド）**: 
+#### クライアントサイド (Frontend)
+クライアントサイドは外部ライブラリをCDN経由で読み込むため、`npm install` は不要です。必要なライブラリはHTMLファイル内で読み込まれます。
+
 - **Three.js**: 3Dライブステージのレンダリング。
 - `https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js`
 - **MediaPipe Pose**: Webカメラから全身ランドマークを取得し、ボディモードでの入力に利用。
@@ -30,14 +30,36 @@ TextAlive App API 前提の構成を廃止し、**youtube-transcript-api + Expre
 - **MediaPipe Selfie Segmentation**: 人物と背景を分離し、ユーザーを3Dステージに合成。
 - `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js`
 
-### 3. 実行
-ローカルHTTPサーバーを介して `index.html` にアクセスしてください。
-例:
+#### サーバーサイド (Backend)
+サーバーサイドはNode.jsで動作し、npmパッケージのインストールが必要です。
 
-```bash
-node server.js
-http://localhost:3000/index.html
-```
+- **Express.js**: 字幕APIサーバーのフレームワーク。
+- **youtube-transcript-api**: YouTube動画の字幕を取得するためのライブラリ。
+- **cors**: クロスオリジンリソース共有 (CORS) を有効にするためのミドルウェア。
+- `https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js`
+- **MediaPipe Pose**: Webカメラから全身ランドマークを取得し、ボディモードでの入力に利用。
+- `https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js`
+- **MediaPipe Hands**: Webカメラから手のランドマークを取得し、ハンドモードでの入力に利用。
+- `https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js`
+- **MediaPipe Selfie Segmentation**: 人物と背景を分離し、ユーザーを3Dステージに合成。
+- `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js`
+
+### 3. 実行
+プロジェクトを実行するには、まずサーバーサイドの依存関係をインストールし、サーバーを起動する必要があります。
+
+1.  **サーバーサイドの依存関係をインストール**:
+    プロジェクトのルートディレクトリで以下のコマンドを実行します。
+    ```bash
+    npm install
+    ```
+2.  **サーバーを起動**:
+    インストールが完了したら、以下のコマンドでExpressサーバーを起動します。
+    ```bash
+    node server.js
+    ```
+    サーバーは `http://localhost:3000` でリッスンを開始します。
+3.  **クライアントサイドにアクセス**:
+    Webブラウザで `http://localhost:3000/index.html` にアクセスしてください。
 
 ## 遊び方
 

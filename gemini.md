@@ -18,8 +18,8 @@ TextAlive App API 前提の構成を廃止し、**youtube-transcript-api + Expre
 ### 2. 依存関係
 このプロジェクトは外部ライブラリをCDN経由で読み込むため、`npm install` は不要です。必要なライブラリはHTMLファイル内で読み込まれます。
 
-- **YouTube IFrame Player API**: YouTube動画の再生制御、現在時間の取得に利用。
-- `https://www.youtube.com/iframe_api`
+- **youtube-transcript-api**: YouTube動画の再生制御。
+- `youtube-transcript-api`
 - **Express.js（バックエンド）**: 
 - **Three.js**: 3Dライブステージのレンダリング。
 - `https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js`

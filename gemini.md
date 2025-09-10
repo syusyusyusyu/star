@@ -16,7 +16,8 @@ TextAlive App API 前提の構成を廃止し、**YouTube IFrame API + 自動字
 以下のすべてのファイル（`game-loader.js`, `game.html`, `index-scripts.js`, `index-styles.css`, `index.html`, `script.js`, `styles.css`）をWebサーバーの公開ディレクトリに配置してください。
 
 ### 2. 依存関係
-このプロジェクトは外部ライブラリをCDN経由で読み込むため、`npm install` は不要です。必要なライブラリはHTMLファイル内で読み込まれます。
+フロントエンドの外部ライブラリはCDNから読み込まれるため、フロント単体では追加インストールは不要です。
+ただし、YouTube字幕をCORS回避して取得するためのローカルプロキシ（`server.js`／Express）を使用するため、最初に `npm install` が必要です。
 
 - **YouTube IFrame Player API**: YouTube動画の再生制御、現在時間の取得に利用。
 - `https://www.youtube.com/iframe_api`
@@ -29,14 +30,34 @@ TextAlive App API 前提の構成を廃止し、**YouTube IFrame API + 自動字
 - **MediaPipe Selfie Segmentation**: 人物と背景を分離し、ユーザーを3Dステージに合成。
 - `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js`
 
-### 3. 実行
-ローカルHTTPサーバーを介して `index.html` にアクセスしてください。
-例:
+### 3. 実行（Windows/PowerShell）
+字幕取得プロキシ（8080）と静的サイト（8000）の2つを起動します。
 
-```bash
-npm install -g http-server
-http-server -p 8000
-# http://localhost:8000/index.html
+1) 依存をインストール（初回のみ）
+```powershell
+npm install
+```
+
+2) 字幕プロキシを起動（ポート 8080）
+```powershell
+npm start
+# -> Subtitle proxy server listening at http://localhost:8080
+```
+
+3) 静的サーバーでフロントを配信（ポート 8000）
+```powershell
+npx http-server -p 8000
+# ブラウザで http://localhost:8000/index.html を開く
+```
+
+補足:
+- `npx http-server` が無い環境では `npm install -g http-server` でも可。
+- VS Code の「Live Server」拡張でも代替可（ポートは任意）。
+
+【同時起動（推奨）】
+```powershell
+npm run dev
+# 8080: 字幕プロキシ, 8000: フロント
 ```
 
 ## 遊び方
@@ -69,4 +90,14 @@ http-server -p 8000
 - **MediaPipe Pose / Hands / Selfie Segmentation**（カメラ入力・動作検出・背景合成）
 
 ---
+
+## トラブルシュート
+- 画面が「Loading subtitles...」から進まない / エラーになる
+	- `npm start` で字幕プロキシ（8080）が起動しているか確認。
+	- Windowsのファイアウォールや他のアプリで 8080/8000 が塞がっていないか確認。
+	- 該当動画に自動字幕（または任意の字幕）が存在しない場合は取得できません。別の動画で確認。
+- CORS エラーが出る
+	- 8080 のローカルプロキシを介して取得する設計です。必ずプロキシを起動してください。
+- 8000番だけ起動しても動かない
+	- フロントは表示されますが字幕取得に失敗します。8080のプロキシが必須です。
 

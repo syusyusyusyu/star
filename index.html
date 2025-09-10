@@ -70,15 +70,11 @@
             </select>
         </div>
         
-        <!-- URL入力フォーム -->
-        <div class="w-full max-w-md mx-auto">
-            <div class="flex flex-col sm:flex-row gap-2">
-                <input type="text" id="youtube-url" placeholder="YouTube URLを入力 (例: https://www.youtube.com/watch?v=...)" class="flex-grow p-3 rounded-md bg-gray-800/60 border border-miku/50 focus:ring-2 focus:ring-miku focus:outline-none backdrop-blur-sm text-white placeholder-gray-400">
-                <button id="play-button" class="bg-miku hover:bg-mikuDark text-white font-bold py-3 px-6 rounded-md transition-all duration-300 transform hover:scale-105 animate-pulse-miku">
-                    再生
-                </button>
-            </div>
-            <p id="error-message" class="text-red-400 mt-2 text-center"></p>
+        <!-- 曲選択 -->
+        <div class="max-w-lg w-full mx-auto">
+            <ul class="space-y-2 sm:space-y-3" id="song-list">
+                <!-- 曲アイテムは動的に生成されます -->
+            </ul>
         </div>
     </div>
     <script src="index-scripts.js"></script>

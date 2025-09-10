@@ -73,65 +73,21 @@ body {
 .lyric-bubble {
     position: absolute;
     color: var(--text-color);
-    font-size: 28px; /* 少し大きく */
+    font-size: 24px;
     font-weight: bold;
     text-shadow: 0 0 10px rgba(57, 197, 187, 0.8);
     user-select: none;
     pointer-events: auto;
     z-index: 20;
-    transition: transform 0.2s, color 0.2s, opacity 0.5s; /* opacity を追加 */
-    padding: 10px 18px; /* 少し大きく */
-    min-width: 45px;
-    min-height: 45px;
+    animation: float var(--lyric-speed) linear forwards;
+    transition: transform 0.2s, color 0.2s;
+    padding: 8px 15px;
+    min-width: 40px;
+    min-height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: rgba(0, 0, 0, 0.3); /* 背景を少し暗く */
-    border-radius: 50%; /* 円形に */
 }
-
-/* ヒットしたときのスタイル */
-.lyric-bubble.hit {
-    transform: scale(1.5);
-    opacity: 0;
-    color: var(--accent-color);
-}
-
-/* スコアポップアップのスタイル */
-.point-popup {
-    position: absolute;
-    font-size: 24px;
-    font-weight: bold;
-    color: #FFD700; /* ゴールド */
-    text-shadow: 0 0 8px #000;
-    pointer-events: none;
-    z-index: 100;
-    animation: point-fade-up 0.8s ease-out forwards;
-}
-
-@keyframes point-fade-up {
-    from {
-        transform: translateY(0);
-        opacity: 1;
-    }
-    to {
-        transform: translateY(-50px);
-        opacity: 0;
-    }
-}
-
-/* YouTubeプレーヤーのコンテナ */
-#player-div {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-  width: 320px;
-  height: 180px;
-  opacity: 0; /* Hide the player */
-  pointer-events: none; /* Prevent interaction with the player */
-}
-
 
 .lyric-bubble:hover {
     transform: scale(1.3);

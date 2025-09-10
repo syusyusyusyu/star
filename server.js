@@ -29,6 +29,11 @@ app.get('/subtitles', async (req, res) => {
     const playerResponse = JSON.parse(playerResponseMatch[1]);
     const captionTracks = playerResponse.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
+    // --- DEBUG LOG ---
+    console.log('--- Available Caption Tracks ---');
+    console.log(JSON.stringify(captionTracks, null, 2));
+    // -------------------
+
     if (!captionTracks || captionTracks.length === 0) {
       return res.status(404).send('No caption tracks found for this video.');
     }

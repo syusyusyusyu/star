@@ -29,7 +29,13 @@
 <div id="countdown-overlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center bg-black bg-opacity-70 z-[1000] hidden">
   <span id="countdown-text" class="text-white text-9xl font-bold"></span>
 </div>
-<ThreeStage on:ready={handleStageReady} />
+
+<div id="live-background" class="fixed top-0 left-0 w-full h-full z-[-1]">
+  <div id="stage-area" class="absolute top-0 left-0 w-full h-3/5 overflow-hidden flex justify-center items-end">
+    <ThreeStage on:ready={handleStageReady} />
+  </div>
+  <div id="audience-area" class="absolute bottom-0 left-0 w-full h-2/5"></div>
+</div>
 
 <div id="game-container" class="relative">
   <div id="miku"></div>
@@ -50,17 +56,19 @@
 <LyricsLayer on:click={(e) => controller.clickBubble(e.detail.id)} />
 
 <!-- レガシーと同じIDで結果画面の土台（表示制御はSvelte側のstoresで扱うが DOM/IDは一致） -->
-<div id="results-screen" class={ $resultsVisible ? 'show' : 'hidden' }>
+<div id="results-screen" class={$resultsVisible ? 'show' : 'hidden'}>
   <div class="results-container">
-    <div class="results-score-section">
-      <h2>RESULT</h2>
-      <div id="final-score-display">{$results?.score ?? 0}</div>
-      <div id="final-combo-display">MAX COMBO: {$results?.maxCombo ?? 0}</div>
-      <div id="rank-display">{$results?.rank ?? 'C'}</div>
+    <h2>リザルト</h2>
+    <div class="results-content">
+      <div class="results-score-section">
+        <div id="final-score-display">{$results?.score ?? 0}</div>
+        <div id="final-combo-display">最大コンボ: {$results?.maxCombo ?? 0}</div>
+        <div id="rank-display">ランク: {$results?.rank ?? 'C'}</div>
+      </div>
     </div>
     <div class="results-buttons">
-      <button id="back-to-title" on:click={() => (window.location.href = 'index.html')}>タイトルへ</button>
-      <button id="replay" on:click={() => controller.restart()}>もう一度</button>
+      <button id="back-to-title" on:click={() => (window.location.href = 'index.html')}>タイトルへ戻る</button>
+      <button id="replay-song" on:click={() => controller.restart()}>もう一度プレイ</button>
     </div>
   </div>
 </div>

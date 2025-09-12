@@ -67,13 +67,19 @@
       link.href = `${base}index-styles.css`;
       document.head.appendChild(link);
     }
+    // body クラスをレガシー相当に付与
+    const body = document.body;
+    const legacyBodyClasses = [
+      'bg-gradient-to-b', 'from-gradientStart', 'to-darkBg', 'min-h-screen', 'w-full', 'text-white', 'browser-bar-adjust', 'flex', 'justify-center', 'items-center'
+    ];
+    body.classList.add(...legacyBodyClasses);
     isMobile = detectMobileDevice();
     if (isMobile) mode = 'cursor';
     createStars();
     let t: any;
     const onResize = () => { clearTimeout(t); t = setTimeout(createStars, 250); };
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    return () => { window.removeEventListener('resize', onResize); body.classList.remove(...legacyBodyClasses); };
   });
 
   function ripple(e: MouseEvent) {

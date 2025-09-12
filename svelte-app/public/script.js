@@ -153,8 +153,9 @@ class GameManager {
 		}
 
 		// Selfie Segmentationの初期化 (常に実行、背景除去のため)
+		const __BASE__ = (window.__BASE_URL || '/');
 		const selfieSegmentation = new SelfieSegmentation({locateFile: (file) => {
-			return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
+			return `${__BASE__}mediapipe/selfie_segmentation/${file}`;
 		}});
 		selfieSegmentation.setOptions({
 			modelSelection: 0,
@@ -178,7 +179,7 @@ class GameManager {
 		if (this.currentMode === 'hand') {
 				if (!this.hands) {
 						this.hands = new Hands({locateFile: (file) => {
-								return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+								return `${__BASE__}mediapipe/hands/${file}`;
 						}});
 						this.hands.setOptions({
 								maxNumHands: 2,
@@ -225,7 +226,7 @@ class GameManager {
 		if (this.currentMode === 'body') {
 				if (!this.pose) {
 						this.pose = new Pose({locateFile: (file) => {
-								return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+								return `${__BASE__}mediapipe/pose/${file}`;
 						}});
 						this.pose.setOptions({
 								modelComplexity: 0,

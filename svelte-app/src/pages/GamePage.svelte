@@ -20,7 +20,8 @@
     // mode は既に index から保持されている
     try {
       // public/styles.css を動的に読み込み（Svelteの<style>@import解決エラー回避）
-      const base = (import.meta as any).env?.BASE_URL ?? '/';
+  const base = (import.meta as any).env?.BASE_URL ?? '/';
+  (window as any).__BASE_URL = base;
       if (!document.getElementById('game-styles-link')) {
         const link = document.createElement('link');
         link.id = 'game-styles-link';
@@ -28,15 +29,24 @@
         link.href = `${base}styles.css`;
         document.head.appendChild(link);
       }
-
-      await loadScript('https://unpkg.com/axios/dist/axios.min.js');
-      await loadScript('https://unpkg.com/textalive-app-api/dist/index.js');
-      await loadScript('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js');
-      await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js');
-      await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
-      await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.min.js');
-      await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js');
-      await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js');
+      // npmモジュールを動的importし、レガシーscript.jsが期待するグローバルに束縛
+      const [textalive, THREE, poseModule, cameraUtils, handsModule, selfieModule, axiosMod] = await Promise.all([
+        import('textalive-app-api'),
+        import('three'),
+        import('@mediapipe/pose'),
+        import('@mediapipe/camera_utils'),
+        import('@mediapipe/hands').catch(() => ({ Hands: undefined })),
+        import('@mediapipe/selfie_segmentation'),
+        import('axios')
+      ]);
+      (window as any).TextAliveApp = { Player: (textalive as any).Player };
+      (window as any).THREE = THREE;
+      (window as any).Pose = (poseModule as any).Pose;
+      (window as any).POSE_CONNECTIONS = (poseModule as any).POSE_CONNECTIONS;
+      (window as any).Camera = (cameraUtils as any).Camera;
+      if ((handsModule as any).Hands) (window as any).Hands = (handsModule as any).Hands;
+      (window as any).SelfieSegmentation = (selfieModule as any).SelfieSegmentation;
+  (window as any).axios = (axiosMod as any).default || axiosMod;
       // 先にゲーム本体（GameManager）を読み込み、次にローダーを読む
       await loadScript(`${base}script.js`);
       await loadScript(`${base}game-loader.js`);
@@ -48,6 +58,7 @@
 
 <button class="fixed top-3 left-3 z-[2000] bg-gray-800/80 text-white px-4 py-2 rounded" on:click={() => dispatch('back')}>← タイトルへ</button>
 
+<!-- svelte-ignore a11y-media-has-caption -->
 <video id="camera-video" class="hidden"></video>
 <canvas id="segmentation-canvas" class="fixed top-0 left-0 w-full h-full z-[1]"></canvas>
 <div id="countdown-overlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center bg-black bg-opacity-70 z-[1000] hidden">
@@ -95,7 +106,4 @@
     </div>
   </div>
 </div>
-
-<style>
-  /* ページ固有の微調整があればここに記述（グローバルCSSはlinkで読み込み） */
-</style>
+ 

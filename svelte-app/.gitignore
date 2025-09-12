@@ -19,11 +19,13 @@ Thumbs.db
 .env.*
 !.env.example
 
-# Vite / Svelte build
+# Vite / Svelte build (docs は GitHub Pages 用にコミット対象)
 /dist/
 /.vite/
 /.svelte/
 /.svelte-kit/
+/.cache/
+*.temp
 
 # Project subfolder (svelte-app)
 /svelte-app/node_modules/
@@ -38,6 +40,17 @@ coverage/
 # Editors
 .vscode/
 .idea/
+.history/
+.fleet/
 
 # Misc
 *.local
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Optional: lockfiles (チーム方針に応じて)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

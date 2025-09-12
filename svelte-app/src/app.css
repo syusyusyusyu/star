@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* IndexPage decorations */
+.spotlight { position: fixed; bottom: 0; width: 400px; height: 800px; background: conic-gradient(rgba(57,197,187,0) 0deg, rgba(57,197,187,0) 15deg, rgba(57,197,187,0.1) 20deg, rgba(57,197,187,0.1) 25deg, rgba(57,197,187,0) 30deg, rgba(57,197,187,0) 360deg); opacity: .7; animation: rotateLights 8s linear infinite; transform-origin: bottom center; z-index: 1; pointer-events: none; }
+.star { position: absolute; width: 4px; height: 4px; background-color: #fff; border-radius: 50%; opacity: .7; animation: star-twinkle 3s linear infinite; box-shadow: 0 0 5px #fff; pointer-events: none; }
+@keyframes rotateLights { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes star-twinkle { 0% { opacity: .2; transform: scale(1);} 50% { opacity: .8; transform: scale(1.5);} 100% { opacity: .2; transform: scale(1);} }

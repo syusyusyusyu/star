@@ -1,58 +1,35 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
+  import { score, combo, isPaused, loadingText, instructions, resultsVisible, results, mode, songInfo } from '../lib/stores/game';
+  import LyricsLayer from '../lib/components/LyricsLayer.svelte';
+  import GameHud from '../lib/components/GameHud.svelte';
+  import ResultsModal from '../lib/components/ResultsModal.svelte';
+  import { GameController } from '../lib/game/controller';
   const dispatch = createEventDispatcher();
-
-  // 既存の game.html の主要DOMをSvelte内に用意し、レガシーJSを読み込む
-  function loadScript(src: string) {
-    return new Promise<void>((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src; s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error(`Failed to load ${src}`));
-      document.body.appendChild(s);
-    });
-  }
+  let controller: GameController;
 
   onMount(async () => {
-    // Tailwind は index.html でCDN読み込み済み
-    // 外部CDNも動的に読み込む順序を保持
-    const params = new URLSearchParams(location.search);
-    // mode は既に index から保持されている
-    try {
-      // public/styles.css を動的に読み込み（Svelteの<style>@import解決エラー回避）
-  const base = (import.meta as any).env?.BASE_URL ?? '/';
-  (window as any).__BASE_URL = base;
-      if (!document.getElementById('game-styles-link')) {
-        const link = document.createElement('link');
-        link.id = 'game-styles-link';
-        link.rel = 'stylesheet';
-        link.href = `${base}styles.css`;
-        document.head.appendChild(link);
-      }
-      // npmモジュールを動的importし、レガシーscript.jsが期待するグローバルに束縛
-      const [textalive, THREE, poseModule, cameraUtils, handsModule, selfieModule, axiosMod] = await Promise.all([
-        import('textalive-app-api'),
-        import('three'),
-        import('@mediapipe/pose'),
-        import('@mediapipe/camera_utils'),
-        import('@mediapipe/hands').catch(() => ({ Hands: undefined })),
-        import('@mediapipe/selfie_segmentation'),
-        import('axios')
-      ]);
-      (window as any).TextAliveApp = { Player: (textalive as any).Player };
-      (window as any).THREE = THREE;
-      (window as any).Pose = (poseModule as any).Pose;
-      (window as any).POSE_CONNECTIONS = (poseModule as any).POSE_CONNECTIONS;
-      (window as any).Camera = (cameraUtils as any).Camera;
-      if ((handsModule as any).Hands) (window as any).Hands = (handsModule as any).Hands;
-      (window as any).SelfieSegmentation = (selfieModule as any).SelfieSegmentation;
-  (window as any).axios = (axiosMod as any).default || axiosMod;
-      // 先にゲーム本体（GameManager）を読み込み、次にローダーを読む
-      await loadScript(`${base}script.js`);
-      await loadScript(`${base}game-loader.js`);
-    } catch (e) {
-      console.error(e);
+    const base = (import.meta as any).env?.BASE_URL ?? '/';
+    (window as any).__BASE_URL = base;
+    // スタイル読み込み
+    if (!document.getElementById('game-styles-link')) {
+      const link = document.createElement('link');
+      link.id = 'game-styles-link';
+      link.rel = 'stylesheet';
+      link.href = `${base}styles.css`;
+      document.head.appendChild(link);
     }
+    // 外部依存をNPMから読み込み（TextAlive等）
+    const [textalive] = await Promise.all([ import('textalive-app-api') ]);
+    (window as any).TextAliveApp = { Player: (textalive as any).Player };
+    // 曲データ
+    const selected = JSON.parse(localStorage.getItem('selectedSong') || 'null');
+    const defaultSong = { id: 1, title: 'SUPERHERO', artist: 'めろくる', apiToken: 'wifkp8ak1TEhQ8pI', songUrl: 'https://piapro.jp/t/hZ35/20240130103028' };
+    const s = selected || defaultSong;
+    const params = new URLSearchParams(location.search);
+    const initialMode = (params.get('mode') as any) || 'cursor';
+    controller = new GameController();
+    controller.init(s, initialMode);
   });
 </script>
 
@@ -73,37 +50,23 @@
   <div id="audience-area" class="absolute bottom-0 left-0 w-full h-2/5"></div>
 </div>
 
-<div id="game-container">
+<div id="game-container" class="relative">
   <div id="miku"></div>
   <div id="song-info">
     <div id="song-title">Lyricほにゃらら</div>
-    <div id="loading">ゲームをロード中...</div>
+  <div id="loading">{$loadingText}</div>
   </div>
   <div id="score-container">
-    <div id="score">0</div>
-    <div id="combo">コンボ: 0</div>
+  <div id="score">{$score}</div>
+  <div id="combo">コンボ: {$combo}</div>
   </div>
-  <div id="instructions">歌詞の文字にマウスを当ててポイントを獲得しよう！</div>
+  <div id="instructions">{$instructions || '歌詞の文字にマウスを当ててポイントを獲得しよう！'}</div>
   <div id="controls">
-    <button id="play-pause" aria-label="再生/一時停止">再生</button>
-    <button id="restart" aria-label="最初から">最初から</button>
+  <GameHud on:toggle={() => ($isPaused ? controller.play() : controller.pause())}
+       on:restart={() => controller.restart()} />
   </div>
 </div>
 
-<div id="results-screen" class="hidden">
-  <div class="results-container">
-    <h2>リザルト</h2>
-    <div class="results-content">
-      <div class="results-score-section">
-        <div id="final-score-display">0</div>
-        <div id="final-combo-display">最大コンボ: 0</div>
-        <div id="rank-display">ランク: S</div>
-      </div>
-    </div>
-    <div class="results-buttons">
-      <button id="back-to-title">タイトルへ戻る</button>
-      <button id="replay-song">もう一度プレイ</button>
-    </div>
-  </div>
-</div>
+<LyricsLayer on:click={(e) => controller.clickBubble(e.detail.id)} />
+<ResultsModal on:back={() => (window.location.href = 'index.html')} on:replay={() => controller.restart()} />
  

@@ -58,6 +58,15 @@
   }
 
   onMount(() => {
+    // レガシーCSS（index-styles.css）を注入して完全一致の見た目に
+    const base = (import.meta as any).env?.BASE_URL ?? '/';
+    if (!document.getElementById('index-styles-link')) {
+      const link = document.createElement('link');
+      link.id = 'index-styles-link';
+      link.rel = 'stylesheet';
+      link.href = `${base}index-styles.css`;
+      document.head.appendChild(link);
+    }
     isMobile = detectMobileDevice();
     if (isMobile) mode = 'cursor';
     createStars();
@@ -66,6 +75,26 @@
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   });
+
+  function ripple(e: MouseEvent) {
+    const el = (e.currentTarget as HTMLElement) ?? (e.target as HTMLElement);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const ripple = document.createElement('div');
+    const relX = (e.clientX ?? rect.left + rect.width / 2) - rect.left;
+    const relY = (e.clientY ?? rect.top + rect.height / 2) - rect.top;
+    ripple.className = 'absolute bg-white/40 rounded-full pointer-events-none';
+    ripple.style.width = '100px';
+    ripple.style.height = '100px';
+    ripple.style.left = `${relX}px`;
+    ripple.style.top = `${relY}px`;
+    ripple.style.transform = 'translate(-50%, -50%) scale(0)';
+    ripple.style.animation = 'ripple 0.6s ease-out forwards';
+    el.style.position = 'relative';
+    el.style.overflow = 'hidden';
+    el.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 650);
+  }
 </script>
 
 <div id="stars-container" class="fixed top-0 left-0 w-full h-full z-0"></div>
@@ -86,8 +115,8 @@
     <label for="game-mode" class="text-white mr-2 text-lg">Playモード選択:</label>
     <select id="game-mode" class="p-2 rounded bg-gray-700 text-white text-lg" bind:value={mode} disabled={isMobile}>
       <option value="cursor">Cursorモード</option>
-      <option value="hand">Handモード</option>
-      <option value="body">Bodyモード</option>
+      <option value="hand">Handモード（カメラ）</option>
+      <option value="body">Bodyモード（カメラ）</option>
     </select>
     {#if isMobile}
       <div class="text-gray-300 text-sm mt-2">モバイルではCursorモード固定です</div>
@@ -98,7 +127,7 @@
     <ul class="space-y-2 sm:space-y-3">
       {#each songsData as song}
         <li class="song-item bg-black/40 rounded-lg backdrop-blur-sm border border-[#39C5BB]/30">
-          <button class="w-full p-4 text-left flex justify-between items-center focus:outline-none" on:click={() => saveSongSelection(song)}>
+          <button class="w-full p-4 text-left flex justify-between items-center focus:outline-none" on:click={(e) => { ripple(e); saveSongSelection(song); }}>
             <div>
               <h3 class="text-xl text-[#39C5BB] font-medium">{song.title}</h3>
               <p class="text-white/70 text-sm">{song.artist}</p>
@@ -111,9 +140,4 @@
   </div>
 </div>
 
-<style>
-  .spotlight { position: fixed; bottom: 0; width: 400px; height: 800px; background: conic-gradient(rgba(57,197,187,0) 0deg, rgba(57,197,187,0) 15deg, rgba(57,197,187,0.1) 20deg, rgba(57,197,187,0.1) 25deg, rgba(57,197,187,0) 30deg, rgba(57,197,187,0) 360deg); opacity: .7; animation: rotateLights 8s linear infinite; transform-origin: bottom center; z-index: 1; pointer-events: none; }
-  .star { position: absolute; width: 4px; height: 4px; background-color: #fff; border-radius: 50%; opacity: .7; animation: star-twinkle 3s linear infinite; box-shadow: 0 0 5px #fff; pointer-events: none; }
-  @keyframes rotateLights { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  @keyframes star-twinkle { 0% { opacity: .2; transform: scale(1);} 50% { opacity: .8; transform: scale(1.5);} 100% { opacity: .2; transform: scale(1);} }
-</style>
+<!-- スタイルは src/app.css に移動 -->

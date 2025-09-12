@@ -405,6 +405,7 @@ class GameManager {
 			}
 		}
 		instructionsEl.textContent = text;
+		if (window.GameBridge?.setInstructions) window.GameBridge.setInstructions(text);
 	}
 
 	/**
@@ -484,6 +485,7 @@ class GameManager {
 		try {
 			this.isPaused = false;
 			this.playpause.textContent = '一時停止';
+			if (window.GameBridge?.setPaused) window.GameBridge.setPaused(false);
 			this.isFirstInteraction = false; // 初回インタラクションフラグをオフに
       
 			// TextAliveプレーヤーの使用
@@ -1048,6 +1050,7 @@ class GameManager {
 				onPlay: () => {
 					this.isPaused = false;
 					this.playpause.textContent = '一時停止';
+					if (window.GameBridge?.setPaused) window.GameBridge.setPaused(false);
 					if (!this.randomTextInterval) {
 						this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
 					}
@@ -1097,6 +1100,7 @@ class GameManager {
 				onPause: () => {
 					this.isPaused = true;
 					this.playpause.textContent = '再生';
+					if (window.GameBridge?.setPaused) window.GameBridge.setPaused(true);
 					clearInterval(this.randomTextInterval);
 					this.randomTextInterval = null;
 				},
@@ -1104,6 +1108,7 @@ class GameManager {
 				onStop: () => {
 					this.isPaused = true;
 					this.playpause.textContent = '再生';
+					if (window.GameBridge?.setPaused) window.GameBridge.setPaused(true);
 					const duration = this.player?.video?.duration;
 					if (!this.resultsDisplayed && duration && this.lastPlayerPosition && duration - this.lastPlayerPosition < 1500) {
 						console.log('onStop 終了直前停止を検出 → リザルト表示');
@@ -1622,6 +1627,8 @@ class GameManager {
 		// 表示を更新
 		this.scoreEl.textContent = this.score;
 		this.comboEl.textContent = `コンボ: ${this.combo}`;
+		if (window.GameBridge?.setScore) window.GameBridge.setScore(this.score);
+		if (window.GameBridge?.setCombo) window.GameBridge.setCombo(this.combo);
     
 		// 視覚効果
 		element.style.color = '#FF69B4'; // ピンク色に変更
@@ -1760,6 +1767,7 @@ class GameManager {
 		if (finalScoreDisplay) finalScoreDisplay.textContent = this.score;
 		if (finalComboDisplay) finalComboDisplay.textContent = `最大コンボ: ${this.maxCombo}`;
 		if (rankDisplay) rankDisplay.textContent = `ランク: ${rank}`;
+		if (window.GameBridge?.showResults) window.GameBridge.showResults({ score: this.score, maxCombo: this.maxCombo, rank });
     
 		// 結果画面を表示（hiddenクラスを削除してから、showクラスを追加）
 		resultsScreen.classList.remove('hidden');

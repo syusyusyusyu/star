@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
   outDir: '../docs',
-  // 旧ハッシュのアセットを残して、キャッシュされた古いエントリが参照しても404にならないようにする
-  emptyOutDir: false
+  // 常に出力先をクリーンにして最新の生成物のみを配置
+  emptyOutDir: true
   }
 }));

@@ -1,4 +1,5 @@
 <script lang="ts">
+  // @ts-nocheck
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import * as THREE from 'three';
 

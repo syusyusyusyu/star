@@ -26,13 +26,11 @@
     return mobileUA || (hasTouch && smallScreen) || limitedCamera;
   }
 
+  const base: string = (import.meta as any).env?.BASE_URL ?? '/';
   function saveSongSelection(song: Song) {
     localStorage.setItem('selectedSong', JSON.stringify(song));
-    const url = new URL(location.href);
-    url.searchParams.set('page', 'game');
-    url.searchParams.set('mode', mode);
-    history.pushState({}, '', url);
-    dispatch('startGame');
+    // 旧版と同じ遷移にする（game.html?mode=... へ遷移）
+    window.location.href = `${base}game.html?mode=${mode}`;
   }
 
   function createStars() {

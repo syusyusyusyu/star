@@ -56,21 +56,27 @@
   }
 
   onMount(() => {
-    // Tailwind (CDN) + カスタムconfig を旧 index.html と同等に適用
+    // Tailwind CDN: 先に config を注入し、その後 CDN を読み込む（CDN仕様）
     const ensureTailwind = () => new Promise<void>((resolve) => {
       if ((window as any).tailwind) return resolve();
-      // config を先に差し込む
-      if (!document.getElementById('tw-config-inline')) {
+      // 1) config を先に挿入
+      if (!document.getElementById('tailwind-config')) {
         const cfg = document.createElement('script');
-        cfg.id = 'tw-config-inline';
-        cfg.textContent = `tailwind = { config: { theme: { extend: { colors: { miku: '#39C5BB', mikuDark: '#2AA198', mikuLight: '#7FDBCA', darkBg: '#090A0F', gradientStart: '#1B2735' }, animation: { float: 'float 3s ease-in-out infinite', 'pulse-miku': 'pulse-miku 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }, keyframes: { float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }, 'pulse-miku': { '0%, 100%': { opacity: 1, boxShadow: '0 0 20px 5px rgba(57, 197, 187, 0.7)' }, '50%': { opacity: 0.7, boxShadow: '0 0 10px 2px rgba(57, 197, 187, 0.3)' } } }, screens: { xs: '480px', '3xl': '1920px' } } } } };`;
+        cfg.id = 'tailwind-config';
+        cfg.text = `tailwind = { config: { theme: { extend: { colors: { miku: '#39C5BB', mikuDark: '#2AA198', mikuLight: '#7FDBCA', darkBg: '#090A0F', gradientStart: '#1B2735' }, animation: { float: 'float 3s ease-in-out infinite', 'pulse-miku': 'pulse-miku 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }, keyframes: { float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }, 'pulse-miku': { '0%, 100%': { opacity: 1, boxShadow: '0 0 20px 5px rgba(57, 197, 187, 0.7)' }, '50%': { opacity: 0.7, boxShadow: '0 0 10px 2px rgba(57, 197, 187, 0.3)' } }, }, screens: { xs: '480px', '3xl': '1920px' } } } };`;
         document.head.appendChild(cfg);
       }
-      const s = document.createElement('script');
-      s.src = 'https://cdn.tailwindcss.com';
-      s.onload = () => resolve();
-      s.onerror = () => resolve();
-      document.head.appendChild(s);
+      // 2) CDN本体
+      if (!document.getElementById('tailwind-cdn')) {
+        const s = document.createElement('script');
+        s.id = 'tailwind-cdn';
+        s.src = 'https://cdn.tailwindcss.com';
+        s.onload = () => resolve();
+        s.onerror = () => resolve();
+        document.head.appendChild(s);
+      } else {
+        resolve();
+      }
     });
 
     // レガシーCSS（index-styles.css）を注入

@@ -10,8 +10,8 @@
   let resizeObs: ResizeObserver | null = null;
   const dispatch = createEventDispatcher();
 
-  // 親へ渡すAPI
-  export let onReady: (api: any) => void;
+  // 親へ渡すAPI（オプショナル）
+  export let onReady: (api: any) => void = () => {};
   let segTex: THREE.CanvasTexture | null = null;
   function setSegCanvas(cnv: HTMLCanvasElement) {
     if (!scene) return;

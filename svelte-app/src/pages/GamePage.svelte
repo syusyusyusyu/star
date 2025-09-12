@@ -1,9 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { score, combo, isPaused, loadingText, instructions, songInfo } from '../lib/stores/game';
+  import { score, combo, isPaused, loadingText, instructions, songInfo, resultsVisible, results } from '../lib/stores/game';
   import LyricsLayer from '../lib/components/LyricsLayer.svelte';
-  import GameHud from '../lib/components/GameHud.svelte';
-  import ResultsModal from '../lib/components/ResultsModal.svelte';
   import { GameController } from '../lib/game/controller';
   import ThreeStage from '../lib/components/ThreeStage.svelte';
   let controller: GameController;
@@ -44,10 +42,26 @@
   </div>
   <div id="instructions">{$instructions || '歌詞の文字にマウスを当ててポイントを獲得しよう！'}</div>
   <div id="controls">
-    <GameHud on:toggle={() => ($isPaused ? controller.play() : controller.pause())} on:restart={() => controller.restart()} />
+    <button id="play-pause" on:click={() => ($isPaused ? controller.play() : controller.pause())}>{$isPaused ? '再生' : '一時停止'}</button>
+    <button id="restart" on:click={() => controller.restart()}>最初から</button>
   </div>
 </div>
 
 <LyricsLayer on:click={(e) => controller.clickBubble(e.detail.id)} />
-<ResultsModal on:back={() => (window.location.href = 'index.html')} on:replay={() => controller.restart()} />
+
+<!-- レガシーと同じIDで結果画面の土台（表示制御はSvelte側のstoresで扱うが DOM/IDは一致） -->
+<div id="results-screen" class={ $resultsVisible ? 'show' : 'hidden' }>
+  <div class="results-container">
+    <div class="results-score-section">
+      <h2>RESULT</h2>
+      <div id="final-score-display">{$results?.score ?? 0}</div>
+      <div id="final-combo-display">MAX COMBO: {$results?.maxCombo ?? 0}</div>
+      <div id="rank-display">{$results?.rank ?? 'C'}</div>
+    </div>
+    <div class="results-buttons">
+      <button id="back-to-title" on:click={() => (window.location.href = 'index.html')}>タイトルへ</button>
+      <button id="replay" on:click={() => controller.restart()}>もう一度</button>
+    </div>
+  </div>
+</div>
 

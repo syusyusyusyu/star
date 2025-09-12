@@ -97,12 +97,13 @@
   }
 </script>
 
-<div id="stars-container" class="fixed top-0 left-0 w-full h-full z-0"></div>
-<div class="spotlight left-1/4 hidden sm:block"></div>
-<div class="spotlight left-2/4 hidden sm:block" style="animation-delay: -3s;"></div>
-<div class="spotlight left-3/4 hidden sm:block" style="animation-delay: -6s;"></div>
+<div class="bg-gradient-to-b from-gradientStart to-darkBg min-h-screen w-full text-white browser-bar-adjust flex justify-center items-center">
+  <div id="stars-container" class="fixed top-0 left-0 w-full h-full z-0"></div>
+  <div class="spotlight left-1/4 hidden sm:block"></div>
+  <div class="spotlight left-2/4 hidden sm:block" style="animation-delay: -3s;"></div>
+  <div class="spotlight left-3/4 hidden sm:block" style="animation-delay: -6s;"></div>
 
-<div class="relative z-10 w-full max-w-xl flex flex-col items-center justify-center py-6 px-4 min-h-screen text-white">
+  <div class="relative z-10 w-full max-w-xl flex flex-col items-center justify-center py-6 px-4 min-h-screen">
   <div class="text-center mb-4 sm:mb-6">
     <h1 class="text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-bold text-miku mb-2 tracking-wider">Lyric Stage</h1>
   </div>
@@ -137,6 +138,7 @@
         </li>
       {/each}
     </ul>
+  </div>
   </div>
 </div>
 

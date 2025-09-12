@@ -8,6 +8,13 @@
   import ThreeStage from '../lib/components/ThreeStage.svelte';
   const dispatch = createEventDispatcher();
   let controller: GameController;
+  let stageApi: any = null;
+
+  function handleStageReady(e: CustomEvent<any>) {
+    stageApi = e.detail;
+    (window as any).__Stage = stageApi;
+  }
+  
 
   onMount(async () => {
     const base = (import.meta as any).env?.BASE_URL ?? '/';
@@ -31,6 +38,13 @@
     const initialMode = (params.get('mode') as any) || 'cursor';
     controller = new GameController();
     controller.init(s, initialMode);
+    // ThreeStage 背景にセグメンテーションを反映
+    const seg = document.getElementById('segmentation-canvas') as HTMLCanvasElement | null;
+    if (seg) {
+      const trySet = () => { if (stageApi?.setSegCanvas) stageApi.setSegCanvas(seg); };
+      trySet();
+      setTimeout(trySet, 300);
+    }
   });
 </script>
 
@@ -42,7 +56,7 @@
 <div id="countdown-overlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center bg-black bg-opacity-70 z-[1000] hidden">
   <span id="countdown-text" class="text-white text-9xl font-bold"></span>
   </div>
-<ThreeStage />
+<ThreeStage on:ready={handleStageReady} />
 
 <div id="game-container" class="relative">
   <div id="miku"></div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import * as THREE from 'three';
 
   let container: HTMLDivElement;
@@ -8,6 +8,22 @@
   let camera: THREE.PerspectiveCamera;
   let raf = 0;
   let resizeObs: ResizeObserver | null = null;
+  const dispatch = createEventDispatcher();
+
+  // 親へ渡すAPI
+  export let onReady: (api: any) => void;
+  let segTex: THREE.CanvasTexture | null = null;
+  function setSegCanvas(cnv: HTMLCanvasElement) {
+    if (!scene) return;
+    if (segTex && (segTex.image as any) === cnv) return; // 同じCanvasなら再生成しない
+    segTex?.dispose();
+    segTex = new THREE.CanvasTexture(cnv);
+    segTex.colorSpace = THREE.SRGBColorSpace;
+    segTex.needsUpdate = true;
+    scene.background = segTex;
+  }
+  function updatePlayerAvatar(_pose: any) { /* 将来的なアバター制御 */ }
+  function updateHandLandmarks(_hands: any) { /* 将来的なハンド演出 */ }
 
   // 簡易ステージ（床＋ライト＋漂うライト等）
   onMount(() => {
@@ -80,6 +96,7 @@
         const a = t * 0.6 + idx * 0.07;
         m.position.y = -1.25 + 0.15 * Math.sin(a);
       });
+      if (segTex) segTex.needsUpdate = true;
       renderer.render(scene, camera);
       raf = requestAnimationFrame(animate);
     };
@@ -93,7 +110,11 @@
     };
     onResize();
     resizeObs = new ResizeObserver(onResize);
-    resizeObs.observe(container);
+  resizeObs.observe(container);
+
+  const api = { setSegCanvas, updatePlayerAvatar, updateHandLandmarks };
+  onReady?.(api);
+  dispatch('ready', api);
   });
 
   onDestroy(() => {

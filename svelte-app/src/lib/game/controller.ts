@@ -344,7 +344,8 @@ export class GameController {
         }
       }
     }
-    if (!get(isPaused)) idsHit.forEach((id) => this.clickBubble(id));
+  if (!get(isPaused)) idsHit.forEach((id) => this.clickBubble(id));
+  try { (window as any).__Stage?.updateHandLandmarks?.(res); } catch {}
   }
 
   private onPoseResults(res: any) {
@@ -366,7 +367,8 @@ export class GameController {
         }
       }
     }
-    if (!get(isPaused)) idsHit.forEach((id) => this.clickBubble(id));
+  if (!get(isPaused)) idsHit.forEach((id) => this.clickBubble(id));
+  try { (window as any).__Stage?.updatePlayerAvatar?.(res); } catch {}
   }
 
   private onSegmentationResults(res: any) {

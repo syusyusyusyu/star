@@ -58,7 +58,24 @@
   }
 
   onMount(() => {
-    // レガシーCSS（index-styles.css）を注入して完全一致の見た目に
+    // Tailwind (CDN) + カスタムconfig を旧 index.html と同等に適用
+    const ensureTailwind = () => new Promise<void>((resolve) => {
+      if ((window as any).tailwind) return resolve();
+      // config を先に差し込む
+      if (!document.getElementById('tw-config-inline')) {
+        const cfg = document.createElement('script');
+        cfg.id = 'tw-config-inline';
+        cfg.textContent = `tailwind = { config: { theme: { extend: { colors: { miku: '#39C5BB', mikuDark: '#2AA198', mikuLight: '#7FDBCA', darkBg: '#090A0F', gradientStart: '#1B2735' }, animation: { float: 'float 3s ease-in-out infinite', 'pulse-miku': 'pulse-miku 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }, keyframes: { float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }, 'pulse-miku': { '0%, 100%': { opacity: 1, boxShadow: '0 0 20px 5px rgba(57, 197, 187, 0.7)' }, '50%': { opacity: 0.7, boxShadow: '0 0 10px 2px rgba(57, 197, 187, 0.3)' } } }, screens: { xs: '480px', '3xl': '1920px' } } } } };`;
+        document.head.appendChild(cfg);
+      }
+      const s = document.createElement('script');
+      s.src = 'https://cdn.tailwindcss.com';
+      s.onload = () => resolve();
+      s.onerror = () => resolve();
+      document.head.appendChild(s);
+    });
+
+    // レガシーCSS（index-styles.css）を注入
     const base = (import.meta as any).env?.BASE_URL ?? '/';
     if (!document.getElementById('index-styles-link')) {
       const link = document.createElement('link');
@@ -73,6 +90,11 @@
       'bg-gradient-to-b', 'from-gradientStart', 'to-darkBg', 'min-h-screen', 'w-full', 'text-white', 'browser-bar-adjust', 'flex', 'justify-center', 'items-center'
     ];
     body.classList.add(...legacyBodyClasses);
+    // Tailwind 準備が整ってからDOM演出を構築
+    ensureTailwind().then(() => {
+      // no-op; ユーティリティクラスのスタイル適用タイミングを合わせるだけ
+    });
+
     isMobile = detectMobileDevice();
     if (isMobile) mode = 'cursor';
     createStars();

@@ -5,6 +5,7 @@
   import GameHud from '../lib/components/GameHud.svelte';
   import ResultsModal from '../lib/components/ResultsModal.svelte';
   import { GameController } from '../lib/game/controller';
+  import ThreeStage from '../lib/components/ThreeStage.svelte';
   const dispatch = createEventDispatcher();
   let controller: GameController;
 
@@ -41,14 +42,7 @@
 <div id="countdown-overlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center bg-black bg-opacity-70 z-[1000] hidden">
   <span id="countdown-text" class="text-white text-9xl font-bold"></span>
   </div>
-<div id="live-background" class="fixed top-0 left-0 w-full h-full z-[-1]">
-  <div id="stage-area" class="absolute top-0 left-0 w-full h-3/5 bg-gray-900 overflow-hidden flex justify-center items-end">
-    <div class="w-full h-1/4 bg-black/30" style="perspective: 50px;"><div class="w-full h-full bg-gray-700" style="transform: rotateX(30deg);"></div></div>
-    <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[200%] h-[200px] bg-gradient-to-t from-purple-600/30 to-transparent rounded-[100%] animate-pulse"></div>
-    <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[150%] h-[150px] bg-gradient-to-t from-blue-500/40 to-transparent rounded-[100%]" style="animation-delay: 500ms;"></div>
-  </div>
-  <div id="audience-area" class="absolute bottom-0 left-0 w-full h-2/5"></div>
-</div>
+<ThreeStage />
 
 <div id="game-container" class="relative">
   <div id="miku"></div>

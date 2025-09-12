@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lyric Stage - Game</title>
+  <meta http-equiv="refresh" content="0; url=./index.html?page=game">
+  <script>
+    // JS フォールバック（meta refresh が効かない場合）
+    (function(){
+      try {
+        var u = new URL(location.href);
+        u.searchParams.set('page','game');
+        location.replace(u.toString());
+      } catch(e) { location.href = './index.html?page=game'; }
+    })();
+  </script>
+</head>
+<body>
+  <noscript>
+    <a href="./index.html?page=game">ゲームに移動</a>
+  </noscript>
+</body>
+</html>

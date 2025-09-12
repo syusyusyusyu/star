@@ -754,14 +754,16 @@ class GameManager {
     ];
     this.fallbackLyricsData = [];
 
-    // フレーズごとに歌詞データを生成
+    // フレーズごとに歌詞データを生成（正規化して取り込み）
     fallbackPhrases.forEach(phrase => {
-      Array.from(phrase.text).forEach((char, index) => {
+      const normalized = (phrase.text || '').normalize('NFC');
+      Array.from(normalized).forEach((ch, index) => {
+        const normChar = String(ch).normalize('NFC');
         this.fallbackLyricsData.push({
           time: phrase.startTime + index * 400, // 同じフレーズ内の文字は400msずつずらす
-          text: char,
+          text: normChar,
           originalChars: [{
-            text: char,
+            text: normChar,
             timeOffset: index * 400
           }]
         });
@@ -1174,7 +1176,8 @@ class GameManager {
         while (word) {
           let char = word.firstChar;
           while (char) {
-            const text = (char.text || '').trim();
+            let text = (char.text ?? '').toString();
+            text = text.normalize('NFC').trim();
             if (text) {
               this.lyricsData.push({
                 time: char.startTime,
@@ -1228,9 +1231,9 @@ class GameManager {
     if (this.isPaused || this.isFirstInteraction) return;
     
     for (const lyric of this.lyricsData) {
-      // 表示するタイミングになった歌詞を処理
+      // 表示するタイミングになった歌詞を処理（ウィンドウを広げて取り逃し低減）
       if (lyric.time <= position && 
-          lyric.time > position - 200 && 
+          lyric.time > position - 500 && 
           !this.displayedLyrics.has(lyric.time)) {
         
         this.displayLyric(lyric.text);
@@ -1245,40 +1248,59 @@ class GameManager {
   }
 
   /**
-   * 1文字の歌詞を表示
+   * 1文字の歌詞を表示（正規化・重複許可）
    * @param {string} text - 表示する文字
    */
   displayLyric(text) {
+    if (text == null) return;
+
+    const norm = String(text).normalize('NFC');
+
     const bubble = document.createElement('div');
     bubble.className = 'lyric-bubble';
-    bubble.textContent = text;
+    bubble.textContent = norm;
+    bubble.style.pointerEvents = 'auto';
     bubble.style.opacity = '1';
     
-    // 表示位置を画面の中央付近にランダムに設定
+    // 画面サイズに応じて位置とフォントサイズを調整（レスポンシブ対応）
     const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-    const x = screenWidth * 0.2 + Math.random() * (screenWidth * 0.6);
-    const y = screenHeight * 0.3 + Math.random() * (screenHeight * 0.4);
+    const isSmallScreen = screenWidth <= 768;
+    
+    let x, y, fontSize;
+    if (isSmallScreen) {
+      x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
+      y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
+      fontSize = screenWidth <= 480 ? '18px' : '22px';
+    } else {
+      x = 100 + Math.random() * (screenWidth - 300);
+      y = window.innerHeight - 300 - Math.random() * 100;
+      fontSize = '48px';
+    }
     
     bubble.style.left = `${x}px`;
     bubble.style.top = `${y}px`;
-    bubble.style.fontSize = `${screenWidth <= 768 ? '24' : '36'}px`;
+    bubble.style.color = '#39C5BB';
+    bubble.style.fontSize = fontSize;
+    
+    bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
+    bubble.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      this.clickLyric(bubble);
+    }, {passive: false});
     
     this.gamecontainer.appendChild(bubble);
     
-    // 鑑賞用歌詞も同時に表示
-    this.displayViewerLyric(text, bubble);
-    
-    // 8秒後にフェードアウトして削除
+    // 一定時間後に削除
     setTimeout(() => {
-      // 歌詞がクリックされずに消えた場合、コンボをリセット
       if (bubble.style.pointerEvents !== 'none') {
         this.combo = 0;
         this.comboEl.textContent = `コンボ: 0`;
       }
-      bubble.style.opacity = '0';
-      setTimeout(() => bubble.remove(), 1000);
+      bubble.remove();
     }, 8000);
+
+    // 鑑賞用歌詞も同時に表示
+    this.displayViewerLyric(norm, bubble);
   }
 
   /**
@@ -1368,18 +1390,14 @@ class GameManager {
    * @param {string} text - 表示する文字
    */
   displayLyric(text) {
-    if (!text) return;
+    if (text == null) return;
 
-    // 既に同じテキストが表示されていないか確認（重複防止） 
-    const existingBubbles = document.querySelectorAll('.lyric-bubble');
-    for (let bubble of existingBubbles) {
-      if (bubble.textContent === text) return;
-    }
+    const norm = String(text).normalize('NFC');
 
-    // 歌詞バブルを作成
+    // 歌詞バブルを作成（重複テキストも許可）
     const bubble = document.createElement('div');
     bubble.className = 'lyric-bubble';
-    bubble.textContent = text;
+    bubble.textContent = norm;
     bubble.style.pointerEvents = 'auto';
     bubble.style.opacity = '1';
     
@@ -1388,44 +1406,30 @@ class GameManager {
     const isSmallScreen = screenWidth <= 768;
     
     let x, y, fontSize;
-    
     if (isSmallScreen) {
-      // モバイル・小さな画面：横幅15%～85%の範囲に収める
       x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
       y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
-      
-      // 画面サイズに応じたフォントサイズ調整
-      if (screenWidth <= 480) {
-        fontSize = '18px'; // スマホサイズ
-      } else {
-        fontSize = '22px'; // タブレットサイズ
-      }
+      fontSize = screenWidth <= 480 ? '18px' : '22px';
     } else {
-      // PC・大きな画面
       x = 100 + Math.random() * (screenWidth - 300);
       y = window.innerHeight - 300 - Math.random() * 100;
       fontSize = '48px';
     }
     
-    // スタイルを適用
     bubble.style.left = `${x}px`;
     bubble.style.top = `${y}px`;
-    bubble.style.color = '#39C5BB'; // ミクカラー
+    bubble.style.color = '#39C5BB';
     bubble.style.fontSize = fontSize;
     
-    // イベントリスナーを追加
     bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
     bubble.addEventListener('touchstart', (e) => {
-      e.preventDefault(); // iOSでのホバー対策
+      e.preventDefault();
       this.clickLyric(bubble);
     }, {passive: false});
     
-    // 画面に追加
     this.gamecontainer.appendChild(bubble);
     
-    // 一定時間後に削除
     setTimeout(() => {
-      // 歌詞がクリックされずに消えた場合、コンボをリセット
       if (bubble.style.pointerEvents !== 'none') {
         this.combo = 0;
         this.comboEl.textContent = `コンボ: 0`;
@@ -1434,54 +1438,44 @@ class GameManager {
     }, 8000);
 
     // 鑑賞用歌詞も同時に表示
-    this.displayViewerLyric(text, bubble);
+    this.displayViewerLyric(norm, bubble);
   }
 
   /**
-   * 鑑賞用歌詞を表示
+   * 鑑賞用歌詞を表示（重複文字に強い：要素キー）
    * @param {string} text - 表示する文字
    * @param {HTMLElement} gameBubble - ゲーム用歌詞要素
    */
   displayViewerLyric(text, gameBubble) {
-    // 既に表示されている場合は何もしない
-    if (this.displayedViewerLyrics.has(text)) return;
+    if (this.displayedViewerLyrics.has(gameBubble)) return;
 
     const viewerChar = document.createElement('span');
     viewerChar.className = 'viewer-lyric-char';
-    viewerChar.textContent = text;
+    viewerChar.textContent = String(text).normalize('NFC');
     viewerChar.style.opacity = '0';
     this.viewerLyricsContainer.appendChild(viewerChar);
 
-    // タイプライター効果で表示
     setTimeout(() => {
       viewerChar.style.opacity = '1';
       viewerChar.style.transform = 'translateY(0)';
     }, 50);
 
-    // ゲーム用の歌詞要素と鑑賞用歌詞要素を紐付け
-    this.displayedViewerLyrics.set(text, {
-      element: viewerChar,
-      gameBubble: gameBubble
+    this.displayedViewerLyrics.set(gameBubble, viewerChar);
+
+    // 要素クリック時にハイライト
+    gameBubble.addEventListener('click', () => {
+      const vc = this.displayedViewerLyrics.get(gameBubble);
+      if (vc) vc.classList.add('highlighted');
     });
 
-    // ゲーム歌詞がクリックされたときの処理
-    const originalClick = gameBubble.onclick;
-    gameBubble.onclick = (e) => {
-      if (originalClick) originalClick(e);
-      const viewerInfo = this.displayedViewerLyrics.get(text);
-      if (viewerInfo && viewerInfo.element) {
-        viewerInfo.element.classList.add('highlighted');
-      }
-    };
-
-    // 一定時間後に鑑賞用歌詞を削除
+    // 一定時間後に削除
     setTimeout(() => {
       viewerChar.style.opacity = '0';
       setTimeout(() => {
         if (viewerChar.parentNode) {
           viewerChar.parentNode.removeChild(viewerChar);
         }
-        this.displayedViewerLyrics.delete(text);
+        this.displayedViewerLyrics.delete(gameBubble);
       }, 1000);
     }, 8000);
   }
@@ -1632,11 +1626,10 @@ class GameManager {
     setTimeout(() => element.style.opacity = '0', 100);
     this.lastScoreTime = Date.now();
 
-    // 対応する鑑賞用歌詞もハイライト
-    const text = element.textContent;
-    const viewerInfo = this.displayedViewerLyrics.get(text);
-    if (viewerInfo && viewerInfo.element) {
-      viewerInfo.element.classList.add('highlighted');
+    // 対応する鑑賞用歌詞もハイライト（要素キー）
+    const viewerEl = this.displayedViewerLyrics.get(element);
+    if (viewerEl) {
+      viewerEl.classList.add('highlighted');
     }
   }
 

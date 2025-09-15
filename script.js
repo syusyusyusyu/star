@@ -511,10 +511,7 @@ class GameManager {
         this.startLyricsTimer();
       }
       
-      // ランダムテキスト表示開始（観客の応援メッセージ）
-      if (!this.randomTextInterval) {
-        this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
-      }
+  // 観客のランダムテキスト機能は削除
       
       // 最初のロード表示を非表示にする
       if (this.loading) {
@@ -770,9 +767,7 @@ class GameManager {
       });
     });
     
-    // 観客のランダムテキスト
-    this.randomTexts = ["ミク！", "かわいい！", "最高！", "39！", "イェーイ！"];
-    this.randomTextInterval = null;
+  // 観客のランダムテキスト機能は削除
     
     // コンボをリセットするタイマー（30秒間何も取らなかったらコンボリセット）
     this.comboResetTimer = setInterval(() => {
@@ -813,23 +808,7 @@ class GameManager {
   /**
    * ランダムなテキスト（観客の応援メッセージ）を生成して表示
    */
-  createRandomText() {
-    const randomText = document.createElement('div');
-    randomText.className = 'random-text';
-    randomText.textContent = this.randomTexts[Math.floor(Math.random() * this.randomTexts.length)];
-    
-    // 画面下部からランダムな位置に配置
-    randomText.style.left = `${Math.random() * 80 + 10}%`; // 10%から90%の範囲
-    randomText.style.bottom = `${Math.random() * 20 + 5}%`; // 5%から25%の範囲
-    
-    this.gamecontainer.appendChild(randomText);
-    
-    // 3秒後にフェードアウトして削除
-    setTimeout(() => {
-      randomText.style.opacity = '0';
-      setTimeout(() => randomText.remove(), 1000);
-    }, 3000);
-  }
+  // 観客のランダムテキスト機能は削除
 
   /**
    * 再生/一時停止を切り替える
@@ -853,8 +832,7 @@ class GameManager {
             console.error("Pause error:", e);
           }
         }
-        clearInterval(this.randomTextInterval);
-        this.randomTextInterval = null;
+  // 観客のランダムテキスト機能は削除
         
         // 一時停止時にタイマーを停止
         if (this.resultCheckTimer) {
@@ -883,10 +861,7 @@ class GameManager {
           this.setupResultCheckTimer(remainingTime);
         }
         
-        // ランダムテキスト表示を再開
-        if (!this.randomTextInterval) {
-          this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
-        }
+  // 観客のランダムテキスト機能は削除
       }
     } finally {
       // 操作が完全に完了するのを確実にするために長めの遅延を使用
@@ -1042,9 +1017,7 @@ class GameManager {
         onPlay: () => {
           this.isPaused = false;
           this.playpause.textContent = '一時停止';
-          if (!this.randomTextInterval) {
-            this.randomTextInterval = setInterval(() => this.createRandomText(), 500);
-          }
+          // 観客のランダムテキスト機能は削除
           // 終了検出フォールバック監視（既存があればクリア）
           if (this.finishWatchInterval) clearInterval(this.finishWatchInterval);
           this.finishWatchInterval = setInterval(() => {
@@ -1091,8 +1064,7 @@ class GameManager {
         onPause: () => {
           this.isPaused = true;
           this.playpause.textContent = '再生';
-          clearInterval(this.randomTextInterval);
-          this.randomTextInterval = null;
+          // 観客のランダムテキスト機能は削除
         },
         // 停止時（自動リスタートを廃止し、終了間際ならリザルトを表示）
         onStop: () => {
@@ -1819,7 +1791,7 @@ class GameManager {
    * ゲーム終了時に呼び出す
    */
   cleanup() {
-    if (this.randomTextInterval) clearInterval(this.randomTextInterval);
+  // 観客のランダムテキスト機能は削除
     if (this.comboResetTimer) clearInterval(this.comboResetTimer);
     if (this.resultCheckTimer) clearTimeout(this.resultCheckTimer);
     

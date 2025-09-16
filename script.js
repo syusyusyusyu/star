@@ -85,6 +85,10 @@ class GameManager {
     this.viewerLyricsContainer.className = 'viewer-lyrics-container';
     this.gamecontainer.appendChild(this.viewerLyricsContainer);
 
+  // SRP: レンダリング/結果表示を専任クラスに委譲
+  this.lyricsRenderer = new LyricsRenderer(this);
+  this.resultsManager = new ResultsManager(this);
+
     // 手振り検出用の変数
     this.handHistory = []; // 手の位置履歴
     this.lastWaveTime = 0; // 最後に手振りを検出した時間
@@ -1224,55 +1228,7 @@ class GameManager {
    * @param {string} text - 表示する文字
    */
   displayLyric(text) {
-    if (text == null) return;
-
-    const norm = String(text).normalize('NFC');
-
-    const bubble = document.createElement('div');
-    bubble.className = 'lyric-bubble';
-    bubble.textContent = norm;
-    bubble.style.pointerEvents = 'auto';
-    bubble.style.opacity = '1';
-    
-    // 画面サイズに応じて位置とフォントサイズを調整（レスポンシブ対応）
-    const screenWidth = window.innerWidth;
-    const isSmallScreen = screenWidth <= 768;
-    
-    let x, y, fontSize;
-    if (isSmallScreen) {
-      x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
-      y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
-      fontSize = screenWidth <= 480 ? '18px' : '22px';
-    } else {
-      x = 100 + Math.random() * (screenWidth - 300);
-      y = window.innerHeight - 300 - Math.random() * 100;
-      fontSize = '48px';
-    }
-    
-    bubble.style.left = `${x}px`;
-    bubble.style.top = `${y}px`;
-    bubble.style.color = '#39C5BB';
-    bubble.style.fontSize = fontSize;
-    
-    bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
-    bubble.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      this.clickLyric(bubble);
-    }, {passive: false});
-    
-    this.gamecontainer.appendChild(bubble);
-    
-    // 一定時間後に削除
-    setTimeout(() => {
-      if (bubble.style.pointerEvents !== 'none') {
-        this.combo = 0;
-        this.comboEl.textContent = `コンボ: 0`;
-      }
-      bubble.remove();
-    }, 8000);
-
-    // 鑑賞用歌詞も同時に表示
-    this.displayViewerLyric(norm, bubble);
+  return this.lyricsRenderer.displayLyric(text);
   }
 
   /**
@@ -1362,55 +1318,7 @@ class GameManager {
    * @param {string} text - 表示する文字
    */
   displayLyric(text) {
-    if (text == null) return;
-
-    const norm = String(text).normalize('NFC');
-
-    // 歌詞バブルを作成（重複テキストも許可）
-    const bubble = document.createElement('div');
-    bubble.className = 'lyric-bubble';
-    bubble.textContent = norm;
-    bubble.style.pointerEvents = 'auto';
-    bubble.style.opacity = '1';
-    
-    // 画面サイズに応じて位置とフォントサイズを調整（レスポンシブ対応）
-    const screenWidth = window.innerWidth;
-    const isSmallScreen = screenWidth <= 768;
-    
-    let x, y, fontSize;
-    if (isSmallScreen) {
-      x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
-      y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
-      fontSize = screenWidth <= 480 ? '18px' : '22px';
-    } else {
-      x = 100 + Math.random() * (screenWidth - 300);
-      y = window.innerHeight - 300 - Math.random() * 100;
-      fontSize = '48px';
-    }
-    
-    bubble.style.left = `${x}px`;
-    bubble.style.top = `${y}px`;
-    bubble.style.color = '#39C5BB';
-    bubble.style.fontSize = fontSize;
-    
-    bubble.addEventListener('mouseenter', () => this.clickLyric(bubble));
-    bubble.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      this.clickLyric(bubble);
-    }, {passive: false});
-    
-    this.gamecontainer.appendChild(bubble);
-    
-    setTimeout(() => {
-      if (bubble.style.pointerEvents !== 'none') {
-        this.combo = 0;
-        this.comboEl.textContent = `コンボ: 0`;
-      }
-      bubble.remove();
-    }, 8000);
-
-    // 鑑賞用歌詞も同時に表示
-    this.displayViewerLyric(norm, bubble);
+  return this.lyricsRenderer.displayLyric(text);
   }
 
   /**
@@ -1419,37 +1327,7 @@ class GameManager {
    * @param {HTMLElement} gameBubble - ゲーム用歌詞要素
    */
   displayViewerLyric(text, gameBubble) {
-    if (this.displayedViewerLyrics.has(gameBubble)) return;
-
-    const viewerChar = document.createElement('span');
-    viewerChar.className = 'viewer-lyric-char';
-    viewerChar.textContent = String(text).normalize('NFC');
-    viewerChar.style.opacity = '0';
-    this.viewerLyricsContainer.appendChild(viewerChar);
-
-    setTimeout(() => {
-      viewerChar.style.opacity = '1';
-      viewerChar.style.transform = 'translateY(0)';
-    }, 50);
-
-    this.displayedViewerLyrics.set(gameBubble, viewerChar);
-
-    // 要素クリック時にハイライト
-    gameBubble.addEventListener('click', () => {
-      const vc = this.displayedViewerLyrics.get(gameBubble);
-      if (vc) vc.classList.add('highlighted');
-    });
-
-    // 一定時間後に削除
-    setTimeout(() => {
-      viewerChar.style.opacity = '0';
-      setTimeout(() => {
-        if (viewerChar.parentNode) {
-          viewerChar.parentNode.removeChild(viewerChar);
-        }
-        this.displayedViewerLyrics.delete(gameBubble);
-      }, 1000);
-    }, 8000);
+  return this.lyricsRenderer.displayViewerLyric(text, gameBubble);
   }
 
   /**
@@ -1676,114 +1554,14 @@ class GameManager {
    * スコアとランクを表示し、演出を実行
    */
   showResults() {
-    // 重複実行防止（この部分が非常に重要）
-    if (this.resultsDisplayed) {
-      console.log("すでに結果画面が表示されています");
-      return;
-    }
-    console.log("結果画面を表示します");
-    this.resultsDisplayed = true;
-    if (this.finishWatchInterval) { clearInterval(this.finishWatchInterval); this.finishWatchInterval = null; }
-    if (this.finishFallbackTimeout) { clearTimeout(this.finishFallbackTimeout); this.finishFallbackTimeout = null; }
-    // 結果表示前にプレーヤーが再生中なら一時停止する
-    // エラー修正: .catch()メソッドの使用から、try-catch形式に変更
-    if (this.player?.isPlaying) {
-      try {
-        this.player.requestPause();
-      } catch (e) {
-        console.error("Results pause error:", e);
-      }
-    }
-    
-    // タイマーをクリア
-    if (this.resultCheckTimer) {
-      clearTimeout(this.resultCheckTimer);
-      this.resultCheckTimer = null;
-    }
-    
-    // 最大コンボを確定
-    this.maxCombo = Math.max(this.maxCombo || 0, this.combo);
-    
-    // スコアに応じたランク判定
-    let rank = 'C';
-    if (this.score >= 10000) rank = 'S';
-    else if (this.score >= 8000) rank = 'A';
-    else if (this.score >= 6000) rank = 'B';
-    
-    // 結果画面要素を取得
-    const resultsScreen = document.getElementById('results-screen');
-    if (!resultsScreen) {
-      console.error("結果画面のDOM要素が見つかりません");
-      return;
-    }
-    
-    // 結果画面の要素を確認して表示
-    const finalScoreDisplay = document.getElementById('final-score-display');
-    const finalComboDisplay = document.getElementById('final-combo-display');
-    const rankDisplay = document.getElementById('rank-display');
-    
-       
-    if (finalScoreDisplay) finalScoreDisplay.textContent = this.score;
-    if (finalComboDisplay) finalComboDisplay.textContent = `最大コンボ: ${this.maxCombo}`;
-    if (rankDisplay) rankDisplay.textContent = `ランク: ${rank}`;
-    
-    // 結果画面を表示（hiddenクラスを削除してから、showクラスを追加）
-    resultsScreen.classList.remove('hidden');
-    resultsScreen.style.display = 'flex'; // 確実に表示されるようにする
-    
-    setTimeout(() => {
-      resultsScreen.classList.add('show');
-      console.log("リザルト画面のshowクラスを追加しました");
-      
-      // 演出エフェクト（流れ星）は削除
-      // for (let i = 0; i < 15; i++) {
-      //   setTimeout(() => {
-      //     const x = Math.random() * window.innerWidth;
-      //     const y = Math.random() * window.innerHeight;
-      //     this.createShooting(x, y, Math.random() * 10 - 5, Math.random() * 10 - 5);
-      //   }, i * 200);
-      // }
-    }, 100);
-    
-    // リザルト画面のボタン設定
-    this.setupResultsButtons();
+  return this.resultsManager.showResults();
   }
   
   /**
    * リザルト画面のボタンイベントを設定
    */
   setupResultsButtons() {
-    const backToTitle = document.getElementById('back-to-title');
-    const replaySong = document.getElementById('replay-song');
-    
-    // イベントハンドラ追加のヘルパー関数
-    const addEvents = (element, handler) => {
-      if (!element) return;
-      element.addEventListener('click', handler);
-      element.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        handler();
-      }, {passive: false});
-    };
-    
-    // タイトルに戻るボタン
-    addEvents(backToTitle, () => {
-      window.location.href = 'index.html';
-    });
-    
-    // 曲をリプレイするボタン
-    addEvents(replaySong, () => {
-      const resultsScreen = document.getElementById('results-screen');
-      if (resultsScreen) {
-        resultsScreen.classList.remove('show');
-        setTimeout(() => {
-          resultsScreen.classList.add('hidden');
-          this.restartGame();
-        }, 1000);
-      } else {
-        this.restartGame();
-      }
-    });
+  return this.resultsManager.setupResultsButtons();
   }
 
   /**
@@ -1981,5 +1759,178 @@ class LiveStageVisuals {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+}
+
+// SRP: 歌詞のDOM表示と鑑賞用表示を担当
+class LyricsRenderer {
+  constructor(game) {
+    this.game = game;
+  }
+
+  displayLyric(text) {
+    if (text == null) return;
+    const norm = String(text).normalize('NFC');
+
+    const bubble = document.createElement('div');
+    bubble.className = 'lyric-bubble';
+    bubble.textContent = norm;
+    bubble.style.pointerEvents = 'auto';
+    bubble.style.opacity = '1';
+
+    const screenWidth = window.innerWidth;
+    const isSmallScreen = screenWidth <= 768;
+    let x, y, fontSize;
+    if (isSmallScreen) {
+      x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
+      y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
+      fontSize = screenWidth <= 480 ? '18px' : '22px';
+    } else {
+      x = 100 + Math.random() * (screenWidth - 300);
+      y = window.innerHeight - 300 - Math.random() * 100;
+      fontSize = '48px';
+    }
+
+    bubble.style.left = `${x}px`;
+    bubble.style.top = `${y}px`;
+    bubble.style.color = '#39C5BB';
+    bubble.style.fontSize = fontSize;
+
+    bubble.addEventListener('mouseenter', () => this.game.clickLyric(bubble));
+    bubble.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      this.game.clickLyric(bubble);
+    }, { passive: false });
+
+    this.game.gamecontainer.appendChild(bubble);
+
+    setTimeout(() => {
+      if (bubble.style.pointerEvents !== 'none') {
+        this.game.combo = 0;
+        this.game.comboEl.textContent = `コンボ: 0`;
+      }
+      bubble.remove();
+    }, 8000);
+
+    this.displayViewerLyric(norm, bubble);
+    return bubble;
+  }
+
+  displayViewerLyric(text, gameBubble) {
+    if (this.game.displayedViewerLyrics.has(gameBubble)) return;
+
+    const viewerChar = document.createElement('span');
+    viewerChar.className = 'viewer-lyric-char';
+    viewerChar.textContent = String(text).normalize('NFC');
+    viewerChar.style.opacity = '0';
+    this.game.viewerLyricsContainer.appendChild(viewerChar);
+
+    setTimeout(() => {
+      viewerChar.style.opacity = '1';
+      viewerChar.style.transform = 'translateY(0)';
+    }, 50);
+
+    this.game.displayedViewerLyrics.set(gameBubble, viewerChar);
+
+    gameBubble.addEventListener('click', () => {
+      const vc = this.game.displayedViewerLyrics.get(gameBubble);
+      if (vc) vc.classList.add('highlighted');
+    });
+
+    setTimeout(() => {
+      viewerChar.style.opacity = '0';
+      setTimeout(() => {
+        if (viewerChar.parentNode) viewerChar.parentNode.removeChild(viewerChar);
+        this.game.displayedViewerLyrics.delete(gameBubble);
+      }, 1000);
+    }, 8000);
+  }
+}
+
+// SRP: リザルト画面の表示とボタン配線を担当
+class ResultsManager {
+  constructor(game) {
+    this.game = game;
+  }
+
+  showResults() {
+    if (this.game.resultsDisplayed) {
+      console.log('すでに結果画面が表示されています');
+      return;
+    }
+    console.log('結果画面を表示します');
+    this.game.resultsDisplayed = true;
+    if (this.game.finishWatchInterval) { clearInterval(this.game.finishWatchInterval); this.game.finishWatchInterval = null; }
+    if (this.game.finishFallbackTimeout) { clearTimeout(this.game.finishFallbackTimeout); this.game.finishFallbackTimeout = null; }
+
+    if (this.game.player?.isPlaying) {
+      try { this.game.player.requestPause(); } catch (e) { console.error('Results pause error:', e); }
+    }
+
+    if (this.game.resultCheckTimer) {
+      clearTimeout(this.game.resultCheckTimer);
+      this.game.resultCheckTimer = null;
+    }
+
+    this.game.maxCombo = Math.max(this.game.maxCombo || 0, this.game.combo);
+
+    let rank = 'C';
+    if (this.game.score >= 10000) rank = 'S';
+    else if (this.game.score >= 8000) rank = 'A';
+    else if (this.game.score >= 6000) rank = 'B';
+
+    const resultsScreen = document.getElementById('results-screen');
+    if (!resultsScreen) {
+      console.error('結果画面のDOM要素が見つかりません');
+      return;
+    }
+
+    const finalScoreDisplay = document.getElementById('final-score-display');
+    const finalComboDisplay = document.getElementById('final-combo-display');
+    const rankDisplay = document.getElementById('rank-display');
+
+    if (finalScoreDisplay) finalScoreDisplay.textContent = this.game.score;
+    if (finalComboDisplay) finalComboDisplay.textContent = `最大コンボ: ${this.game.maxCombo}`;
+    if (rankDisplay) rankDisplay.textContent = `ランク: ${rank}`;
+
+    resultsScreen.classList.remove('hidden');
+    resultsScreen.style.display = 'flex';
+    setTimeout(() => {
+      resultsScreen.classList.add('show');
+      console.log('リザルト画面のshowクラスを追加しました');
+    }, 100);
+
+    this.setupResultsButtons();
+  }
+
+  setupResultsButtons() {
+    const backToTitle = document.getElementById('back-to-title');
+    const replaySong = document.getElementById('replay-song');
+
+    const addEvents = (element, handler) => {
+      if (!element) return;
+      element.addEventListener('click', handler);
+      element.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        handler();
+      }, { passive: false });
+    };
+
+    addEvents(backToTitle, () => {
+      window.location.href = 'index.html';
+    });
+
+    addEvents(replaySong, () => {
+      const resultsScreen = document.getElementById('results-screen');
+      if (resultsScreen) {
+        resultsScreen.classList.remove('show');
+        setTimeout(() => {
+          resultsScreen.classList.add('hidden');
+          this.game.restartGame();
+        }, 1000);
+      } else {
+        this.game.restartGame();
+      }
+    });
   }
 }

@@ -22,6 +22,7 @@ class GameManager {
     this.isMobile = /Android|iPhone/.test(navigator.userAgent);
     this.activeChars = new Set();
     this.displayedLyrics = new Set(); // 表示済み歌詞を追跡
+  this.activeLyricBubbles = new Set(); // 現在表示中の歌詞DOM（当たり判定用）
     this.mouseTrail = [];
     this.maxTrailLength = 15;
     this.lastMousePos = { x: 0, y: 0 };
@@ -640,7 +641,10 @@ class GameManager {
       if (Math.sqrt(dx*dx + dy*dy) >= 3) { // 小さすぎる動きは無視
         lastX = x; lastY = y;
         this.lastMousePos = { x, y };
-        this.checkLyrics(x, y, isTouch ? 45 : 35); // タッチの場合は判定範囲を広げる
+        // cursorモードではhover/mouseenterで判定するため重い半径判定は実行しない
+        if (this.currentMode !== 'cursor') {
+          this.checkLyrics(x, y, isTouch ? 45 : 35);
+        }
         
         // 星を常に生成する（初回インタラクション後のみ）
         if (!this.isFirstInteraction) {
@@ -651,7 +655,8 @@ class GameManager {
     
     // マウス移動イベント
     this.gamecontainer.addEventListener('mousemove', e => {
-      if (!touched && this.currentMode === 'cursor') handleMove(e.clientX, e.clientY, false);
+      // cursorモードの当たりはmouseenterに委譲、ここでは座標の更新のみ
+      if (!touched) handleMove(e.clientX, e.clientY, false);
     });
     
     // タッチイベントの最適化
@@ -664,7 +669,7 @@ class GameManager {
     }, {passive: true});
     
     this.gamecontainer.addEventListener('touchmove', e => {
-      if (!this.isFirstInteraction && e.touches && e.touches[0] && this.currentMode === 'cursor') {
+      if (!this.isFirstInteraction && e.touches && e.touches[0]) {
         e.preventDefault(); // スクロール防止
         handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
       }
@@ -677,9 +682,8 @@ class GameManager {
     // クリック/タップイベント
     this.gamecontainer.addEventListener('click', e => {
       if (this.currentMode !== 'cursor') return;
-      
+      // クリック時のみ半径判定（軽量）
       this.checkLyrics(e.clientX, e.clientY, 35);
-      // createShootingエフェクトは削除
     });
     
     // 再生/一時停止ボタンのクリックイベント - ここが再生開始の唯一のトリガー
@@ -910,6 +914,7 @@ class GameManager {
     // 表示中の歌詞を全て削除
     document.querySelectorAll('.lyric-bubble').forEach(l => l.remove());
     this.displayedLyrics.clear();
+  this.activeLyricBubbles.clear();
     
     // リザルト表示タイマーを再設定
     if (this.resultCheckTimer) {
@@ -1145,6 +1150,7 @@ class GameManager {
   processLyrics(video) {
     try {
       this.lyricsData = [];
+  this._lyricScanIndex = 0;
       let phrase = video.firstPhrase;
       
       while (phrase) {
@@ -1205,21 +1211,21 @@ class GameManager {
    */
   updateLyrics(position) {
     if (this.isPaused || this.isFirstInteraction) return;
-    
-    for (const lyric of this.lyricsData) {
-      // 表示するタイミングになった歌詞を処理（ウィンドウを広げて取り逃し低減）
-      if (lyric.time <= position && 
-          lyric.time > position - 500 && 
-          !this.displayedLyrics.has(lyric.time)) {
-        
-        this.displayLyric(lyric.text);
-        this.displayedLyrics.add(lyric.time);
-        
-        // 歌詞の表示時間は最低3秒、最大8秒
+
+    if (this._lyricScanIndex == null) this._lyricScanIndex = 0;
+    const len = this.lyricsData.length;
+    // 歌詞が時間順である前提（TextAliveの特性）。念のため遅延の幅は500msを許容
+    while (this._lyricScanIndex < len) {
+      const l = this.lyricsData[this._lyricScanIndex];
+      if (l.time > position) break; // まだ先の歌詞
+      if (!this.displayedLyrics.has(this._lyricScanIndex) && l.time > position - 500) {
+        this.displayLyric(l.text);
+        this.displayedLyrics.add(this._lyricScanIndex);
         setTimeout(() => {
-          this.displayedLyrics.delete(lyric.time);
-        }, Math.min(8000, Math.max(3000, lyric.displayDuration)));
+          this.displayedLyrics.delete(this._lyricScanIndex);
+        }, Math.min(8000, Math.max(3000, l.displayDuration)));
       }
+      this._lyricScanIndex++;
     }
   }
 
@@ -1239,6 +1245,7 @@ class GameManager {
     this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.songStartTime = Date.now(); // 曲の開始時間を記録
+  this._lyricScanIndex = 0;
     
     const checkLyrics = () => {
       // プレーヤーモード、一時停止中、または初回インタラクション前なら処理しない
@@ -1340,11 +1347,9 @@ class GameManager {
    */
   checkLyrics(x, y, radius) {
     if (this.isFirstInteraction) return false;
-    
-    const lyrics = document.querySelectorAll('.lyric-bubble');
     const radiusSquared = radius * radius;
-    
-    for (const el of lyrics) {
+    // 生成時に追跡している集合を使用
+    for (const el of this.activeLyricBubbles) {
       if (el.style.pointerEvents === 'none') continue; // 既にクリック済みの場合はスキップ
       
       const rect = el.getBoundingClientRect();
@@ -1352,10 +1357,8 @@ class GameManager {
       const elY = rect.top + rect.height / 2;
       
       const dx = x - elX, dy = y - elY;
-      const distanceSquared = dx * dx + dy * dy;
-      const hitRadius = radius + Math.max(rect.width, rect.height) / 2;
-      
-      if (distanceSquared <= hitRadius * hitRadius) {
+      const hit = dx * dx + dy * dy <= (radius + Math.max(rect.width, rect.height) / 2) ** 2;
+      if (hit) {
         this.clickLyric(el);
         this.createHitEffect(elX, elY);
       }
@@ -1425,11 +1428,9 @@ class GameManager {
    */
   checkLyricsWithWaving(x, y) {
     if (this.isFirstInteraction) return false;
-    
-    const lyrics = document.querySelectorAll('.lyric-bubble');
     const waveRadius = 150; // 手振りの場合はさらに広い判定範囲
-    
-    for (const el of lyrics) {
+
+  for (const el of this.activeLyricBubbles) {
       if (el.style.pointerEvents === 'none') continue;
       
       const rect = el.getBoundingClientRect();
@@ -1473,7 +1474,7 @@ class GameManager {
     element.style.pointerEvents = 'none'; // 再クリック防止
     
     // フェードアウト
-    setTimeout(() => element.style.opacity = '0', 100);
+  setTimeout(() => element.style.opacity = '0', 100);
     this.lastScoreTime = Date.now();
 
     // 対応する鑑賞用歌詞もハイライト（要素キー）
@@ -1481,6 +1482,8 @@ class GameManager {
     if (viewerEl) {
       viewerEl.classList.add('highlighted');
     }
+  // アクティブ集合から外す（次の判定から除外）
+  this.activeLyricBubbles.delete(element);
   }
 
   /**
@@ -1802,13 +1805,17 @@ class LyricsRenderer {
       this.game.clickLyric(bubble);
     }, { passive: false });
 
-    this.game.gamecontainer.appendChild(bubble);
+  this.game.gamecontainer.appendChild(bubble);
+  // アクティブ集合に登録
+  this.game.activeLyricBubbles.add(bubble);
 
     setTimeout(() => {
       if (bubble.style.pointerEvents !== 'none') {
         this.game.combo = 0;
         this.game.comboEl.textContent = `コンボ: 0`;
       }
+      // 解放
+      this.game.activeLyricBubbles.delete(bubble);
       bubble.remove();
     }, 8000);
 
@@ -1842,6 +1849,8 @@ class LyricsRenderer {
       setTimeout(() => {
         if (viewerChar.parentNode) viewerChar.parentNode.removeChild(viewerChar);
         this.game.displayedViewerLyrics.delete(gameBubble);
+  // バブル側が既に消えていれば集合からも除外
+  this.game.activeLyricBubbles.delete(gameBubble);
       }, 1000);
     }, 8000);
   }

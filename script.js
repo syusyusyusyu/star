@@ -22,7 +22,7 @@ class GameManager {
     this.isMobile = /Android|iPhone/.test(navigator.userAgent);
     this.activeChars = new Set();
     this.displayedLyrics = new Set(); // 表示済み歌詞を追跡
-  this.activeLyricBubbles = new Set(); // 現在表示中の歌詞DOM（当たり判定用）
+    this.activeLyricBubbles = new Set(); // 現在表示中の歌詞DOM（当たり判定用）
     this.mouseTrail = [];
     this.maxTrailLength = 15;
     this.lastMousePos = { x: 0, y: 0 };

@@ -53,6 +53,12 @@ class GameManager {
     // 内部処理用のグループサイズを設定（パフォーマンス最適化）
     this.groupSize = 1;
     
+  // SRP: マネージャを準備（UI/入力/エフェクト/ビューポート）
+  this.ui = new UIManager(this);
+  this.effects = new EffectsManager(this);
+  this.input = new InputManager(this);
+  this.viewport = new ViewportManager();
+    
     // モバイルブラウザのビューポート処理（画面サイズ対応）
     this.updateViewportHeight();
     window.addEventListener('resize', () => this.updateViewportHeight());
@@ -305,8 +311,8 @@ class GameManager {
    * CSSの--vh変数を設定してモバイルブラウザでの100vh問題を解決
    */
   updateViewportHeight() {
-    const vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  // SRP: ViewportManagerに委譲
+  return this.viewport.updateViewportHeight();
   }
 
   /**
@@ -389,82 +395,16 @@ class GameManager {
    * ゲームの指示テキストを更新する
    */
   updateInstructions() {
-    const instructionsEl = document.getElementById('instructions');
-    if (!instructionsEl) return;
-
-    let text = '';
-    if (this.isMobile) {
-      text = '歌詞の文字をタップしてポイントを獲得しよう！';
-    } else {
-      switch (this.currentMode) {
-        case 'cursor':
-          text = '歌詞の文字にマウスを当ててポイントを獲得しよう！';
-          break;
-        case 'hand':
-          text = 'カメラに手を映して歌詞に触れてポイントを獲得しよう！';
-          break;
-        case 'body':
-          text = 'カメラに全身を映して歌詞に触れてポイントを獲得しよう！';
-          break;
-      }
-    }
-    instructionsEl.textContent = text;
+  // SRP: UIManagerに委譲
+  return this.ui.updateInstructions();
   }
 
   /**
    * 手の検出状況を表示するインジケーターを更新
    */
   updateHandDetectionIndicator(multiHandLandmarks) {
-    // インジケーター要素が存在しない場合は作成
-    let indicator = document.getElementById('hand-detection-indicator');
-    if (!indicator) {
-      indicator = document.createElement('div');
-      indicator.id = 'hand-detection-indicator';
-      indicator.style.cssText = `
-        position: absolute;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 14px;
-        font-weight: bold;
-        z-index: 100;
-        transition: all 0.3s ease;
-        pointer-events: none;
-      `;
-      this.gamecontainer.appendChild(indicator);
-    }
-
-    // 検出状況に応じてインジケーターを更新
-    if (multiHandLandmarks && multiHandLandmarks.length > 0) {
-      const handCount = multiHandLandmarks.length;
-      indicator.textContent = `✋ ${handCount}つの手を検出中 - 準備OK！`;
-      indicator.style.backgroundColor = 'rgba(57, 197, 187, 0.9)';
-      indicator.style.color = 'white';
-      indicator.style.opacity = '1';
-    } else {
-      // 検出されていない場合のアドバイス
-      const tips = [
-        '💡 手のひらをカメラに向けてください',
-        '💡 明るい場所で手をかざしてください', 
-        '💡 カメラから30-60cm離れてください',
-        '💡 背景とのコントラストを意識してください'
-      ];
-      const randomTip = tips[Math.floor(Date.now() / 3000) % tips.length]; // 3秒ごとに変更
-      
-      indicator.textContent = randomTip;
-      indicator.style.backgroundColor = 'rgba(255, 107, 107, 0.9)';
-      indicator.style.color = 'white';
-      indicator.style.opacity = '0.95';
-    }
-
-    // Handモード以外、またはモバイルデバイスでは非表示
-    if (this.currentMode !== 'hand' || this.isMobile) {
-      indicator.style.display = 'none';
-    } else {
-      indicator.style.display = 'block';
-    }
+  // SRP: UIManagerに委譲
+  return this.ui.updateHandDetectionIndicator(multiHandLandmarks);
   }
 
   /**
@@ -629,117 +569,8 @@ class GameManager {
    * マウス、タッチ、ボタンのイベントを処理
    */
   setupEvents() {
-    let lastTime = 0, lastX = 0, lastY = 0;
-    let touched = false;
-    
-    // マウス/タッチの移動を処理する関数
-    const handleMove = (x, y, isTouch) => {
-      const now = Date.now();
-      if (now - lastTime < 16) return; // 60FPS制限
-      lastTime = now;
-      const dx = x - lastX, dy = y - lastY;
-      if (Math.sqrt(dx*dx + dy*dy) >= 3) { // 小さすぎる動きは無視
-        lastX = x; lastY = y;
-        this.lastMousePos = { x, y };
-        // cursorモードではhover/mouseenterで判定するため重い半径判定は実行しない
-        if (this.currentMode !== 'cursor') {
-          this.checkLyrics(x, y, isTouch ? 45 : 35);
-        }
-        
-        // 星を常に生成する（初回インタラクション後のみ）
-        if (!this.isFirstInteraction) {
-          // パーティクルエフェクトは削除
-        }
-      }
-    };
-    
-    // マウス移動イベント
-    this.gamecontainer.addEventListener('mousemove', e => {
-      // cursorモードの当たりはmouseenterに委譲、ここでは座標の更新のみ
-      if (!touched) handleMove(e.clientX, e.clientY, false);
-    });
-    
-    // タッチイベントの最適化
-    this.gamecontainer.addEventListener('touchstart', e => {
-      touched = true;
-      if (e.touches && e.touches[0] && this.currentMode === 'cursor') {
-        lastX = e.touches[0].clientX;
-        lastY = e.touches[0].clientY;
-      }
-    }, {passive: true});
-    
-    this.gamecontainer.addEventListener('touchmove', e => {
-      if (!this.isFirstInteraction && e.touches && e.touches[0]) {
-        e.preventDefault(); // スクロール防止
-        handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
-      }
-    }, {passive: false});
-    
-    this.gamecontainer.addEventListener('touchend', () => {
-      setTimeout(() => { touched = false; }, 300);
-    }, {passive: true});
-    
-    // クリック/タップイベント
-    this.gamecontainer.addEventListener('click', e => {
-      if (this.currentMode !== 'cursor') return;
-      // クリック時のみ半径判定（軽量）
-      this.checkLyrics(e.clientX, e.clientY, 35);
-    });
-    
-    // 再生/一時停止ボタンのクリックイベント - ここが再生開始の唯一のトリガー
-    const handleButtonClick = (event) => {
-      if (event) {
-        event.preventDefault();
-      }
-      
-      // APIが準備できていなければ何もしない
-      if (!this.apiLoaded) return;
-      
-      if (this.isFirstInteraction) {
-        // ボディモードの場合は全身検出プロセスを開始
-        if (this.currentMode === 'body') {
-          this.isFirstInteraction = false;
-          this.countdownOverlay.classList.remove('hidden');
-          this.countdownText.textContent = "全身が映るように調整してください";
-          // カメラが既に初期化されているので、全身検出の監視を開始するだけ
-          // playMusic()は checkFullBodyDetection のカウントダウン完了後に呼び出される
-          return;
-        }
-        
-        // その他のモードでは通常通り再生を開始
-        this.playMusic();
-        return;
-      }
-      
-      // それ以降は通常の再生/一時停止の切り替え
-      this.togglePlay();
-    };
-    
-    this.playpause.addEventListener('click', handleButtonClick);
-    this.playpause.addEventListener('touchend', handleButtonClick, {passive: false});
-    
-    // リスタートボタンのイベント処理
-    const handleRestartClick = (event) => {
-      if (event) {
-        event.preventDefault();
-      }
-      // APIが準備できていなければ何もしない
-      if (!this.apiLoaded) return;
-      
-      this.restartGame();
-    };
-    
-    this.restart.addEventListener('click', handleRestartClick);
-    this.restart.addEventListener('touchend', handleRestartClick, {passive: false});
-    
-    // 強制的に結果表示へ移行するデバッグ機能
-    // ダブルクリックで結果画面を表示（テスト用）
-    document.addEventListener('dblclick', () => {
-      if (!this.isFirstInteraction && !this.resultsDisplayed) {
-        console.log("ダブルクリックによる結果表示");
-        this.showResults();
-      }
-    });
+  // SRP: InputManagerに委譲
+  return this.input.setupEvents();
   }
 
   /**
@@ -1492,49 +1323,8 @@ class GameManager {
    * @param {HTMLElement} element - クリックされた要素
    */
   createClickEffect(element) {
-    const rect = element.getBoundingClientRect();
-    const x = rect.left + rect.width / 2;
-    const y = rect.top + rect.height / 2;
-    
-    // パーティクルを生成
-    for (let i = 0; i < 6; i++) {
-      const particle = document.createElement('div');
-      particle.className = 'particle';
-      const size = 10 + Math.random() * 15;
-      particle.style.width = `${size}px`;
-      particle.style.height = `${size}px`;
-      particle.style.left = `${x - size/2 + (Math.random() - 0.5) * 30}px`;
-      particle.style.top = `${y - size/2 + (Math.random() - 0.5) * 30}px`;
-      this.gamecontainer.appendChild(particle);
-      
-      setTimeout(() => particle.remove(), 800);
-    }
-    
-    // スコア表示を作成
-    const pointDisplay = document.createElement('div');
-    pointDisplay.className = 'lyric-bubble';
-    pointDisplay.textContent = `+${100 * (Math.floor(this.combo / 5) + 1)}`;
-    pointDisplay.style.left = `${x}px`;
-    pointDisplay.style.top = `${y}px`;
-    pointDisplay.style.color = '#FFFF00'; // 黄色
-    pointDisplay.style.pointerEvents = 'none';
-    
-    this.gamecontainer.appendChild(pointDisplay);
-    
-    // 上に浮かせながらフェードアウト
-    const animate = () => {
-      const top = parseFloat(pointDisplay.style.top);
-      pointDisplay.style.top = `${top - 1}px`;
-      pointDisplay.style.opacity = parseFloat(pointDisplay.style.opacity || 1) - 0.02;
-      
-      if (parseFloat(pointDisplay.style.opacity) > 0) {
-        requestAnimationFrame(animate);
-      } else {
-        pointDisplay.remove();
-      }
-    };
-    
-    requestAnimationFrame(animate);
+  // SRP: EffectsManagerに委譲
+  return this.effects.createClickEffect(element);
   }
 
   /**
@@ -1544,12 +1334,8 @@ class GameManager {
    * @param {number} y - Y座標
    */
   createHitEffect(x, y) {
-    const ripple = document.createElement('div');    ripple.className = 'tap-ripple';
-    ripple.style.left = `${x - 20}px`;
-    ripple.style.top = `${y - 20}px`;
-    
-    this.gamecontainer.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 500);
+  // SRP: EffectsManagerに委譲
+  return this.effects.createHitEffect(x, y);
   }
 
   /**
@@ -1941,5 +1727,236 @@ class ResultsManager {
         this.game.restartGame();
       }
     });
+  }
+}
+
+// SRP: UI表示・テキスト更新・インジケーターの責務
+class UIManager {
+  constructor(game) {
+    this.game = game;
+  }
+
+  updateInstructions() {
+    const instructionsEl = document.getElementById('instructions');
+    if (!instructionsEl) return;
+
+    let text = '';
+    if (this.game.isMobile) {
+      text = '歌詞の文字をタップしてポイントを獲得しよう！';
+    } else {
+      switch (this.game.currentMode) {
+        case 'cursor':
+          text = '歌詞の文字にマウスを当ててポイントを獲得しよう！';
+          break;
+        case 'hand':
+          text = 'カメラに手を映して歌詞に触れてポイントを獲得しよう！';
+          break;
+        case 'body':
+          text = 'カメラに全身を映して歌詞に触れてポイントを獲得しよう！';
+          break;
+      }
+    }
+    instructionsEl.textContent = text;
+  }
+
+  updateHandDetectionIndicator(multiHandLandmarks) {
+    let indicator = document.getElementById('hand-detection-indicator');
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.id = 'hand-detection-indicator';
+      indicator.style.cssText = `
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 100;
+        transition: all 0.3s ease;
+        pointer-events: none;
+      `;
+      this.game.gamecontainer.appendChild(indicator);
+    }
+
+    if (multiHandLandmarks && multiHandLandmarks.length > 0) {
+      const handCount = multiHandLandmarks.length;
+      indicator.textContent = `✋ ${handCount}つの手を検出中 - 準備OK！`;
+      indicator.style.backgroundColor = 'rgba(57, 197, 187, 0.9)';
+      indicator.style.color = 'white';
+      indicator.style.opacity = '1';
+    } else {
+      const tips = [
+        '💡 手のひらをカメラに向けてください',
+        '💡 明るい場所で手をかざしてください',
+        '💡 カメラから30-60cm離れてください',
+        '💡 背景とのコントラストを意識してください'
+      ];
+      const randomTip = tips[Math.floor(Date.now() / 3000) % tips.length];
+      indicator.textContent = randomTip;
+      indicator.style.backgroundColor = 'rgba(255, 107, 107, 0.9)';
+      indicator.style.color = 'white';
+      indicator.style.opacity = '0.95';
+    }
+
+    if (this.game.currentMode !== 'hand' || this.game.isMobile) {
+      indicator.style.display = 'none';
+    } else {
+      indicator.style.display = 'block';
+    }
+  }
+}
+
+// SRP: 演出（クリック/ヒット）生成の責務
+class EffectsManager {
+  constructor(game) {
+    this.game = game;
+  }
+
+  createClickEffect(element) {
+    const rect = element.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+
+    for (let i = 0; i < 6; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'particle';
+      const size = 10 + Math.random() * 15;
+      particle.style.width = `${size}px`;
+      particle.style.height = `${size}px`;
+      particle.style.left = `${x - size/2 + (Math.random() - 0.5) * 30}px`;
+      particle.style.top = `${y - size/2 + (Math.random() - 0.5) * 30}px`;
+      this.game.gamecontainer.appendChild(particle);
+      setTimeout(() => particle.remove(), 800);
+    }
+
+    const pointDisplay = document.createElement('div');
+    pointDisplay.className = 'lyric-bubble';
+    pointDisplay.textContent = `+${100 * (Math.floor(this.game.combo / 5) + 1)}`;
+    pointDisplay.style.left = `${x}px`;
+    pointDisplay.style.top = `${y}px`;
+    pointDisplay.style.color = '#FFFF00';
+    pointDisplay.style.pointerEvents = 'none';
+    this.game.gamecontainer.appendChild(pointDisplay);
+
+    const animate = () => {
+      const top = parseFloat(pointDisplay.style.top);
+      pointDisplay.style.top = `${top - 1}px`;
+      pointDisplay.style.opacity = parseFloat(pointDisplay.style.opacity || 1) - 0.02;
+      if (parseFloat(pointDisplay.style.opacity) > 0) {
+        requestAnimationFrame(animate);
+      } else {
+        pointDisplay.remove();
+      }
+    };
+    requestAnimationFrame(animate);
+  }
+
+  createHitEffect(x, y) {
+    const ripple = document.createElement('div');
+    ripple.className = 'tap-ripple';
+    ripple.style.left = `${x - 20}px`;
+    ripple.style.top = `${y - 20}px`;
+    this.game.gamecontainer.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 500);
+  }
+}
+
+// SRP: 入力/イベント配線の責務
+class InputManager {
+  constructor(game) {
+    this.game = game;
+  }
+
+  setupEvents() {
+    const gm = this.game;
+    let lastTime = 0, lastX = 0, lastY = 0;
+    let touched = false;
+
+    const handleMove = (x, y, isTouch) => {
+      const now = Date.now();
+      if (now - lastTime < 16) return;
+      lastTime = now;
+      const dx = x - lastX, dy = y - lastY;
+      if (Math.sqrt(dx*dx + dy*dy) >= 3) {
+        lastX = x; lastY = y;
+        gm.lastMousePos = { x, y };
+        if (gm.currentMode !== 'cursor') {
+          gm.checkLyrics(x, y, isTouch ? 45 : 35);
+        }
+      }
+    };
+
+    gm.gamecontainer.addEventListener('mousemove', e => {
+      if (!touched) handleMove(e.clientX, e.clientY, false);
+    });
+
+    gm.gamecontainer.addEventListener('touchstart', e => {
+      touched = true;
+      if (e.touches && e.touches[0] && gm.currentMode === 'cursor') {
+        lastX = e.touches[0].clientX;
+        lastY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    gm.gamecontainer.addEventListener('touchmove', e => {
+      if (!gm.isFirstInteraction && e.touches && e.touches[0]) {
+        e.preventDefault();
+        handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
+      }
+    }, { passive: false });
+
+    gm.gamecontainer.addEventListener('touchend', () => {
+      setTimeout(() => { touched = false; }, 300);
+    }, { passive: true });
+
+    gm.gamecontainer.addEventListener('click', e => {
+      if (gm.currentMode !== 'cursor') return;
+      gm.checkLyrics(e.clientX, e.clientY, 35);
+    });
+
+    const handleButtonClick = (event) => {
+      if (event) event.preventDefault();
+      if (!gm.apiLoaded) return;
+      if (gm.isFirstInteraction) {
+        if (gm.currentMode === 'body') {
+          gm.isFirstInteraction = false;
+          gm.countdownOverlay.classList.remove('hidden');
+          gm.countdownText.textContent = '全身が映るように調整してください';
+          return;
+        }
+        gm.playMusic();
+        return;
+      }
+      gm.togglePlay();
+    };
+
+    gm.playpause.addEventListener('click', handleButtonClick);
+    gm.playpause.addEventListener('touchend', handleButtonClick, { passive: false });
+
+    const handleRestartClick = (event) => {
+      if (event) event.preventDefault();
+      if (!gm.apiLoaded) return;
+      gm.restartGame();
+    };
+
+    gm.restart.addEventListener('click', handleRestartClick);
+    gm.restart.addEventListener('touchend', handleRestartClick, { passive: false });
+
+    document.addEventListener('dblclick', () => {
+      if (!gm.isFirstInteraction && !gm.resultsDisplayed) {
+        console.log('ダブルクリックによる結果表示');
+        gm.showResults();
+      }
+    });
+  }
+}
+
+// SRP: ビューポート・デバイス関連の責務
+class ViewportManager {
+  updateViewportHeight() {
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
   }
 }

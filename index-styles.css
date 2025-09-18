@@ -4,8 +4,7 @@ html, body {
     min-height: 100vh;
     margin: 0;
     padding: 0;
-    overflow-x: hidden; /* 横スクロールのみ無効化 */
-    overflow-y: auto; /* 縦スクロールを許可 */
+    overflow: hidden; /* スクロールバーを表示しない */
     background-color: black; /* 背景色 */
     -webkit-overflow-scrolling: touch; /* iOSのスムーズスクロール */
     display: flex;
@@ -18,48 +17,39 @@ body {
     cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="%2339C5BB"><circle cx="12" cy="12" r="10" /></svg>'), auto;
     overscroll-behavior: none;
     touch-action: manipulation;
-    min-height: -webkit-fill-available;
-    min-height: -moz-available;
-    min-height: fill-available;
+    min-height: 100vh;
     width: 100%;
     background-color: black; /* 背景色 */
     -webkit-font-smoothing: antialiased; /* フォントレンダリング改善 */
     -moz-osx-font-smoothing: grayscale; /* Firefox用フォントレンダリング */
-    padding-top: max(env(safe-area-inset-top), 15px);
-    padding-bottom: max(env(safe-area-inset-bottom), 15px);
+    padding-top: 15px;
+    padding-bottom: 15px;
 }
 
 html {
-    height: -webkit-fill-available;
-    height: -moz-available;
-    height: fill-available;
+    height: 100%;
     background-color: black; /* IE用の背景色設定 */
 }
 
 /* ブラウザバーの調整 - アドレスバーとの干渉を防ぐ */
 .browser-bar-adjust {
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 20px);
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
+    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
 }
 
 /* モバイルデバイス向けの調整 */
 @supports (-webkit-touch-callout: none) {
     body {
         /* iOS Safari向け */
-        height: -webkit-fill-available;
-        padding-top: max(env(safe-area-inset-top), 15px);
-        padding-bottom: max(env(safe-area-inset-bottom), 15px);
+        height: 100vh;
+        padding-top: 15px;
+        padding-bottom: 15px;
     }
 }
 
-/* ブラウザ固有の問題に対する修正 */
-@-moz-document url-prefix() {
-    body {
-        background-attachment: fixed; /* Firefox用の背景修正 */
-    }
-}
+/* Firefox向けの背景修正はデフォルト値に委ねる */
 
 @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
     /* IE10, IE11 用の修正 */
@@ -95,6 +85,18 @@ html {
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+}
+/* グリッドのフォールバック（Tailwindクラスが無い環境向け） */
+#song-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+}
+@media (min-width: 640px) {
+    #song-list {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
 }
 
 .song-item:hover, .song-item:focus {
@@ -152,10 +154,7 @@ html {
         padding-top: 10px;
     }
     
-    .py-12 {
-        padding-top: max(1rem, env(safe-area-inset-top));
-        padding-bottom: max(1rem, env(safe-area-inset-bottom));
-    }
+    .py-12 { padding-top: 1rem; padding-bottom: 1rem; }
 }
 
 @media screen and (max-height: 700px) {

@@ -53,7 +53,7 @@ function createSongItems() {
     
     songsData.forEach(song => {
         const li = document.createElement('li');
-        li.className = 'song-item bg-black/40 rounded-lg backdrop-blur-sm border border-miku/30';
+    li.className = 'song-item bg-black/40 rounded-lg backdrop-blur-sm border border-miku/30 w-full';
         li.dataset.songId = song.id;
         
         li.innerHTML = `

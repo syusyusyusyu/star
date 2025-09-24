@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Lyric Stage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        miku: '#39C5BB',
+                        mikuDark: '#2AA198',
+                        mikuLight: '#7FDBCA',
+                        darkBg: '#090A0F',
+                        gradientStart: '#1B2735',
+                    },
+                    animation: {
+                        'float': 'float 3s ease-in-out infinite',
+                        'pulse-miku': 'pulse-miku 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        'pulse-miku': {
+                            '0%, 100%': { opacity: 1, boxShadow: '0 0 20px 5px rgba(57, 197, 187, 0.7)' },
+                            '50%': { opacity: 0.7, boxShadow: '0 0 10px 2px rgba(57, 197, 187, 0.3)' },
+                        }
+                    },
+                    screens: {
+                        'xs': '480px',
+                        '3xl': '1920px',
+                    }
+                },
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="index-styles.css">
+</head>
+<body class="bg-gradient-to-b from-gradientStart to-darkBg min-h-screen w-full text-white browser-bar-adjust flex justify-center items-center">
+    <div id="stars-container" class="fixed top-0 left-0 w-full h-full z-0"></div>
+    
+    <!-- スポットライト -->
+    <div class="spotlight left-1/4 hidden sm:block"></div>
+    <div class="spotlight left-2/4 hidden sm:block" style="animation-delay: -3s;"></div>
+    <div class="spotlight left-3/4 hidden sm:block" style="animation-delay: -6s;"></div>
+    
+    <!-- メインコンテンツ -->
+    <div class="relative z-10 w-full max-w-xl flex flex-col items-center justify-center py-6 px-4 min-h-screen">
+        <!-- ロゴ -->
+        <div class="text-center mb-4 sm:mb-6">
+            <h1 class="text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-bold text-miku mb-2 tracking-wider">Lyric Stage</h1>
+        </div>
+        
+        <!-- 説明テキスト -->
+        <div class="max-w-md mx-auto text-center mb-4 sm:mb-6 bg-black/30 p-2 sm:p-2 rounded-lg backdrop-blur-sm">
+            <p class="text-white/90 text-sm sm:text-base">歌詞に触れてポイントを獲得しよう！</p>
+        </div>
+
+        <!-- モード選択 -->
+        <div id="mode-selection" class="mt-4 mb-6 text-center">
+            <label for="game-mode" class="text-white mr-2 text-lg">Playモード選択:</label>
+            <select id="game-mode" class="p-2 rounded bg-gray-700 text-white text-lg">
+                <option value="cursor">Cursorモード</option>
+                <option value="hand">Handモード</option>
+                <option value="body">Bodyモード</option>
+            </select>
+        </div>
+        
+        <!-- 曲選択 -->
+        <div class="max-w-lg w-full mx-auto">
+            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3" id="song-list">
+                <!-- 曲アイテムは動的に生成されます -->
+            </ul>
+        </div>
+    </div>
+    <script src="index-scripts.js"></script>
+</body>
+</html>

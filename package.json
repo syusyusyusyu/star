@@ -1,0 +1,15 @@
+{
+  "name": "lyric-stage",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.11.3",
+    "hono": "^4.5.7"
+  }
+}

@@ -151,3 +151,48 @@ Visual Studio Codeを使用している開発者には、「Live Server」拡張
 - 同じ文字が複数同時に出ても、それぞれ独立してヒット・ハイライトされる。
 - 微小なタイミングずれでも歌詞の表示取りこぼしが起きにくい。
 - 結合文字や全半角混在などの揺らぎに強くなる。
+
+---
+
+## Hono への移行（最小サーバー導入）
+
+将来的な API/バックエンド拡張を見据え、軽量フレームワーク Hono を用いた最小構成の Node サーバーを追加しました。これにより、以下が可能になります。
+
+- `index.html` や `game.html` を含む静的ファイルの配信（`http://localhost:3000/`）
+- シンプルな API エンドポイント（例: `GET /api/health`, `POST /api/echo`）
+- CORS/Logger/Powered-By などの基本ミドルウェア
+
+### 追加ファイル
+
+- `package.json`: 依存関係と起動スクリプト（`dev`, `start`）
+- `server.js`: Hono のエントリポイント（静的配信と最小 API）
+
+### セットアップと起動
+
+WSL もしくは Node.js 実行環境で以下を実行してください。
+
+```bash
+# 依存関係のインストール
+npm install
+
+# 開発モード（ファイル変更で自動再起動 / Node v20 以上推奨）
+npm run dev
+
+# もしくは通常起動
+npm start
+```
+
+起動後、ブラウザで以下にアクセスします。
+
+- `http://localhost:3000/` → `index.html` にリダイレクト
+- `http://localhost:3000/game.html` → ゲーム画面
+- `http://localhost:3000/api/health` → `{ "status": "ok" }`
+
+### 今後の拡張指針（例）
+
+- 認証/ユーザー管理: セッション or JWT（`hono/jwt`）の導入
+- スコア保存 API: `POST /api/scores` でスコア送信、`GET /api/scores/:userId` で取得
+- 永続化: SQLite/Prisma もしくは D1/Cloudflare KV への移行容易性を確保
+- デプロイ: Node ランタイム（VPS/Render/Fly）や Edge（Cloudflare Workers）へのデプロイ
+
+本サーバーは依存を最小限にしており、クライアント側のコード（Three.js, TextAlive, MediaPipe）はそのまま動作します。必要に応じて API への接続コードを `index-scripts.js` または `script.js` から追加していく想定です。

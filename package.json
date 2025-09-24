@@ -9,7 +9,9 @@
   },
   "scripts": {
     "dev": "NODE_ENV=development node server.mjs",
-    "start": "node server.mjs"
+    "start": "NODE_ENV=production node server.mjs",
+    "build": "node build.mjs",
+    "preview": "NODE_ENV=production PORT=4173 node server.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.11.0",

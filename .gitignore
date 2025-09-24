@@ -17,3 +17,8 @@ pnpm-debug.log*
 .vscode/
 .DS_Store
 
+# Keep docs/ (build output) tracked for GitHub Pages.
+# Ignore only transient files inside docs.
+docs/**/.DS_Store
+docs/**/Thumbs.db
+

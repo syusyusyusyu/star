@@ -16,6 +16,9 @@ function shouldExclude(absPath) {
   const parts = rel.split(path.sep)
   if (EXCLUDE_DIRS.has(parts[0])) return true
   if (parts.length === 1 && EXCLUDE_FILES.has(parts[0])) return true
+  // Exclude Markdown files anywhere
+  const ext = path.extname(absPath).toLowerCase()
+  if (ext === '.md' || ext === '.markdown') return true
   return false
 }
 

@@ -249,4 +249,56 @@ document.addEventListener('DOMContentLoaded', () => {
             songItem.classList.remove('animate-pulse-miku');
         }
     });
+
+    // === ヘルプモーダル ===
+    const helpModal = document.getElementById('help-modal');
+    const openHelpBtn = document.getElementById('open-help-btn');
+    const closeHelpBtn = document.getElementById('close-help-btn');
+    const closeHelpBtnTop = document.getElementById('close-help-btn-top');
+    const helpBackdrop = document.getElementById('help-backdrop');
+    let lastFocusedElement = null;
+
+    function openHelp() {
+        if (!helpModal) return;
+        lastFocusedElement = document.activeElement;
+        helpModal.classList.remove('hidden');
+        // フォーカス移動
+        const firstFocusable = helpModal.querySelector('button, [href], select, textarea, input, [tabindex]:not([tabindex="-1"])');
+        if (firstFocusable) firstFocusable.focus();
+        document.addEventListener('keydown', handleKeydown);
+    }
+
+    function closeHelp() {
+        if (!helpModal) return;
+        helpModal.classList.add('hidden');
+        document.removeEventListener('keydown', handleKeydown);
+        if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+            lastFocusedElement.focus();
+        }
+    }
+
+    function handleKeydown(e) {
+        if (e.key === 'Escape') {
+            closeHelp();
+        } else if (e.key === 'Tab') {
+            // フォーカストラップ
+            const focusables = Array.from(helpModal.querySelectorAll('button, [href], select, textarea, input, [tabindex]:not([tabindex="-1"])'))
+                .filter(el => !el.disabled && !el.classList.contains('hidden'));
+            if (focusables.length === 0) return;
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+    }
+
+    openHelpBtn?.addEventListener('click', openHelp);
+    closeHelpBtn?.addEventListener('click', closeHelp);
+    closeHelpBtnTop?.addEventListener('click', closeHelp);
+    helpBackdrop?.addEventListener('click', closeHelp);
 });

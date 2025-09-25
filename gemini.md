@@ -1,3 +1,5 @@
+<!-- cSpell:disable -->
+<!-- markdownlint-disable MD013 MD026 MD033 MD034 -->
 # Lyric Stage
 
 ## プロジェクト概要
@@ -132,7 +134,6 @@ Visual Studio Codeを使用している開発者には、「Live Server」拡張
     - 効果: 濁点/結合文字の揺らぎによる不一致や判定漏れを低減。
 
 - 重複テキストの表示と紐付けの堅牢化
-    - 同一文字の同時表示を許可（a.js は重複を抑止）。
     - 鑑賞用歌詞の対応付けキーを「文字列」から「DOM要素（gameBubble）」へ変更。
     - 効果: 同一文字が連続・多発しても、正しく個別にハイライト可能。
 
@@ -196,3 +197,27 @@ npm start
 - デプロイ: Node ランタイム（VPS/Render/Fly）や Edge（Cloudflare Workers）へのデプロイ
 
 本サーバーは依存を最小限にしており、クライアント側のコード（Three.js, TextAlive, MediaPipe）はそのまま動作します。必要に応じて API への接続コードを `index-scripts.js` または `script.js` から追加していく想定です。
+
+## 表示仕様更新（鑑賞/応援用テキストの無効化）
+
+画面左上に重ねていた「鑑賞/応援 viewer 歌詞テキスト」は、視認性向上のためデフォルト無効化しました。プレイ対象となる下部・中央へ飛来する歌詞バブル（判定用）は従来通り表示されます。
+
+実装ポイント:
+- `GameManager` コンストラクタ内で `this.enableViewerLyrics = false;`
+- `LyricsRenderer.displayLyric()` でフラグ判定し `displayViewerLyric()` を呼ばない
+- フラグが false の場合は viewer 用 DOM コンテナを生成しない
+
+再有効化: 上記フラグを true に戻すだけで機能復活（コードは削除していません）。
+
+効果:
+- 余分なテキストノイズ削減 → プレイ歌詞の可読性向上
+- DOM 要素減による軽微なレンダリング/レイアウト負荷低下
+- 将来的な「鑑賞モード」機能拡張時に再利用可能（トグル運用）
+
+## 用語メモ / スペル & Lint 抑制
+
+<!-- cSpell:ignore TextAlive MediaPipe penlight penlights Hono WebGL JWT Prisma pose landmarks segmentation fallback viewer -->
+<!-- markdownlint-disable MD033 MD034 -->
+固有名詞: Lyric Stage / TextAlive / MediaPipe Pose / MediaPipe Hands / Selfie Segmentation / Three.js / WebGL / Hono / JWT / SQLite / Prisma / Penlight / Viewer Lyrics / Fallback Mode
+
+（エディタのスペルチェックで警告が出やすい語を cSpell ignore に登録。追加が必要になったらこのコメント行へ追記してください。）

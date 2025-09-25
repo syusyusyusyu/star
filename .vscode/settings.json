@@ -1,3 +1,29 @@
 {
-    "liveServer.settings.port": 5501
+    "liveServer.settings.port": 5501,
+    "cSpell.language": "en,ja",
+    "cSpell.enabled": true,
+    "cSpell.words": [
+        "TextAlive",
+        "MediaPipe",
+        "penlight",
+        "penlights",
+        "Hono",
+        "WebGL",
+        "JWT",
+        "Prisma",
+        "SQLite",
+        "pose",
+        "landmarks",
+        "segmentation",
+        "fallback",
+        "viewer",
+        "Lyric",
+        "LyricStage"
+    ],
+    "markdownlint.config": {
+        "MD013": false,
+        "MD026": false,
+        "MD033": false,
+        "MD034": false
+    }
 }

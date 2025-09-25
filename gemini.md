@@ -1,5 +1,3 @@
-<!-- cSpell:disable -->
-<!-- markdownlint-disable MD013 MD026 MD033 MD034 -->
 # Lyric Stage
 
 ## プロジェクト概要

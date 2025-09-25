@@ -222,19 +222,3 @@ npm start
 - デプロイ: Node ランタイム（VPS/Render/Fly）や Edge（Cloudflare Workers）へのデプロイ
 
 本サーバーは依存を最小限にしており、クライアント側のコード（Three.js, TextAlive, MediaPipe）はそのまま動作します。必要に応じて API への接続コードを `index-scripts.js` または `script.js` から追加していく想定です。
-
-## 表示仕様更新（鑑賞/応援用テキストの無効化）
-
-画面左上に重ねていた「鑑賞/応援 viewer 歌詞テキスト」は、視認性向上のためデフォルト無効化しました。プレイ対象となる下部・中央へ飛来する歌詞バブル（判定用）は従来通り表示されます。
-
-実装ポイント:
-- `GameManager` コンストラクタ内で `this.enableViewerLyrics = false;`
-- `LyricsRenderer.displayLyric()` でフラグ判定し `displayViewerLyric()` を呼ばない
-- フラグが false の場合は viewer 用 DOM コンテナを生成しない
-
-再有効化: 上記フラグを true に戻すだけで機能復活（コードは削除していません）。
-
-効果:
-- 余分なテキストノイズ削減 → プレイ歌詞の可読性向上
-- DOM 要素減による軽微なレンダリング/レイアウト負荷低下
-- 将来的な「鑑賞モード」機能拡張時に再利用可能（トグル運用）

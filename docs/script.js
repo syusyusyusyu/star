@@ -612,8 +612,6 @@ class GameManager {
       });
     });
     
-  // 観客のランダムテキスト機能は削除
-    
     // コンボをリセットするタイマー（30秒間何も取らなかったらコンボリセット）
     this.comboResetTimer = setInterval(() => {
       if (Date.now() - (this.lastScoreTime || 0) > 30000 && this.combo > 0) {
@@ -677,7 +675,6 @@ class GameManager {
             console.error("Pause error:", e);
           }
         }
-  // 観客のランダムテキスト機能は削除
         
         // 一時停止時にタイマーを停止
         if (this.resultCheckTimer) {
@@ -705,8 +702,6 @@ class GameManager {
           const remainingTime = Math.max(1000, 60000 - elapsedTime);
           this.setupResultCheckTimer(remainingTime);
         }
-        
-  // 観客のランダムテキスト機能は削除
       }
     } finally {
       // 操作が完全に完了するのを確実にするために長めの遅延を使用
@@ -1082,7 +1077,7 @@ class GameManager {
     this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.songStartTime = Date.now(); // 曲の開始時間を記録
-  this._lyricScanIndex = 0;
+    this._lyricScanIndex = 0;
     
     const checkLyrics = () => {
       // プレーヤーモード、一時停止中、または初回インタラクション前なら処理しない

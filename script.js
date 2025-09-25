@@ -86,11 +86,17 @@ class GameManager {
     this.finishWatchInterval = null; // onFinish未発火監視用（既存）
     this.finishFallbackTimeout = null; // 最終フォールバック用タイマー（新規）
 
-    // 鑑賞用歌詞表示のための追加設定
-    this.displayedViewerLyrics = new Map(); // 表示済み鑑賞用歌詞を追跡
-    this.viewerLyricsContainer = document.createElement('div');
-    this.viewerLyricsContainer.className = 'viewer-lyrics-container';
-    this.gamecontainer.appendChild(this.viewerLyricsContainer);
+    // 鑑賞用歌詞（左上に流れる応援/閲覧用テキスト）機能
+    // 要望によりデフォルト無効化（再度有効にしたい場合は true に変更）
+    this.enableViewerLyrics = true;
+    this.displayedViewerLyrics = new Map();
+    if (this.enableViewerLyrics) {
+      this.viewerLyricsContainer = document.createElement('div');
+      this.viewerLyricsContainer.className = 'viewer-lyrics-container';
+      this.gamecontainer.appendChild(this.viewerLyricsContainer);
+    } else {
+      this.viewerLyricsContainer = null;
+    }
 
   // SRP: レンダリング/結果表示を専任クラスに委譲
   this.lyricsRenderer = new LyricsRenderer(this);
@@ -1309,9 +1315,11 @@ class GameManager {
     this.lastScoreTime = Date.now();
 
     // 対応する鑑賞用歌詞もハイライト（要素キー）
-    const viewerEl = this.displayedViewerLyrics.get(element);
-    if (viewerEl) {
-      viewerEl.classList.add('highlighted');
+    if (this.enableViewerLyrics) {
+      const viewerEl = this.displayedViewerLyrics.get(element);
+      if (viewerEl) {
+        viewerEl.classList.add('highlighted');
+      }
     }
   // アクティブ集合から外す（次の判定から除外）
   this.activeLyricBubbles.delete(element);
@@ -1374,7 +1382,9 @@ class GameManager {
     }
 
     // 鑑賞用歌詞のクリーンアップ
-    this.viewerLyricsContainer.innerHTML = '';
+    if (this.viewerLyricsContainer) {
+      this.viewerLyricsContainer.innerHTML = '';
+    }
     this.displayedViewerLyrics.clear();
   }
 }
@@ -1605,11 +1615,15 @@ class LyricsRenderer {
       bubble.remove();
     }, 8000);
 
-    this.displayViewerLyric(norm, bubble);
+    // 左上の鑑賞用テキストは無効化フラグで制御
+    if (this.game.enableViewerLyrics) {
+      this.displayViewerLyric(norm, bubble);
+    }
     return bubble;
   }
 
   displayViewerLyric(text, gameBubble) {
+    if (!this.game.enableViewerLyrics || !this.game.viewerLyricsContainer) return;
     if (this.game.displayedViewerLyrics.has(gameBubble)) return;
 
     const viewerChar = document.createElement('span');

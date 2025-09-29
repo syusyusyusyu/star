@@ -264,14 +264,14 @@ class GameManager {
                         this.checkFullBodyDetection(flippedLandmarks);
                     }
 
-                    const rightHand = flippedLandmarks[20]; // 右手首
+                    const rightHand = flippedLandmarks[16]; // 右手首 (Pose: 16)
                     if (rightHand) {
                         const x = rightHand.x * window.innerWidth;
                         const y = rightHand.y * window.innerHeight;
                         this.checkLyrics(x, y, 80);
                     }
 
-                    const leftHand = flippedLandmarks[19]; // 左手首
+                    const leftHand = flippedLandmarks[15]; // 左手首 (Pose: 15)
                     if (leftHand) {
                         const x = leftHand.x * window.innerWidth;
                         const y = leftHand.y * window.innerHeight;
@@ -731,6 +731,8 @@ class GameManager {
     this.score = this.combo = this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.songStartTime = Date.now(); // 曲の開始時間をリセット
+  this._lyricScanIndex = 0; // 歌詞インデックスをリセット
+  this._lastLyricsPosition = 0;
     this.isPaused = false;
     this.scoreEl.textContent = '0';
     this.comboEl.textContent = `コンボ: 0`;
@@ -858,6 +860,12 @@ class GameManager {
         onPlay: () => {
           this.isPaused = false;
           this.playpause.textContent = '一時停止';
+          // 再生開始位置に歌詞インデックスを同期
+          try {
+            const pos = this.player?.timer?.position || 0;
+            this.syncLyricIndexToPosition(pos);
+            this._lastLyricsPosition = pos;
+          } catch {}
           // 観客のランダムテキスト機能は削除
           // 終了検出フォールバック監視（既存があればクリア）
           if (this.finishWatchInterval) clearInterval(this.finishWatchInterval);
@@ -1044,6 +1052,13 @@ class GameManager {
   updateLyrics(position) {
     if (this.isPaused || this.isFirstInteraction) return;
 
+    // 再生位置が巻き戻った場合は歌詞インデックスを再同期
+    if (this._lastLyricsPosition != null && position < this._lastLyricsPosition - 500) {
+      this.syncLyricIndexToPosition(position);
+      this.displayedLyrics.clear();
+    }
+    this._lastLyricsPosition = position;
+
     if (this._lyricScanIndex == null) this._lyricScanIndex = 0;
     const len = this.lyricsData.length;
     // 歌詞が時間順である前提（TextAliveの特性）。念のため遅延の幅は500msを許容
@@ -1051,14 +1066,34 @@ class GameManager {
       const l = this.lyricsData[this._lyricScanIndex];
       if (l.time > position) break; // まだ先の歌詞
       if (!this.displayedLyrics.has(this._lyricScanIndex) && l.time > position - 500) {
+        const idx = this._lyricScanIndex; // クロージャで値が変わらないよう固定
         this.displayLyric(l.text);
-        this.displayedLyrics.add(this._lyricScanIndex);
+        this.displayedLyrics.add(idx);
         setTimeout(() => {
-          this.displayedLyrics.delete(this._lyricScanIndex);
+          this.displayedLyrics.delete(idx);
         }, Math.min(8000, Math.max(3000, l.displayDuration)));
       }
       this._lyricScanIndex++;
     }
+  }
+
+  /**
+   * 現在位置に最も近い歌詞インデックスへ同期する
+   * @param {number} position
+   */
+  syncLyricIndexToPosition(position) {
+    if (!this.lyricsData || this.lyricsData.length === 0) {
+      this._lyricScanIndex = 0;
+      return;
+    }
+    // 二分探索でpositionに対応する先頭インデックスを探す
+    let lo = 0, hi = this.lyricsData.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.lyricsData[mid].time <= position) lo = mid + 1; else hi = mid;
+    }
+    // lo は position を超える最初の要素の位置 → 直前の歌詞から再開
+    this._lyricScanIndex = Math.max(0, lo - 1);
   }
 
   /**

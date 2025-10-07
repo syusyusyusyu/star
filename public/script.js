@@ -2004,8 +2004,3 @@ class ViewportManager {
     document.documentElement.style.setProperty('--vh', `${vh}px`);
   }
 }
-
-// GameManagerをグローバルに公開（React統合のため）
-if (typeof window !== 'undefined') {
-  window.GameManager = GameManager;
-}

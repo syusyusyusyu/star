@@ -1,138 +1,25 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Lyric Stage</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        miku: '#39C5BB',
-                        mikuDark: '#2AA198',
-                        mikuLight: '#7FDBCA',
-                        'miku-300': '#7FDBCA',
-                        'miku-400': '#39C5BB',
-                        'miku-500': '#2AA198',
-                        'miku-600': '#1E756F',
-                        darkBg: '#090A0F',
-                        gradientStart: '#1B2735',
-                        'space-700': '#1E2430',
-                        'space-800': '#12161D',
-                    },
-                    animation: {
-                        'float': 'float 3s ease-in-out infinite',
-                        'pulse-miku': 'pulse-miku 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-10px)' },
-                        },
-                        'pulse-miku': {
-                            '0%, 100%': { opacity: 1, boxShadow: '0 0 20px 5px rgba(57, 197, 187, 0.7)' },
-                            '50%': { opacity: 0.7, boxShadow: '0 0 10px 2px rgba(57, 197, 187, 0.3)' },
-                        }
-                    },
-                    screens: {
-                        'xs': '480px',
-                        '3xl': '1920px',
-                    }
-                },
-            }
-        }
-    </script>
-    <link rel="stylesheet" href="index-styles.css">
-</head>
-<body class="bg-gradient-to-b from-gradientStart to-darkBg min-h-screen w-full text-white browser-bar-adjust flex justify-center items-center">
-    <div id="stars-container" class="fixed top-0 left-0 w-full h-full z-0"></div>
     
-    <!-- メインコンテンツ -->
-    <div class="relative z-10 w-full max-w-xl flex flex-col items-center justify-center py-6 px-4 min-h-screen">
-        <!-- ロゴ -->
-        <div class="text-center mb-4 sm:mb-6">
-            <h1 class="text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-bold text-miku mb-2 tracking-wider">Lyric Stage</h1>
-        </div>
-        
-        <!-- 説明テキスト -->
-        <div class="max-w-md mx-auto text-center mb-4 sm:mb-6 bg-black/30 p-2 sm:p-2 rounded-lg backdrop-blur-sm">
-            <p class="text-white/90 text-sm sm:text-base">歌詞に触れてポイントを獲得しよう！</p>
-        </div>
-
-        <!-- モード選択 -->
-        <div id="mode-selection" class="mt-4 mb-6 text-center">
-            <label for="game-mode" class="text-white mr-2 text-lg">Playモード選択:</label>
-            <select id="game-mode" class="p-2 rounded bg-gray-700 text-white text-lg">
-                <option value="cursor">Cursorモード</option>
-                <option value="hand">Handモード</option>
-                <option value="body">Bodyモード</option>
-            </select>
-        </div>
-        
-        <!-- 曲選択 -->
-        <div class="max-w-lg w-full mx-auto">
-            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3" id="song-list">
-                <!-- 曲アイテムは動的に生成されます -->
-            </ul>
-        </div>
-    </div>
+    <!-- MediaPipe と Three.js - 先に読み込む -->
+    <script src="https://unpkg.com/textalive-app-api/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
     
-    <!-- ヘルプボタン（右下固定） -->
-    <button id="open-help-btn" class="fixed bottom-4 right-4 bg-miku-400 hover:bg-miku-300 text-white font-semibold px-4 py-2 rounded-lg shadow-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-miku-500 miku-glow z-20">
-        ルール説明
-    </button>
-
-    <!-- ヘルプモーダル -->
-    <div id="help-modal" class="hidden fixed inset-0 z-30">
-        <!-- 背景 -->
-        <div id="help-backdrop" class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
-        <!-- コンテンツ -->
-        <div class="absolute inset-0 flex items-center justify-center p-4">
-            <div class="w-full max-w-3xl max-h-[85vh] overflow-y-auto space-y-4 p-6 rounded-xl bg-space-800/90 border border-miku-400 shadow-2xl animate-fade-in text-sm leading-relaxed">
-                <div class="flex justify-between items-start mb-2">
-                    <h2 class="text-2xl font-bold text-miku-300">ルール説明</h2>
-                    <button id="close-help-btn-top" class="text-miku-300 hover:text-miku-100 transition text-xl px-2">×</button>
-                </div>
-                <!-- セクション: 基本操作 -->
-                <section class="p-4 bg-space-800 bg-opacity-80 rounded-lg border border-miku-400">
-                    <h3 class="font-medium text-miku-300 mb-1.5">基本操作</h3>
-                    <p>このゲームでは、選択した曲の歌詞がタイミングに合わせて流れてきます。歌詞に触れてスコアとコンボを伸ばしましょう。</p>
-                </section>
-                <section>
-                    <h3 class="font-medium text-miku-300 mb-2 flex items-center gap-2">🛰️ 操作手順</h3>
-                    <ol class="list-decimal pl-6 space-y-2 text-miku-100">
-                        <li>プレイモードを選択（PCなら Hand / Body も使用可）。</li>
-                        <li>曲リストから曲を選び「プレイ」を押す。</li>
-                        <li>歌詞が表示されたらモードに応じてヒット（クリック / 手 / 体）。</li>
-                        <li>タイミングよく全てヒットしてコンボを伸ばす。</li>
-                        <li>曲終了後にスコアとランクを確認。</li>
-                    </ol>
-                </section>
-                <!-- 表示説明 -->
-                <section>
-                    <h3 class="font-medium text-miku-300 mb-2 flex items-center gap-2">🎛️ 表示の説明</h3>
-                    <ul class="list-disc pl-6 space-y-2 text-miku-100">
-                        <li>歌詞バブル: タイミングに合わせて出現・移動。</li>
-                        <li>スコア / コンボ: 画面上部に表示。</li>
-                        <li>モード別入力: Cursor=クリック / Hand=指の先 / Body=腕や手。</li>
-                    </ul>
-                </section>
-                <!-- モバイル操作 -->
-                <section class="p-4 bg-space-800 bg-opacity-80 rounded-lg border border-miku-400">
-                    <h3 class="font-medium text-miku-300 mb-2 flex items-center gap-2">📱 モバイル操作</h3>
-                    <ul class="list-disc pl-6 space-y-1 text-miku-100 text-sm">
-                        <li>モードは Cursor に固定（軽量化のため）。</li>
-                        <li>歌詞をタップしてスコア獲得。</li>
-                    </ul>
-                </section>
-                <div class="mt-4 flex justify-end">
-                    <button id="close-help-btn" class="inline-flex items-center px-5 py-2.5 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-miku-400 to-miku-600 hover:from-miku-300 hover:to-miku-500 focus:outline-none focus:ring-2 focus:ring-miku-500 transition-all duration-200 transform hover:scale-105 miku-glow">閉じる</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <script src="index-scripts.js"></script>
-</body>
+    <!-- ゲームスクリプト（GameManagerなど） - 最後に読み込む -->
+    <script src="/script.js"></script>
+    <script type="module" crossorigin src="/assets/index-DzcNgfoi.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DCIsK3cf.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>

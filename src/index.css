@@ -1,6 +1,0 @@
-@import './styles/index.css';
-@import './styles/game.css';
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;

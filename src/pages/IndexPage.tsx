@@ -190,7 +190,7 @@ export default function IndexPage() {
         
         {/* 曲選択（セットリスト風） */}
         <div className="w-full">
-          <h2 className="text-center text-lg font-bold text-white mb-3 setlist-header">本日の楽曲リスト</h2>
+          <h2 className="text-center text-lg font-bold text-white mb-3 setlist-header">楽曲リスト</h2>
           <div className="max-h-[32vh] overflow-y-auto pr-2 compact-scrollbar">
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2" id="song-list">
             {songsData.map((song, index) => (

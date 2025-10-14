@@ -1714,6 +1714,15 @@ class ResultsManager {
       this.game.resultCheckTimer = null;
     }
 
+    // 曲終了時に画面上の全ての歌詞を即座に削除
+    console.log('画面上の歌詞を全て削除します');
+    const allLyricElements = document.querySelectorAll('.lyric');
+    allLyricElements.forEach(lyric => {
+      lyric.remove();
+    });
+    // 表示済みリストもクリア
+    this.game.displayedLyrics.clear();
+
     this.game.maxCombo = Math.max(this.game.maxCombo || 0, this.game.combo);
 
     let rank = 'C';

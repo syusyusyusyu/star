@@ -136,11 +136,11 @@ export default function IndexPage() {
         <div className="text-center mb-4">
           <div className="neon-sign-container">
             <h1 className="neon-text text-4xl sm:text-5xl md:text-6xl font-bold mb-2 tracking-wider">
-              Lyric Stage
+              リリステ
             </h1>
             <div className="neon-underline"></div>
           </div>
-          <p className="live-subtitle mt-2 text-sm sm:text-base">Rhythm Game</p>
+          <p className="live-subtitle mt-2 text-sm sm:text-base">Lyric Stage</p>
         </div>
         
         {/* ライブ情報バナー（コンパクト版） */}

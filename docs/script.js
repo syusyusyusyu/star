@@ -1056,26 +1056,50 @@ class GameManager {
     if (this.isPaused || this.isFirstInteraction) return;
 
     // 再生位置が巻き戻った場合は歌詞インデックスを再同期
-    if (this._lastLyricsPosition != null && position < this._lastLyricsPosition - 500) {
+    if (this._lastLyricsPosition != null && position < this._lastLyricsPosition - 1000) {
       this.syncLyricIndexToPosition(position);
+      // 巻き戻し時は表示済みリストをクリア
       this.displayedLyrics.clear();
     }
     this._lastLyricsPosition = position;
 
     if (this._lyricScanIndex == null) this._lyricScanIndex = 0;
     const len = this.lyricsData.length;
-    // 歌詞が時間順である前提（TextAliveの特性）。念のため遅延の幅は500msを許容
-    while (this._lyricScanIndex < len) {
+    
+    // パフォーマンス対策: 1フレームあたりの処理数を制限（フリーズ防止）
+    let processedCount = 0;
+    const maxProcessPerFrame = 5; // 1フレームで最大5個まで処理（さらに削減）
+    
+    // 歌詞が時間順である前提（TextAliveの特性）
+    while (this._lyricScanIndex < len && processedCount < maxProcessPerFrame) {
       const l = this.lyricsData[this._lyricScanIndex];
-      if (l.time > position) break; // まだ先の歌詞
-      if (!this.displayedLyrics.has(this._lyricScanIndex) && l.time > position - 500) {
-        const idx = this._lyricScanIndex; // クロージャで値が変わらないよう固定
-        this.displayLyric(l.text);
-        this.displayedLyrics.add(idx);
-        setTimeout(() => {
-          this.displayedLyrics.delete(idx);
-        }, Math.min(8000, Math.max(3000, l.displayDuration)));
+      
+      // 未来の歌詞ならば処理終了
+      if (l.time > position + 200) break;
+      
+      // 一意なキーを生成（時刻ベース - 重複を確実に防ぐ）
+      const lyricKey = `${l.time}_${l.text}`;
+      
+      // 既に表示済みの場合はスキップ
+      if (this.displayedLyrics.has(lyricKey)) {
+        this._lyricScanIndex++;
+        continue;
       }
+      
+      // 現在時刻から-200ms～+200msの範囲の歌詞のみ表示
+      // ※範囲を広げすぎると曲終盤で大量表示される
+      if (l.time >= position - 200 && l.time <= position + 200) {
+        this.displayLyric(l.text);
+        this.displayedLyrics.add(lyricKey);
+        
+        // 一定時間後に表示済みフラグを削除（メモリリーク防止）
+        setTimeout(() => {
+          this.displayedLyrics.delete(lyricKey);
+        }, 10000); // 10秒後に削除
+        
+        processedCount++;
+      }
+      
       this._lyricScanIndex++;
     }
   }
@@ -1602,6 +1626,18 @@ class LyricsRenderer {
 
   displayLyric(text) {
     if (text == null) return;
+    
+    // パフォーマンス対策: 画面上の歌詞が多すぎる場合は新規表示を制限
+    const maxLyricsOnScreen = 50; // 画面上に最大50個まで
+    if (this.game.activeLyricBubbles.size >= maxLyricsOnScreen) {
+      // 古い歌詞を削除
+      const oldestBubble = Array.from(this.game.activeLyricBubbles)[0];
+      if (oldestBubble) {
+        this.game.activeLyricBubbles.delete(oldestBubble);
+        oldestBubble.remove();
+      }
+    }
+    
     const norm = String(text).normalize('NFC');
 
     const bubble = document.createElement('div');
@@ -1714,14 +1750,27 @@ class ResultsManager {
       this.game.resultCheckTimer = null;
     }
 
-    // 曲終了時に画面上の全ての歌詞を即座に削除
+    // 曲終了時に画面上の全ての歌詞を即座に削除（最適化版）
     console.log('画面上の歌詞を全て削除します');
-    const allLyricElements = document.querySelectorAll('.lyric');
-    allLyricElements.forEach(lyric => {
-      lyric.remove();
+    
+    // activeLyricBubblesから直接削除（より効率的）
+    this.game.activeLyricBubbles.forEach(bubble => {
+      bubble.remove();
     });
+    this.game.activeLyricBubbles.clear();
+    
+    // クラス名で検索して念のため残っている要素も削除
+    const allLyricElements = document.querySelectorAll('.lyric-bubble');
+    if (allLyricElements.length > 0) {
+      console.log(`残留歌詞要素を削除: ${allLyricElements.length}個`);
+      allLyricElements.forEach(lyric => {
+        lyric.remove();
+      });
+    }
+    
     // 表示済みリストもクリア
     this.game.displayedLyrics.clear();
+    this.game.displayedViewerLyrics.clear();
 
     this.game.maxCombo = Math.max(this.game.maxCombo || 0, this.game.combo);
 

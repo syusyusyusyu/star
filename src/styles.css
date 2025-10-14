@@ -292,29 +292,56 @@ body {
 }
 
 .results-buttons button {
-    background-color: rgba(57, 197, 187, 0.8);
-    border: 2px solid transparent;
+    background: linear-gradient(135deg, rgba(57, 197, 187, 0.9), rgba(57, 197, 187, 0.7));
+    border: 2px solid rgba(57, 197, 187, 0.5);
     color: white;
-    padding: 12px 30px;
+    padding: 14px 36px;
     border-radius: 30px;
     cursor: pointer;
     font-size: 18px;
-    transition: all 0.3s;
-    box-shadow: 0 0 15px rgba(57, 197, 187, 0.6);
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(57, 197, 187, 0.4);
     appearance: none;
     -webkit-appearance: none;
     -webkit-tap-highlight-color: transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.results-buttons button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.results-buttons button:hover::before {
+    width: 300px;
+    height: 300px;
 }
 
 .results-buttons button:hover {
-    background-color: rgba(57, 197, 187, 1);
-    transform: scale(1.05);
-    box-shadow: 0 0 20px rgba(57, 197, 187, 0.9);
-    border-color: white;
+    background: linear-gradient(135deg, rgba(57, 197, 187, 1), rgba(57, 197, 187, 0.9));
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 25px rgba(57, 197, 187, 0.6);
+    border-color: rgba(255, 255, 255, 0.8);
 }
 
 .results-buttons button:active {
-    transform: scale(0.95);
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 10px rgba(57, 197, 187, 0.4);
+}
+
+.results-buttons button:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.8);
+    outline-offset: 3px;
 }
 
 .hidden {
@@ -338,16 +365,21 @@ body {
 }
 
 .results-container {
-    background-color: rgba(28, 28, 45, 0.9);
-    border-radius: 15px;
-    padding: 20px;
-    width: 80%;
-    max-width: 500px;
+    background: linear-gradient(135deg, rgba(28, 28, 45, 0.95), rgba(20, 20, 35, 0.95));
+    border-radius: 20px;
+    border: 2px solid rgba(57, 197, 187, 0.3);
+    padding: 30px;
+    width: 90%;
+    max-width: 600px;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: 0 0 20px rgba(81, 207, 255, 0.6);
+    box-shadow: 0 10px 40px rgba(57, 197, 187, 0.4), 
+                0 0 80px rgba(57, 197, 187, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    animation: resultsFadeIn 0.5s ease-out;
 }
 
 .results-container h2 {
@@ -496,6 +528,42 @@ body {
 @keyframes floatMiku {
     0% { transform: translateY(0); }
     100% { transform: translateY(-20px); }
+}
+
+@keyframes resultsFadeIn {
+    from { 
+        opacity: 0; 
+        transform: scale(0.9) translateY(20px);
+    }
+    to { 
+        opacity: 1; 
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes scoreCountUp {
+    from { 
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    to { 
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes rankReveal {
+    0% {
+        opacity: 0;
+        transform: rotateY(90deg) scale(0.5);
+    }
+    50% {
+        transform: rotateY(-10deg) scale(1.1);
+    }
+    100% {
+        opacity: 1;
+        transform: rotateY(0) scale(1);
+    }
 }
 
 /* モバイル対応を完全に削除 - デスクトップのみ対応 */

@@ -213,7 +213,7 @@ export default function IndexPage() {
                 <p>このゲームでは、選択した曲の歌詞がタイミングに合わせて流れてきます。歌詞に触れてスコアとコンボを伸ばしましょう。</p>
               </section>
               <section>
-                <h3 className="font-medium text-miku-300 mb-2 flex items-center gap-2">🛰️ 操作手順</h3>
+                <h3 className="font-medium text-miku-300 mb-2">操作手順</h3>
                 <ol className="list-decimal pl-6 space-y-2 text-miku-100">
                   <li>プレイモードを選択（PCなら Hand / Body も使用可）。</li>
                   <li>曲リストから曲を選び「プレイ」を押す。</li>
@@ -224,7 +224,7 @@ export default function IndexPage() {
               </section>
               {/* 表示説明 */}
               <section>
-                <h3 className="font-medium text-miku-300 mb-2 flex items-center gap-2">🎛️ 表示の説明</h3>
+                <h3 className="font-medium text-miku-300 mb-2">表示の説明</h3>
                 <ul className="list-disc pl-6 space-y-2 text-miku-100">
                   <li>歌詞バブル: タイミングに合わせて出現・移動。</li>
                   <li>スコア / コンボ: 画面上部に表示。</li>

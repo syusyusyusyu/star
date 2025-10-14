@@ -23,17 +23,90 @@
     <div id="countdown-overlay" class="fixed top-0 left-0 w-full h-full flex justify-center items-center bg-black bg-opacity-70 z-[1000] hidden">
         <span id="countdown-text" class="text-white text-9xl font-bold"></span>
     </div>
+    <!-- ライブ会場背景 -->
     <div id="live-background" class="fixed top-0 left-0 w-full h-full z-[-1]">
+        <!-- ステージエリア（上部3/5） -->
         <div id="stage-area" class="absolute top-0 left-0 w-full h-3/5 bg-gray-900 overflow-hidden flex justify-center items-end">
-            <!-- Stage Floor -->
-            <div class="w-full h-1/4 bg-black/30" style="perspective: 50px;"><div class="w-full h-full bg-gray-700" style="transform: rotateX(30deg);"></div></div>
-            <!-- Stage Lights -->
+            <!-- ステージ床 -->
+            <div class="w-full h-1/4 bg-black/30" style="perspective: 50px;">
+                <div class="w-full h-full bg-gray-700" style="transform: rotateX(30deg);"></div>
+            </div>
+            
+            <!-- ステージライト（パルス） -->
             <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[200%] h-[200px] bg-gradient-to-t from-purple-600/30 to-transparent rounded-[100%] animate-pulse"></div>
-            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[150%] h-[150px] bg-gradient-to-t from-blue-500/40 to-transparent rounded-[100%]" style="animation-delay: 500ms;"></div>
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[150%] h-[150px] bg-gradient-to-t from-blue-500/40 to-transparent rounded-[100%]" style="animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; animation-delay: 500ms;"></div>
+            
+            <!-- 追加: 回転スポットライト -->
+            <div class="absolute top-10 left-1/4 w-48 h-48 bg-gradient-radial from-cyan-400/20 via-cyan-400/10 to-transparent rounded-full blur-3xl" style="animation: rotateSpotlight1 20s linear infinite;"></div>
+            <div class="absolute top-10 right-1/4 w-48 h-48 bg-gradient-radial from-pink-400/20 via-pink-400/10 to-transparent rounded-full blur-3xl" style="animation: rotateSpotlight2 25s linear infinite;"></div>
+            <div class="absolute top-10 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-radial from-purple-400/20 via-purple-400/10 to-transparent rounded-full blur-3xl" style="animation: rotateSpotlight3 18s linear infinite;"></div>
+            
+            <!-- 追加: レーザービーム -->
+            <div class="absolute top-0 w-0.5 h-full bg-gradient-to-b from-transparent via-cyan-400 to-transparent opacity-30" style="left: 20%; box-shadow: 0 0 10px #39C5BB; animation: laserBeam1 4s ease-in-out infinite;"></div>
+            <div class="absolute top-0 w-0.5 h-full bg-gradient-to-b from-transparent via-pink-400 to-transparent opacity-30" style="left: 50%; box-shadow: 0 0 10px #FF69B4; animation: laserBeam2 4s ease-in-out infinite 1.3s;"></div>
+            <div class="absolute top-0 w-0.5 h-full bg-gradient-to-b from-transparent via-cyan-400 to-transparent opacity-30" style="left: 80%; box-shadow: 0 0 10px #39C5BB; animation: laserBeam3 4s ease-in-out infinite 2.6s;"></div>
         </div>
-        <div id="audience-area" class="absolute bottom-0 left-0 w-full h-2/5">
+        
+        <!-- 観客エリア（下部2/5） -->
+        <div id="audience-area" class="absolute bottom-0 left-0 w-full h-2/5 bg-gradient-to-t from-black via-gray-900/80 to-transparent">
+            <!-- 観客シルエット -->
+            <div class="absolute bottom-0 left-0 w-full h-full opacity-40 overflow-hidden" style="
+                background-image: repeating-linear-gradient(
+                    90deg,
+                    transparent 0px,
+                    transparent 15px,
+                    rgba(0,0,0,0.8) 15px,
+                    rgba(0,0,0,0.8) 20px
+                );
+                animation: audienceWave 4s ease-in-out infinite;
+            "></div>
         </div>
+        
+        <!-- パーティクル・照明効果 -->
+        <div id="game-particles" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
     </div>
+    
+    <!-- アニメーション定義 -->
+    <style>
+        @keyframes audienceWave {
+            0%, 100% { transform: translateY(0) scaleY(1); }
+            50% { transform: translateY(-5px) scaleY(1.05); }
+        }
+        
+        @keyframes rotateSpotlight1 {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        @keyframes rotateSpotlight2 {
+            0% { transform: translate(-50%, -50%) rotate(120deg); }
+            100% { transform: translate(-50%, -50%) rotate(480deg); }
+        }
+        
+        @keyframes rotateSpotlight3 {
+            0% { transform: translate(-50%, -50%) rotate(240deg); }
+            100% { transform: translate(-50%, -50%) rotate(600deg); }
+        }
+        
+        @keyframes laserBeam1 {
+            0%, 100% { transform: translateX(-20px) scaleY(1); opacity: 0.3; }
+            50% { transform: translateX(20px) scaleY(1.2); opacity: 0.6; }
+        }
+        
+        @keyframes laserBeam2 {
+            0%, 100% { transform: translateX(20px) scaleY(1); opacity: 0.3; }
+            50% { transform: translateX(-20px) scaleY(1.2); opacity: 0.6; }
+        }
+        
+        @keyframes laserBeam3 {
+            0%, 100% { transform: translateX(-15px) scaleY(1); opacity: 0.3; }
+            50% { transform: translateX(15px) scaleY(1.2); opacity: 0.6; }
+        }
+        
+        .bg-gradient-radial {
+            background: radial-gradient(circle, var(--tw-gradient-stops));
+        }
+    </style>
     <div id="game-container">
         <div id="miku"></div>
         <div id="song-info">

@@ -108,73 +108,112 @@ export default function IndexPage() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-gradientStart to-darkBg min-h-screen w-full text-white">
-      <div id="stars-container" className="fixed top-0 left-0 w-full h-full z-0"></div>
+    <div className="live-venue-bg min-h-screen w-full text-white relative overflow-hidden" style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
+      {/* ライブ会場背景 */}
+      <div className="fixed inset-0 z-0">
+        {/* ステージ床 */}
+        <div className="stage-floor"></div>
+        {/* 観客シルエット */}
+        <div className="audience-silhouettes"></div>
+        {/* スポットライト効果 */}
+        <div className="spotlight spotlight-1"></div>
+        <div className="spotlight spotlight-2"></div>
+        <div className="spotlight spotlight-3"></div>
+        {/* レーザー効果 */}
+        <div className="laser-effect">
+          <div className="laser-beam"></div>
+          <div className="laser-beam"></div>
+          <div className="laser-beam"></div>
+        </div>
+      </div>
+      
+      {/* 星エフェクト（照明効果に変更） */}
+      <div id="stars-container" className="fixed top-0 left-0 w-full h-full z-1 lighting-effects"></div>
       
       {/* メインコンテンツ */}
-      <div className="relative z-10 w-full max-w-xl flex flex-col items-center justify-center py-8 px-4 mx-auto">
-        {/* ロゴ */}
-        <div className="text-center mb-4 sm:mb-6">
-          <h1 className="text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-bold text-miku mb-2 tracking-wider">Lyric Stage</h1>
+      <div className="relative z-10 w-full max-w-6xl flex flex-col items-center justify-center py-4 px-4 mx-auto min-h-screen" style={{ touchAction: 'pan-y' }}>
+        {/* ネオンサイン風ロゴ */}
+        <div className="text-center mb-4">
+          <div className="neon-sign-container">
+            <h1 className="neon-text text-4xl sm:text-5xl md:text-6xl font-bold mb-2 tracking-wider">
+              LYRIC STAGE
+            </h1>
+            <div className="neon-underline"></div>
+          </div>
+          <p className="live-subtitle mt-2 text-sm sm:text-base">LIVE RHYTHM GAME</p>
         </div>
         
-        {/* 説明テキスト */}
-        <div className="max-w-md mx-auto text-center mb-4 sm:mb-6 bg-black/30 p-2 sm:p-2 rounded-lg backdrop-blur-sm">
-          <p className="text-white/90 text-sm sm:text-base">歌詞に触れてポイントを獲得しよう！</p>
-        </div>
-
-        {/* モード選択 */}
-        <div id="mode-selection" className="mt-4 mb-6 text-center">
-          <label htmlFor="game-mode" className="text-white mr-2 text-lg">Playモード選択:</label>
-          <select 
-            id="game-mode" 
-            className="p-2 rounded bg-gray-700 text-white text-lg"
-            value={gameMode}
-            onChange={(e) => setGameMode(e.target.value as GameMode)}
-          >
-            <option value="cursor">Cursorモード</option>
-            <option value="hand">Handモード</option>
-            <option value="body">Bodyモード</option>
-          </select>
+        {/* ライブ情報バナー（コンパクト版） */}
+        <div className="live-info-banner w-full mb-3 py-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xl" role="img" aria-label="マイク">🎤</span>
+              <div>
+                <p className="text-xs text-gray-400">TextAlive App API</p>
+                <p className="text-sm font-bold text-white">Powered by Songle & Lyric Sync</p>
+              </div>
+            </div>
+            <button 
+              onClick={openHelp}
+              className="miku-glow px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-400 hover:from-teal-600 hover:to-cyan-500 text-white text-sm font-bold rounded-lg transition-all duration-300 shadow-lg transform hover:scale-105"
+              aria-label="操作方法を表示"
+            >
+              ルール説明
+            </button>
+          </div>
         </div>
         
-        {/* 曲選択 */}
-        <div className="max-w-lg w-full mx-auto">
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3" id="song-list">
-            {songsData.map((song) => (
+        {/* モード選択（VIPチケット風） */}
+        <div id="mode-selection" className="w-full mb-3">
+          <h2 className="text-center text-lg font-bold text-white mb-3 ticket-header">SELECT YOUR TICKET</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {(['cursor', 'hand', 'body'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setGameMode(mode)}
+                className={`vip-ticket ${gameMode === mode ? 'vip-ticket-selected' : ''}`}
+              >
+                <div className="ticket-top">VIP ACCESS</div>
+                <div className="ticket-mode">{mode.toUpperCase()}</div>
+                <div className="ticket-desc">
+                  {mode === 'cursor' && 'マウスで歌詞をクリック'}
+                  {mode === 'hand' && 'カメラで手を認識'}
+                  {mode === 'body' && 'カメラで全身を認識'}
+                </div>
+                <div className="ticket-barcode"></div>
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* 曲選択（セットリスト風） */}
+        <div className="w-full">
+          <h2 className="text-center text-lg font-bold text-white mb-3 setlist-header">TODAY'S SETLIST</h2>
+          <div className="max-h-[32vh] overflow-y-auto pr-2 compact-scrollbar">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2" id="song-list">
+            {songsData.map((song, index) => (
               <li
                 key={song.id}
                 id={`song-${song.id}`}
-                className="song-item bg-gradient-to-r from-miku-600/40 to-miku-500/40 p-4 rounded-lg cursor-pointer hover:shadow-lg transition-all"
+                className="setlist-item"
+                style={{ animationDelay: `${index * 0.1}s` }}
                 onClick={(e) => {
                   createClickEffect(e, e.currentTarget)
                   handleSongSelect(song)
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-3px)'
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(57, 197, 187, 0.6)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = ''
-                  e.currentTarget.style.boxShadow = ''
-                }}
               >
-                <h3 className="text-lg font-bold text-white mb-1">{song.title}</h3>
-                <p className="text-sm text-white/70">{song.artist}</p>
+                <div className="setlist-number">{String(index + 1).padStart(2, '0')}</div>
+                <div className="setlist-content">
+                  <h3 className="setlist-title">{song.title}</h3>
+                  <p className="setlist-artist">{song.artist}</p>
+                </div>
+                <div className="setlist-play-icon">▶</div>
               </li>
             ))}
-          </ul>
+            </ul>
+          </div>
         </div>
       </div>
-      
-      {/* ヘルプボタン（右下固定） */}
-      <button
-        id="open-help-btn"
-        onClick={openHelp}
-        className="fixed bottom-4 right-4 bg-miku-400 hover:bg-miku-300 text-white font-semibold px-4 py-2 rounded-lg shadow-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-miku-500 miku-glow z-20"
-      >
-        ルール説明
-      </button>
 
       {/* ヘルプモーダル */}
       {showHelp && (
@@ -215,7 +254,7 @@ export default function IndexPage() {
               <section>
                 <h3 className="font-medium text-miku-300 mb-2">操作手順</h3>
                 <ol className="list-decimal pl-6 space-y-2 text-miku-100">
-                  <li>プレイモードを選択（PCなら Hand / Body も使用可）。</li>
+                  <li>プレイモードを選択</li>
                   <li>曲リストから曲を選び「プレイ」を押す。</li>
                   <li>歌詞が表示されたらモードに応じてヒット（クリック / 手 / 体）。</li>
                   <li>タイミングよく全てヒットしてコンボを伸ばす。</li>

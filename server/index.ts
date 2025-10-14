@@ -27,17 +27,16 @@ app.post('/api/echo', async (c) => {
   return c.json({ ok: true, received: data })
 })
 
-// Root redirect to index.html first
-app.get('/', (c) => c.redirect('/index.html'))
-
 // Serve from ./docs if exists, otherwise from project root
+import { existsSync } from 'node:fs'
+
 const staticRoot = (() => {
-  const docsPath = path.join(__dirname, 'docs')
+  const docsPath = path.resolve(__dirname, '..', 'docs')
   try {
     // statSync throws if not exists
-    if (require('node:fs').existsSync(docsPath)) return docsPath
+    if (existsSync(docsPath)) return docsPath
   } catch {}
-  return __dirname
+  return path.resolve(__dirname, '..')
 })()
 
 app.use('/*', serveStatic({ root: staticRoot }))

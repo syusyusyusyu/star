@@ -16,48 +16,21 @@ html, body {
 body {
     cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="%2339C5BB"><circle cx="12" cy="12" r="10" /></svg>'), auto;
     overscroll-behavior: none;
-    touch-action: manipulation;
     min-height: 100vh;
     width: 100%;
-    background-color: black; /* 背景色 */
-    -webkit-font-smoothing: antialiased; /* フォントレンダリング改善 */
-    -moz-osx-font-smoothing: grayscale; /* Firefox用フォントレンダリング */
+    background-color: black;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     padding-top: 15px;
     padding-bottom: 15px;
 }
 
 html {
     height: 100%;
-    background-color: black; /* IE用の背景色設定 */
+    background-color: black;
 }
 
-/* ブラウザバーの調整 - アドレスバーとの干渉を防ぐ */
-.browser-bar-adjust {
-    padding-top: 0px;
-    padding-bottom: 0px;
-    padding-left: 0px;
-    padding-right: 0px;
-}
-
-/* モバイルデバイス向けの調整 */
-@supports (-webkit-touch-callout: none) {
-    body {
-        /* iOS Safari向け */
-        height: 100vh;
-        padding-top: 15px;
-        padding-bottom: 15px;
-    }
-}
-
-/* Firefox向けの背景修正はデフォルト値に委ねる */
-
-@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
-    /* IE10, IE11 用の修正 */
-    html, body {
-        height: 100vh;
-        overflow-y: auto;
-    }
-}
+/* モバイル対応を削除 - デスクトップのみ対応 */
 
 /* スポットライト効果 */
 .spotlight {
@@ -143,34 +116,7 @@ html {
     }
 }
 
-/* メディア対応 */
-@media screen and (max-width: 768px) {
-    .spotlight {
-        width: 250px;
-        height: 500px;
-    }
-    
-    body {
-        padding-top: 10px;
-    }
-    
-    .py-12 { padding-top: 1rem; padding-bottom: 1rem; }
-}
-
-@media screen and (max-height: 700px) {
-    .py-12 {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
-    
-    .mb-8 {
-        margin-bottom: 1rem;
-    }
-    
-    .space-y-3 > * + * {
-        margin-top: 0.5rem;
-    }
-}
+/* メディアクエリは削除 - デスクトップのみ対応 */
 
 /* 中央配置用のコンテナ調整 */
 .flex {

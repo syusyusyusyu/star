@@ -1,33 +1,14 @@
 /* カスタムスタイル */
 html, body {
-    height: 100%;
-    min-height: 100vh;
     margin: 0;
     padding: 0;
-    overflow: hidden; /* スクロールバーを表示しない */
-    background-color: black; /* 背景色 */
-    -webkit-overflow-scrolling: touch; /* iOSのスムーズスクロール */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    background-color: #090A0F; /* 背景色をダークブルーに */
 }
 
 body {
     cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="%2339C5BB"><circle cx="12" cy="12" r="10" /></svg>'), auto;
-    overscroll-behavior: none;
-    min-height: 100vh;
-    width: 100%;
-    background-color: black;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    padding-top: 15px;
-    padding-bottom: 15px;
-}
-
-html {
-    height: 100%;
-    background-color: black;
 }
 
 /* モバイル対応を削除 - デスクトップのみ対応 */

@@ -60,7 +60,7 @@ export default function IndexPage() {
     }
 
     setTimeout(() => {
-      navigate('/game')
+      navigate(`/game?mode=${gameMode}`)
     }, 200)
   }
 

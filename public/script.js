@@ -36,14 +36,17 @@ class GameManager {
       console.log('モバイルデバイスが検出されました。Cursorモード限定で動作します。');
     }
     
-    // URLからモードを読み込む（モバイルの場合はcursor限定）
+    // URLパラメータまたはlocalStorageからモードを読み込む（モバイルの場合はcursor限定）
     const urlParams = new URLSearchParams(window.location.search);
-    const requestedMode = urlParams.get('mode') || 'cursor';
+    const urlMode = urlParams.get('mode');
+    const storedMode = localStorage.getItem('gameMode');
+    const requestedMode = urlMode || storedMode || 'cursor';
     this.currentMode = this.isMobile ? 'cursor' : requestedMode; // モバイルではcursor固定
     
     if (this.isMobile && requestedMode !== 'cursor') {
       console.log(`モバイルデバイスのため、要求されたモード'${requestedMode}'からCursorモードに変更されました。`);
     }
+    console.log(`ゲームモード: ${this.currentMode} (URL: ${urlMode}, localStorage: ${storedMode})`);
     this.hands = null; // MediaPipe Handsインスタンス
     this.pose = null; // MediaPipe Poseインスタンス
     this.bodyDetectionReady = false; // ボディ検出準備完了フラグ

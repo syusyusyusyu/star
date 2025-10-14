@@ -136,11 +136,11 @@ export default function IndexPage() {
         <div className="text-center mb-4">
           <div className="neon-sign-container">
             <h1 className="neon-text text-4xl sm:text-5xl md:text-6xl font-bold mb-2 tracking-wider">
-              LYRIC STAGE
+              Lyric Stage
             </h1>
             <div className="neon-underline"></div>
           </div>
-          <p className="live-subtitle mt-2 text-sm sm:text-base">LIVE RHYTHM GAME</p>
+          <p className="live-subtitle mt-2 text-sm sm:text-base">Rhythm Game</p>
         </div>
         
         {/* ライブ情報バナー（コンパクト版） */}
@@ -150,7 +150,6 @@ export default function IndexPage() {
               <span className="text-xl" role="img" aria-label="マイク">🎤</span>
               <div>
                 <p className="text-xs text-gray-400">TextAlive App API</p>
-                <p className="text-sm font-bold text-white">Powered by Songle & Lyric Sync</p>
               </div>
             </div>
             <button 
@@ -165,7 +164,7 @@ export default function IndexPage() {
         
         {/* モード選択（VIPチケット風） */}
         <div id="mode-selection" className="w-full mb-3">
-          <h2 className="text-center text-lg font-bold text-white mb-3 ticket-header">SELECT YOUR TICKET</h2>
+          <h2 className="text-center text-lg font-bold text-white mb-3 ticket-header">操作方法を選択</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {(['cursor', 'hand', 'body'] as const).map((mode) => (
               <button
@@ -173,8 +172,12 @@ export default function IndexPage() {
                 onClick={() => setGameMode(mode)}
                 className={`vip-ticket ${gameMode === mode ? 'vip-ticket-selected' : ''}`}
               >
-                <div className="ticket-top">VIP ACCESS</div>
-                <div className="ticket-mode">{mode.toUpperCase()}</div>
+                <div className="ticket-top">モード選択</div>
+                <div className="ticket-mode">
+                  {mode === 'cursor' && 'Cursor'}
+                  {mode === 'hand' && 'Hand'}
+                  {mode === 'body' && 'Body'}
+                </div>
                 <div className="ticket-desc">
                   {mode === 'cursor' && 'マウスで歌詞をクリック'}
                   {mode === 'hand' && 'カメラで手を認識'}
@@ -188,7 +191,7 @@ export default function IndexPage() {
         
         {/* 曲選択（セットリスト風） */}
         <div className="w-full">
-          <h2 className="text-center text-lg font-bold text-white mb-3 setlist-header">TODAY'S SETLIST</h2>
+          <h2 className="text-center text-lg font-bold text-white mb-3 setlist-header">本日の楽曲リスト</h2>
           <div className="max-h-[32vh] overflow-y-auto pr-2 compact-scrollbar">
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2" id="song-list">
             {songsData.map((song, index) => (

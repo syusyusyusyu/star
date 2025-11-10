@@ -1,0 +1,21 @@
+# エディタキャッシュ
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# IDEキャッシュ
+.idea/
+*.swp
+*.swo
+*~
+
+# ビルドキャッシュ
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# Viteキャッシュ
+node_modules/.vite/

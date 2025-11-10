@@ -1,0 +1,37 @@
+# 開発環境用 Docker Compose 設定
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: star-5-dev
+    ports:
+      - "5173:5173"  # Vite開発サーバー
+      - "3000:3000"  # バックエンドAPI
+    volumes:
+      # ソースコードをマウント（ホットリロード用）
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./server:/app/server
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./tailwind.config.js:/app/tailwind.config.js
+      - ./postcss.config.js:/app/postcss.config.js
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./tsconfig.node.json:/app/tsconfig.node.json
+      - ./tsconfig.server.json:/app/tsconfig.server.json
+      # node_modulesはコンテナ内のものを使用
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true  # ファイル変更検知を有効化
+      - WATCHPACK_POLLING=true
+    stdin_open: true  # docker run -i
+    tty: true         # docker run -t
+    networks:
+      - dev-network
+
+networks:
+  dev-network:
+    driver: bridge

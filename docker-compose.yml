@@ -1,0 +1,19 @@
+# 本番環境用 Docker Compose 設定
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: star-5-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

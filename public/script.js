@@ -360,6 +360,11 @@ class GameManager {
         let count = 5;
         this.countdownOverlay.classList.remove('hidden');
         this.countdownText.textContent = count;
+        // カウントダウン中は歌詞表示を確実に停止
+        this.isPaused = true;
+        this.isFirstInteraction = true;
+        console.log("ボディモード: カウントダウン開始（歌詞表示停止中）");
+        
         this.countdownTimer = setInterval(() => {
           count--;
           if (count > 0) {
@@ -369,6 +374,7 @@ class GameManager {
             this.countdownTimer = null;
             this.bodyDetectionReady = true;
             this.countdownOverlay.classList.add('hidden');
+            console.log("ボディモード: カウントダウン完了 → 音楽再生開始");
             // カウントダウン終了後、音楽再生を開始
             this.playMusic();
           }
@@ -729,6 +735,14 @@ class GameManager {
       clearInterval(this.songProgressTimer);
       this.songProgressTimer = null;
     }
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+    }
+    if (this.fullBodyLostTimer) {
+      clearTimeout(this.fullBodyLostTimer);
+      this.fullBodyLostTimer = null;
+    }
     
     // スコアと状態のリセット
     this.score = this.combo = this.currentLyricIndex = 0;
@@ -740,6 +754,13 @@ class GameManager {
     this.scoreEl.textContent = '0';
     this.comboEl.textContent = `コンボ: 0`;
     this.resultsDisplayed = false; // リザルト表示フラグをリセット（重要）
+    
+    // ボディモードの場合は検出フラグをリセット（再度カウントダウンが必要）
+    if (this.currentMode === 'body') {
+      this.bodyDetectionReady = false;
+      this.isFirstInteraction = true;
+      console.log("ボディモード: リスタート時に検出フラグをリセット");
+    }
     
     // 結果画面を非表示にする
     const resultsScreen = document.getElementById('results-screen');
@@ -856,7 +877,10 @@ class GameManager {
         },
         // 時間更新時（歌詞表示タイミング制御）
         onTimeUpdate: (pos) => {
-          if (!this.isPaused) this.updateLyrics(pos);
+          // 一時停止中またはボディモードのカウントダウン中は歌詞を更新しない
+          if (!this.isPaused && !this.countdownTimer) {
+            this.updateLyrics(pos);
+          }
           this.lastPlayerPosition = pos; // 最終再生位置を記録
         },
         // 再生開始時
@@ -1053,7 +1077,8 @@ class GameManager {
    * @param {number} position - 現在の再生位置（ミリ秒）
    */
   updateLyrics(position) {
-    if (this.isPaused || this.isFirstInteraction) return;
+    // 一時停止中、初回インタラクション前、またはボディモードのカウントダウン中は歌詞を表示しない
+    if (this.isPaused || this.isFirstInteraction || this.countdownTimer) return;
 
     // 再生位置が巻き戻った場合は歌詞インデックスを再同期
     if (this._lastLyricsPosition != null && position < this._lastLyricsPosition - 1000) {
@@ -1142,8 +1167,8 @@ class GameManager {
     this._lyricScanIndex = 0;
     
     const checkLyrics = () => {
-      // プレーヤーモード、一時停止中、または初回インタラクション前なら処理しない
-      if ((this.isPlayerInit && this.player) || this.isPaused || this.isFirstInteraction) {
+      // プレーヤーモード、一時停止中、初回インタラクション前、またはボディモードのカウントダウン中なら処理しない
+      if ((this.isPlayerInit && this.player) || this.isPaused || this.isFirstInteraction || this.countdownTimer) {
         requestAnimationFrame(checkLyrics);
         return;
       }

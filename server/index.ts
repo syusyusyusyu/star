@@ -42,5 +42,10 @@ const staticRoot = (() => {
 app.use('/*', serveStatic({ root: staticRoot }))
 
 const port = Number(process.env.PORT) || 3000
-console.log(`[server] Starting Hono on http://localhost:${port}`)
-serve({ fetch: app.fetch, port })
+const hostname = process.env.HOST || '0.0.0.0' // Dockerコンテナでも動作するように
+console.log(`[server] Starting Hono on http://${hostname}:${port}`)
+serve({ 
+  fetch: app.fetch, 
+  port,
+  hostname
+})

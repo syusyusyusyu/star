@@ -1,0 +1,115 @@
+# ============================================
+# EditorConfig
+# ============================================
+# エディター間でのコーディングスタイルの一貫性を保つ
+# https://editorconfig.org
+
+# トップレベルの設定ファイル
+root = true
+
+# ============================================
+# すべてのファイルに適用されるデフォルト設定
+# ============================================
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# ============================================
+# JavaScript / TypeScript
+# ============================================
+[*.{js,jsx,ts,tsx}]
+indent_style = space
+indent_size = 2
+max_line_length = 100
+
+# ============================================
+# JSON
+# ============================================
+[*.json]
+indent_style = space
+indent_size = 2
+
+# ============================================
+# YAML
+# ============================================
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# ============================================
+# HTML
+# ============================================
+[*.html]
+indent_style = space
+indent_size = 2
+
+# ============================================
+# CSS / SCSS / SASS
+# ============================================
+[*.{css,scss,sass,less}]
+indent_style = space
+indent_size = 2
+
+# ============================================
+# Markdown
+# ============================================
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# ============================================
+# Shell Scripts
+# ============================================
+[*.sh]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+
+# ============================================
+# Windows Scripts
+# ============================================
+[*.{bat,cmd,ps1}]
+end_of_line = crlf
+
+# ============================================
+# Makefile
+# ============================================
+[Makefile]
+indent_style = tab
+
+# ============================================
+# Python (もし使用する場合)
+# ============================================
+[*.py]
+indent_style = space
+indent_size = 4
+max_line_length = 88
+
+# ============================================
+# Go (もし使用する場合)
+# ============================================
+[*.go]
+indent_style = tab
+
+# ============================================
+# 設定ファイル
+# ============================================
+[.{gitignore,dockerignore,eslintrc,prettierrc}]
+indent_style = space
+indent_size = 2
+
+[{package.json,tsconfig*.json}]
+indent_style = space
+indent_size = 2
+
+[docker-compose*.yml]
+indent_style = space
+indent_size = 2
+
+[Dockerfile*]
+indent_style = space
+indent_size = 2

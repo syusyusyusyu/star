@@ -52,6 +52,7 @@ class GameManager {
     this.bodyDetectionReady = false; // ボディ検出準備完了フラグ
     this.countdownTimer = null; // カウントダウンタイマー
     this.fullBodyLostTimer = null; // 全身ロスト時のタイマー
+    this.enableBodyWarning = true; // Body warning toggle for testing
     
     // 内部処理用のグループサイズを設定（パフォーマンス最適化）
     this.groupSize = 1;
@@ -385,8 +386,12 @@ class GameManager {
         console.log("Body lost during countdown, clearing countdownTimer.");
         clearInterval(this.countdownTimer);
         this.countdownTimer = null;
-        this.countdownOverlay.classList.remove('hidden');
-        this.countdownText.textContent = "全身が映るように調整してください";
+        if (this.enableBodyWarning) {
+          this.countdownOverlay.classList.remove('hidden');
+          this.countdownText.textContent = "全身が映るように調整してください";
+        } else {
+          this.countdownOverlay.classList.add('hidden');
+        }
       }
       // bodyDetectionReadyは一度trueになったらリセットしない
       // this.bodyDetectionReady = false;
@@ -394,7 +399,7 @@ class GameManager {
       console.log("Body not detected. Player is playing:", this.player?.isPlaying, "Full body lost timer active:", !!this.fullBodyLostTimer);
 
       // 再生中または準備完了後で全身がロストした場合
-      if ((this.bodyDetectionReady || this.player?.isPlaying) && !this.fullBodyLostTimer) {
+      if (this.enableBodyWarning && (this.bodyDetectionReady || this.player?.isPlaying) && !this.fullBodyLostTimer) {
         console.log("Setting full body lost timer.");
         this.fullBodyLostTimer = setTimeout(() => {
           console.log("Full body lost timer expired, showing warning.");
@@ -434,8 +439,12 @@ class GameManager {
 
     if (this.currentMode === 'body' && !this.bodyDetectionReady) {
         console.log("playMusic: body mode and bodyDetectionReady is false. Showing adjustment message.");
-        this.countdownOverlay.classList.remove('hidden');
-        this.countdownText.textContent = "全身が映るように調整してください";
+        if (this.enableBodyWarning) {
+            this.countdownOverlay.classList.remove('hidden');
+            this.countdownText.textContent = "全身が映るように調整してください";
+        } else {
+            this.countdownOverlay.classList.add('hidden');
+        }
         this._operationInProgress = false; // ロック解除
         return;
     }
@@ -2052,8 +2061,12 @@ class InputManager {
       if (gm.isFirstInteraction) {
         if (gm.currentMode === 'body') {
           gm.isFirstInteraction = false;
-          gm.countdownOverlay.classList.remove('hidden');
-          gm.countdownText.textContent = '全身が映るように調整してください';
+          if (gm.enableBodyWarning) {
+            gm.countdownOverlay.classList.remove('hidden');
+            gm.countdownText.textContent = '全身が映るように調整してください';
+          } else {
+            gm.countdownOverlay.classList.add('hidden');
+          }
           return;
         }
         gm.playMusic();

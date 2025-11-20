@@ -1,64 +1,47 @@
-# Lyric Stage - React × Hono 構成
+# Lyric Stage - React + Hono
 
-初音ミクの楽曲に合わせて歌詞をタッチするリズムゲーム。カーソル、ハンド、ボディの3つのモードで楽しめます。
+TextAlive で同期した歌詞バブルと three.js ステージで遊ぶリズムゲーム。カーソル / ハンド / ボディの3モードで歌詞に触れてスコアを稼ぎます。Hono が静的配信と最小 API を担います。
 
-## 🚀 クイックスタート
+## できること
+- 歌詞同期とバブル: TextAlive から歌詞とタイミングを取得し、バブルを生成・移動。利用不可時は簡易フォールバック歌詞を生成。
+- 3D ステージ: three.js でライブ風ステージを描画し、バブルの流れ・スコア・カメラを `script.js` が管理。
+- 入力モード: Cursor（マウス/タッチ）、Hand（MediaPipe Hands）、Body（MediaPipe Pose + Selfie Segmentation）。全身検出でカウントダウン開始し、3秒外れると警告表示。
+- 判定安定化: 歌詞を NFC 正規化し、500ms の表示ウィンドウで判定。左上 viewer 歌詞はデフォルト無効化し、プレイ用バブルに集中。
+- サーバー: Hono で `index.html`/`game.html` を配信し、`/api/health` と `/api/echo` を提供。CORS/Logger/Powered-By を適用し、スコア保存などへの拡張余地あり。
 
-### Docker で起動（推奨）
+## セットアップ
+### Docker（推奨）
+- Windows: `start-dev.bat`
+- Mac/Linux/WSL: `./start-dev.sh`
 
-**Windows:**
-```bash
-start-dev.bat
-```
+Vite（5173）と Hono（3000）が起動します。ブラウザで `http://localhost:5173`（同梱 UI）または `http://localhost:3000/game.html` にアクセス。
 
-**Mac/Linux/WSL:**
-```bash
-./start-dev.sh
-```
-
-起動後: http://localhost:5173
-
-### ローカル環境
-
+### ローカル開発
 ```bash
 npm install
 npm run dev
 ```
+`npm run dev` は Vite と Hono を同時に起動します。フロント: `http://localhost:5173`、サーバー/API: `http://localhost:3000/`。
 
-## 📚 ドキュメント
-
-- **[DOCKER.md](./DOCKER.md)** - Docker使用方法とトラブルシューティング
-- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - エラー解決ガイド
-- **[gemini.md](./gemini.md)** - ゲーム仕様詳細
-
-## 🎮 ゲームモード
-
-- **Cursor**: マウスやタッチで歌詞をクリック
-- **Hand**: Webカメラで手の動きを検出
-- **Body**: 全身の動きを検出（要カメラ）
-
-## 🛠️ 技術スタック
-
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS
-- **Backend**: Hono (Node.js)
-- **Game**: TextAlive API + MediaPipe
-- **Deploy**: Docker対応
-
-## 📁 プロジェクト構造
-
+### ビルド / 起動
+```bash
+npm run build
+npm start
 ```
-src/          # Reactアプリ
-public/       # ゲームロジック（game.html, script.js）
-server/       # Honoサーバー
-docs/         # ビルド成果物
-```
+ビルドしたフロントエンドと静的ファイルを Hono（`server/index.ts`）で配信します。
 
-## ⚙️ 設定ファイル
+## ディレクトリ構成
+- `src/` React + Tailwind UI（タイトル/選曲など）
+- `public/` ゲーム本体 (`game.html`, `script.js`, `styles.css`, `game-loader.js`)
+- `server/` Hono サーバー実装（静的配信 + `/api/health`, `/api/echo`）
+- `docs/` ビルド成果物（存在すればここから静的配信）
+- `gemini.md` 仕様詳細
 
-プロジェクトには開発環境を統一するための設定ファイルが含まれています：
+## 遊び方の概要
+1. ローカル HTTP サーバー経由で `index.html` を開く。
+2. Cursor / Hand / Body からプレイモードを選び、楽曲を選択して開始。
+3. 流れる歌詞バブルをモードに応じて触れてスコアとコンボを伸ばす。
+4. 楽曲終了後にリザルト（スコア & ランク）を表示。
 
-- `.gitignore` - Git除外設定（220+項目）
-- `.gitattributes` - 改行コード統一
-- `.dockerignore` - Dockerビルド最適化
-- `.editorconfig` - エディター設定統一
-- `.npmrc` - NPM設定
+- カメラ利用にはサーバー経由の配信が必須（`file://` 直開きは不可）。
+- MediaPipe や TextAlive に問題がある場合はフォールバック歌詞モードで簡易プレイ可能。

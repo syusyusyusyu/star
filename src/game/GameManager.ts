@@ -1,3 +1,13 @@
+// @ts-nocheck
+import * as THREE from 'three'
+import { Player } from 'textalive-app-api'
+import { Hands } from '@mediapipe/hands'
+import { Pose, POSE_CONNECTIONS } from '@mediapipe/pose'
+import { SelfieSegmentation } from '@mediapipe/selfie_segmentation'
+import { Camera } from '@mediapipe/camera_utils'
+
+const TextAliveApp = { Player }
+
 /**
  * ボイスアイドル・ミュージックゲーム - 内部処理のみ最適化版
  * 
@@ -11,18 +21,19 @@ class GameManager {
    * ゲームの基本設定、DOM要素の取得、イベントリスナーの設定を行う
    */
   constructor() {
-    // 基本設定の初期化
+    // ????????
     this.apiToken = window.songConfig?.apiToken;
     this.songUrl = window.songConfig?.songUrl;
     this.score = this.combo = this.maxCombo = 0;
     this.startTime = Date.now();
     this.isPlaying = this.isPlayerInit = false;
-    this.isFirstInteraction = true; // 初回インタラクションフラグ
+    this.isFirstInteraction = true; // ?????????????
     this.player = null;
-    this.isMobile = /Android|iPhone/.test(navigator.userAgent);
     this.activeChars = new Set();
-    this.displayedLyrics = new Set(); // 表示済み歌詞を追跡
-    this.activeLyricBubbles = new Set(); // 現在表示中の歌詞DOM（当たり判定用）
+    this.displayedLyrics = new Set(); // ?????????
+    this.activeLyricBubbles = new Set(); // ????????DOM???????
+    this.allowFallback = false; // フォールバックを許可するか
+    this.useFallback = false; // フォールバックが動作中か
     this.mouseTrail = [];
     this.maxTrailLength = 15;
     this.lastMousePos = { x: 0, y: 0 };
@@ -464,18 +475,23 @@ class GameManager {
             } catch (e) {
               console.error("Player play error:", e);
               // エラー発生時はフォールバックモードへ
-              this.fallback();
-              this.startLyricsTimer();
+              if (this.allowFallback) {
+                this.fallback();
+                this.startLyricsTimer();
+              }
             }
           }
         } catch (e) {
           console.error("Player play error:", e);
           // エラー発生時はフォールバックモードへ
-          this.fallback();
-          this.startLyricsTimer();
+          if (this.allowFallback) {
+            this.fallback();
+            this.startLyricsTimer();
+          }
         }
       } else {
         // フォールバックモードですでに初期化済みの場合
+        this.useFallback = true;
         this.startTime = Date.now();
         this.startLyricsTimer();
       }
@@ -834,7 +850,7 @@ class GameManager {
     // TextAliveが利用可能かチェック
     if (typeof TextAliveApp === 'undefined') {
       if (this.loading) this.loading.textContent = "TextAliveが見つかりません。代替モードで起動中...";
-      this.fallback();
+      if (this.allowFallback) this.fallback();
       return;
     }
     
@@ -856,12 +872,13 @@ class GameManager {
               this.player.createFromSongUrl(this.songUrl);
             } catch (e) {
               console.error("Song creation error:", e);
-              this.fallback();
+              if (this.allowFallback) this.fallback();
             }
           }
         },
         // 動画準備完了時（歌詞データ取得） 
         onVideoReady: (video) => {
+          this.useFallback = false; // TextAlive正常利用
           if (video?.firstPhrase) this.processLyrics(video);
           
           // APIロード完了を記録するが、すぐにはボタンを有効化しない
@@ -992,31 +1009,39 @@ class GameManager {
    * フォールバックモードに切り替え
    * TextAliveが利用できない場合の代替処理
    */
+
   fallback() {
+    // ??????
+    if (this.useFallback) return;
+    this.useFallback = true;
+
     this.isPlayerInit = false;
+    if (this.player?.mediaElement) {
+      try { this.player.mediaElement.pause(); } catch {}
+    }
     this.player = null;
     
-    if (this.loading) this.loading.textContent = "代替モードで準備中...";
+    if (this.loading) this.loading.textContent = "?????????...";
     this.lyricsData = this.fallbackLyricsData;
     
-    // 同様に待機時間を設ける
+    // ???????????
     setTimeout(() => {
-      this.apiLoaded = true; // ここでAPIロード完了フラグを設定
+      this.apiLoaded = true; // ???API???????????
       
-      // すべてのボタンのテキストを更新
+      // ????????
       if (this.playpause) {
-        this.playpause.textContent = '再生';
+        this.playpause.textContent = '??';
         this.playpause.disabled = false;
       }
       if (this.restart) {
-        this.restart.textContent = '最初から';
+        this.restart.textContent = '????';
         this.restart.disabled = false;
       }
       
-      if (this.loading) this.loading.textContent = "準備完了 - 下の「再生」ボタンを押してください";
-    }, 2000); // 2秒の待機時間
+      if (this.loading) this.loading.textContent = "???? - ?????????????????";
+    }, 2000); // 2??????
   }
-  
+
   /**
    * 歌詞データを処理する
    * TextAliveから取得した歌詞データをシンプルに内部形式に変換
@@ -1157,19 +1182,15 @@ class GameManager {
     this._lyricScanIndex = Math.max(0, lo - 1);
   }
 
-  /**
-   * 1文字の歌詞を表示（正規化・重複許可）
-   * @param {string} text - 表示する文字
-   */
-  displayLyric(text) {
-  return this.lyricsRenderer.displayLyric(text);
-  }
 
   /**
    * 歌詞表示タイマーを開始
    * フォールバックモード用の歌詞タイミング処理
    */
   startLyricsTimer() {
+    if (!this.useFallback) {
+      return;
+    }
     this.currentLyricIndex = 0;
     this.startTime = Date.now();
     this.songStartTime = Date.now(); // 曲の開始時間を記録
@@ -2103,3 +2124,6 @@ class ViewportManager {
     document.documentElement.style.setProperty('--vh', `${vh}px`);
   }
 }
+
+export { GameManager }
+export default GameManager

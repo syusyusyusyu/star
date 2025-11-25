@@ -18,7 +18,7 @@ html {
     height: -webkit-fill-available;
 }
 
-body {
+.game-body {
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -613,9 +613,58 @@ body {
     text-shadow: 0 0 20px var(--primary-color);
   }
   
-  .viewer-lyric-char.highlighted {
+.viewer-lyric-char.highlighted {
     color: #39C5BB;
     text-shadow: 0 0 10px #39C5BB;
     transform: scale(1.2);
   }
-  
+
+/* 背景レイヤーの調整 */
+#live-background {
+    z-index: 0;
+}
+
+/* GamePage全体の背景を可視化 */
+#stage-area {
+    position: relative;
+}
+
+/* Live stage animations moved from game.html */
+@keyframes audienceWave {
+    0%, 100% { transform: translateY(0) scaleY(1); }
+    50% { transform: translateY(-5px) scaleY(1.05); }
+}
+
+@keyframes rotateSpotlight1 {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes rotateSpotlight2 {
+    0% { transform: translate(-50%, -50%) rotate(120deg); }
+    100% { transform: translate(-50%, -50%) rotate(480deg); }
+}
+
+@keyframes rotateSpotlight3 {
+    0% { transform: translate(-50%, -50%) rotate(240deg); }
+    100% { transform: translate(-50%, -50%) rotate(600deg); }
+}
+
+@keyframes laserBeam1 {
+    0%, 100% { transform: translateX(-20px) scaleY(1); opacity: 0.3; }
+    50% { transform: translateX(20px) scaleY(1.2); opacity: 0.6; }
+}
+
+@keyframes laserBeam2 {
+    0%, 100% { transform: translateX(20px) scaleY(1); opacity: 0.3; }
+    50% { transform: translateX(-20px) scaleY(1.2); opacity: 0.6; }
+}
+
+@keyframes laserBeam3 {
+    0%, 100% { transform: translateX(-15px) scaleY(1); opacity: 0.3; }
+    50% { transform: translateX(15px) scaleY(1.2); opacity: 0.6; }
+}
+
+.bg-gradient-radial {
+    background: radial-gradient(circle, var(--tw-gradient-stops));
+}

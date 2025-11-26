@@ -11,10 +11,11 @@ export const Slot: React.FC<SlotProps> = ({ id, position }) => {
       position: 'absolute',
       width: '300px',
       height: '300px',
-      border: '2px solid rgba(57, 197, 187, 0.3)',
+      border: '1px solid rgba(57, 197, 187, 0.2)',
       borderRadius: '50%',
       overflow: 'hidden',
-      backgroundColor: 'rgba(0, 0, 0, 0.1)',
+      backgroundColor: 'rgba(0, 0, 0, 0.2)',
+      boxShadow: 'inset 0 0 20px rgba(0, 0, 0, 0.5)',
       zIndex: 20, // Ensure it's above background but maybe below some UI?
       pointerEvents: 'none', // Container shouldn't block clicks, but children (bubbles) should
     };

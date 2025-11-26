@@ -70,58 +70,43 @@ function GamePage() {
           <span id="countdown-text" className="text-white text-9xl font-bold"></span>
         </div>
 
-        <div id="live-background" className="fixed top-0 left-0 w-full h-full z-0">
-          <div
-            id="stage-area"
-            className="absolute top-0 left-0 w-full h-3/5 bg-gray-900 overflow-hidden flex justify-center items-end"
+        <div id="live-background" className="fixed top-0 left-0 w-full h-full z-0 bg-black">
+          {/* Simplified Dark Stage Background */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1a1a2e_0%,_#000000_100%)] opacity-80"></div>
+          
+          {/* Subtle Grid Floor */}
+          <div 
+            className="absolute bottom-0 left-0 w-full h-1/2 opacity-20"
+            style={{
+              background: 'linear-gradient(transparent 0%, #39C5BB 100%)',
+              maskImage: 'linear-gradient(to bottom, transparent, black)',
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent, black)',
+              transform: 'perspective(500px) rotateX(60deg) translateY(100px)'
+            }}
           >
-            <div className="w-full h-1/4 bg-black/30" style={{ perspective: "50px" }}>
-              <div className="w-full h-full bg-gray-700" style={{ transform: "rotateX(30deg)" }}></div>
-            </div>
-
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[200%] h-[200px] bg-gradient-to-t from-purple-600/30 to-transparent rounded-[100%] animate-pulse"></div>
-            <div
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[150%] h-[150px] bg-gradient-to-t from-blue-500/40 to-transparent rounded-[100%]"
-              style={{ animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite", animationDelay: "500ms" }}
-            ></div>
-
-            <div
-              className="absolute top-10 left-1/4 w-48 h-48 bg-gradient-radial from-cyan-400/20 via-cyan-400/10 to-transparent rounded-full blur-3xl"
-              style={{ animation: "rotateSpotlight1 20s linear infinite" }}
-            ></div>
-            <div
-              className="absolute top-10 right-1/4 w-48 h-48 bg-gradient-radial from-pink-400/20 via-pink-400/10 to-transparent rounded-full blur-3xl"
-              style={{ animation: "rotateSpotlight2 25s linear infinite" }}
-            ></div>
-            <div
-              className="absolute top-10 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-radial from-purple-400/20 via-purple-400/10 to-transparent rounded-full blur-3xl"
-              style={{ animation: "rotateSpotlight3 18s linear infinite" }}
-            ></div>
-
-            <div
-              className="absolute top-0 w-0.5 h-full bg-gradient-to-b from-transparent via-cyan-400 to-transparent opacity-30"
-              style={{ left: "20%", boxShadow: "0 0 10px #39C5BB", animation: "laserBeam1 4s ease-in-out infinite" }}
-            ></div>
-            <div
-              className="absolute top-0 w-0.5 h-full bg-gradient-to-b from-transparent via-pink-400 to-transparent opacity-30"
-              style={{ left: "50%", boxShadow: "0 0 10px #FF69B4", animation: "laserBeam2 4s ease-in-out infinite 1.3s" }}
-            ></div>
-            <div
-              className="absolute top-0 w-0.5 h-full bg-gradient-to-b from-transparent via-cyan-400 to-transparent opacity-30"
-              style={{ left: "80%", boxShadow: "0 0 10px #39C5BB", animation: "laserBeam3 4s ease-in-out infinite 2.6s" }}
-            ></div>
+            <div className="w-full h-full" style={{
+              backgroundImage: 'linear-gradient(0deg, transparent 24%, rgba(57, 197, 187, .3) 25%, rgba(57, 197, 187, .3) 26%, transparent 27%, transparent 74%, rgba(57, 197, 187, .3) 75%, rgba(57, 197, 187, .3) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(57, 197, 187, .3) 25%, rgba(57, 197, 187, .3) 26%, transparent 27%, transparent 74%, rgba(57, 197, 187, .3) 75%, rgba(57, 197, 187, .3) 76%, transparent 77%, transparent)',
+              backgroundSize: '50px 50px'
+            }}></div>
           </div>
 
+          {/* Ambient Spotlights (Subtle) */}
+          <div className="absolute top-[-20%] left-1/4 w-[50%] h-[80%] bg-cyan-900/20 blur-[100px] rounded-full mix-blend-screen animate-pulse"></div>
+          <div className="absolute top-[-20%] right-1/4 w-[50%] h-[80%] bg-purple-900/20 blur-[100px] rounded-full mix-blend-screen animate-pulse" style={{ animationDelay: '2s' }}></div>
+
+          {/* Audience Area */}
           <div
             id="audience-area"
-            className="absolute bottom-0 left-0 w-full h-2/5 bg-gradient-to-t from-black via-gray-900/80 to-transparent"
+            className="absolute bottom-0 left-0 w-full h-1/3 pointer-events-none"
+            style={{ zIndex: 5 }}
           >
-            <div
-              className="absolute bottom-0 left-0 w-full h-full opacity-40 overflow-hidden"
+             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/90 to-transparent"></div>
+             <div
+              className="absolute bottom-0 left-0 w-full h-full opacity-60"
               style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, transparent 0px, transparent 15px, rgba(0,0,0,0.8) 15px, rgba(0,0,0,0.8) 20px)",
+                backgroundImage: "repeating-linear-gradient(90deg, transparent 0px, transparent 10px, #050505 10px, #050505 25px)",
                 animation: "audienceWave 4s ease-in-out infinite",
+                transformOrigin: "bottom"
               }}
             ></div>
           </div>

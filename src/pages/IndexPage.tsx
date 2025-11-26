@@ -140,14 +140,14 @@ export default function IndexPage() {
       {/* メインコンテンツ */}
       <div className="relative z-10 w-full max-w-6xl flex flex-col items-center justify-center py-4 px-4 mx-auto min-h-screen" style={{ touchAction: 'pan-y' }}>
         {/* Cross Stage ロゴ */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-12">
           <div className="cross-logo-container">
             <div className="cross-x"></div>
-            <h1 className="cross-logo-text text-5xl sm:text-6xl md:text-7xl leading-tight">
+            <h1 className="cross-logo-text text-5xl sm:text-6xl md:text-7xl leading-tight tracking-tight">
               クロステ
             </h1>
           </div>
-          <p className="live-subtitle mt-2 text-sm sm:text-base tracking-[0.5em] text-cyan-300 font-bold" style={{ textShadow: '0 0 10px rgba(57, 197, 187, 0.8)' }}>Cross Stage</p>
+          <p className="live-subtitle mt-4 text-sm sm:text-base tracking-[0.3em] text-gray-400 font-medium uppercase">Cross Stage</p>
         </div>
         
         {/* ライブ情報バナー（コンパクト版） */}

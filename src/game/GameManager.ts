@@ -1577,7 +1577,7 @@ class LyricsRenderer {
         bubble.style.fontSize = '28px'; // Slightly larger than small screen default
         
         // Apply new animation
-        bubble.style.animation = 'slotFloat 3s linear forwards'; 
+        bubble.style.animation = 'slotFloat var(--lyric-speed) linear forwards'; 
     } else {
         // Fallback if slots are not found
         const screenWidth = window.innerWidth;
@@ -1610,7 +1610,8 @@ class LyricsRenderer {
     // アクティブ集合に登録
     this.game.activeLyricBubbles.add(bubble);
 
-    setTimeout(() => {
+    // アニメーション終了時に判定と削除を行う
+    bubble.addEventListener('animationend', () => {
       if (bubble.style.pointerEvents !== 'none') {
         this.game.combo = 0;
         this.game.comboEl.textContent = `コンボ: 0`;
@@ -1618,7 +1619,7 @@ class LyricsRenderer {
       // 解放
       this.game.activeLyricBubbles.delete(bubble);
       bubble.remove();
-    }, 3000); // Match animation duration (3s)
+    });
 
     // 左上の鑑賞用テキストは無効化フラグで制御
     if (this.game.enableViewerLyrics) {

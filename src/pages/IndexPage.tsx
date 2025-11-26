@@ -256,7 +256,7 @@ export default function IndexPage() {
                 <ol className="list-decimal pl-6 space-y-2 text-miku-100">
                   <li>プレイモードを選択</li>
                   <li>曲リストから曲を選び「プレイ」を押す。</li>
-                  <li>歌詞が表示されたらモードに応じてヒット（クリック / 手 / 体）。</li>
+                  <li>歌詞が表示されたらモードに応じてヒット（クリック / 体）。</li>
                   <li>タイミングよく全てヒットしてコンボを伸ばす。</li>
                   <li>曲終了後にスコアとランクを確認。</li>
                 </ol>
@@ -267,7 +267,7 @@ export default function IndexPage() {
                 <ul className="list-disc pl-6 space-y-2 text-miku-100">
                   <li>歌詞バブル: タイミングに合わせて出現・移動。</li>
                   <li>スコア / コンボ: 画面上部に表示。</li>
-                  <li>モード別入力: Cursor=クリック / Hand=指の先 / Body=腕や手。</li>
+                  <li>モード別入力: Cursor=クリック / Body=腕や手。</li>
                 </ul>
               </section>
               <div className="mt-4 flex justify-end">

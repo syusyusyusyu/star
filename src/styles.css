@@ -90,6 +90,7 @@ html {
     will-change: transform, opacity;
     contain: layout paint style;
     transform: translateZ(0);
+    white-space: nowrap;
 }
 
 .lyric-bubble:hover {

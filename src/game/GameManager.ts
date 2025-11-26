@@ -1051,25 +1051,20 @@ class GameManager {
   processLyrics(video) {
     try {
       this.lyricsData = [];
-  this._lyricScanIndex = 0;
+      this._lyricScanIndex = 0;
       let phrase = video.firstPhrase;
       
       while (phrase) {
         let word = phrase.firstWord;
         while (word) {
-          let char = word.firstChar;
-          while (char) {
-            let text = (char.text ?? '').toString();
-            text = text.normalize('NFC').trim();
-            if (text) {
-              this.lyricsData.push({
-                time: char.startTime,
-                endTime: char.endTime,
-                text: text,
-                displayDuration: char.endTime - char.startTime
-              });
-            }
-            char = char.next;
+          const text = (word.text ?? '').toString().normalize('NFC').trim();
+          if (text) {
+            this.lyricsData.push({
+              time: word.startTime,
+              endTime: word.endTime,
+              text: text,
+              displayDuration: word.endTime - word.startTime
+            });
           }
           word = word.next;
         }

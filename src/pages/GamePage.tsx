@@ -2,6 +2,7 @@
 import { Helmet } from "react-helmet-async"
 import GameManager from "../game/GameManager"
 import { initLiveParticles, loadSongConfig } from "../game/gameLoader"
+import { Slot } from "../components/game/Slot"
 import "../styles.css"
 
 function GamePage() {
@@ -19,20 +20,24 @@ function GamePage() {
 
     initLiveParticles(document.getElementById("game-particles"))
 
-    const manager = new GameManager()
-    const handleBeforeUnload = () => manager?.cleanup?.()
-    window.gameManager = manager
-
-    window.addEventListener("beforeunload", handleBeforeUnload)
+    // Initialize GameManager after a short delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+       const manager = new GameManager()
+       const handleBeforeUnload = () => manager?.cleanup?.()
+       window.gameManager = manager
+   
+       window.addEventListener("beforeunload", handleBeforeUnload)
+    }, 100);
 
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload)
+      clearTimeout(timer);
+      window.removeEventListener("beforeunload", () => window.gameManager?.cleanup?.())
       try {
-        manager?.cleanup?.()
+        window.gameManager?.cleanup?.()
       } catch (error) {
         console.error("Game cleanup error", error)
       }
-      if (window.gameManager === manager) {
+      if (window.gameManager) {
         delete window.gameManager
       }
       document.body.classList.remove(bodyClass)
@@ -48,9 +53,15 @@ function GamePage() {
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
         />
       </Helmet>
-      <div className="relative w-full h-screen overflow-hidden">
+      <div className="relative w-full h-screen overflow-hidden" id="game-root">
         <video id="camera-video" className="hidden" />
         <canvas id="segmentation-canvas" className="fixed top-0 left-0 w-full h-full z-[1]" />
+
+        {/* Slots for bubbles */}
+        <Slot id="slot-top" position="top" />
+        <Slot id="slot-bottom" position="bottom" />
+        <Slot id="slot-left" position="left" />
+        <Slot id="slot-right" position="right" />
 
         <div
           id="countdown-overlay"

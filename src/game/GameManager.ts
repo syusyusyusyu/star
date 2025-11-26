@@ -1701,23 +1701,51 @@ class LyricsRenderer {
     bubble.style.pointerEvents = 'auto';
     bubble.style.opacity = '1';
 
-    const screenWidth = window.innerWidth;
-    const isSmallScreen = screenWidth <= 768;
-    let x, y, fontSize;
-    if (isSmallScreen) {
-      x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
-      y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
-      fontSize = screenWidth <= 480 ? '18px' : '22px';
-    } else {
-      x = 100 + Math.random() * (screenWidth - 300);
-      y = window.innerHeight - 300 - Math.random() * 100;
-      fontSize = '48px';
-    }
+    // Slot selection logic
+    const slots = ['slot-top', 'slot-bottom', 'slot-left', 'slot-right'];
+    const randomSlotId = slots[Math.floor(Math.random() * slots.length)];
+    const slotElement = document.getElementById(randomSlotId);
 
-    bubble.style.left = `${x}px`;
-    bubble.style.top = `${y}px`;
-    bubble.style.color = '#39C5BB';
-    bubble.style.fontSize = fontSize;
+    if (slotElement) {
+        slotElement.appendChild(bubble);
+        
+        // Style for slot-based bubble
+        bubble.style.position = 'absolute';
+        
+        // Randomize horizontal position within the slot (20% to 80% to keep it mostly visible)
+        const randomX = 20 + Math.random() * 60;
+        bubble.style.left = `${randomX}%`;
+
+        // Start position is handled by animation, but set initial state
+        bubble.style.bottom = '-50px'; 
+        bubble.style.transform = 'translateX(-50%)';
+        bubble.style.color = '#39C5BB';
+        bubble.style.fontSize = '28px'; // Slightly larger than small screen default
+        
+        // Apply new animation
+        bubble.style.animation = 'slotFloat 3s linear forwards'; 
+    } else {
+        // Fallback if slots are not found
+        const screenWidth = window.innerWidth;
+        const isSmallScreen = screenWidth <= 768;
+        let x, y, fontSize;
+        if (isSmallScreen) {
+          x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
+          y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
+          fontSize = screenWidth <= 480 ? '18px' : '22px';
+        } else {
+          x = 100 + Math.random() * (screenWidth - 300);
+          y = window.innerHeight - 300 - Math.random() * 100;
+          fontSize = '48px';
+        }
+
+        bubble.style.left = `${x}px`;
+        bubble.style.top = `${y}px`;
+        bubble.style.color = '#39C5BB';
+        bubble.style.fontSize = fontSize;
+        
+        this.game.gamecontainer.appendChild(bubble);
+    }
 
     bubble.addEventListener('mouseenter', () => this.game.clickLyric(bubble));
     bubble.addEventListener('touchstart', (e) => {
@@ -1725,9 +1753,8 @@ class LyricsRenderer {
       this.game.clickLyric(bubble);
     }, { passive: false });
 
-  this.game.gamecontainer.appendChild(bubble);
-  // アクティブ集合に登録
-  this.game.activeLyricBubbles.add(bubble);
+    // アクティブ集合に登録
+    this.game.activeLyricBubbles.add(bubble);
 
     setTimeout(() => {
       if (bubble.style.pointerEvents !== 'none') {
@@ -1737,7 +1764,7 @@ class LyricsRenderer {
       // 解放
       this.game.activeLyricBubbles.delete(bubble);
       bubble.remove();
-    }, 8000);
+    }, 3000); // Match animation duration (3s)
 
     // 左上の鑑賞用テキストは無効化フラグで制御
     if (this.game.enableViewerLyrics) {

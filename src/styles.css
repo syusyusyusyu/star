@@ -479,6 +479,13 @@ html {
     100% { transform: translateY(-500px); opacity: 0; }
 }
 
+@keyframes slotFloat {
+    0% { bottom: -50px; opacity: 0; transform: translateX(-50%) scale(0.5); }
+    10% { opacity: 1; transform: translateX(-50%) scale(1); }
+    80% { opacity: 1; }
+    100% { bottom: 120%; opacity: 0; transform: translateX(-50%) scale(1); }
+}
+
 @keyframes explode {
     0% { transform: scale(0); opacity: 1; }
     100% { transform: scale(1.5); opacity: 0; }

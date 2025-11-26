@@ -1,7 +1,6 @@
 // @ts-nocheck
 import * as THREE from 'three'
 import { Player } from 'textalive-app-api'
-import { Hands } from '@mediapipe/hands'
 import { Pose, POSE_CONNECTIONS } from '@mediapipe/pose'
 import { SelfieSegmentation } from '@mediapipe/selfie_segmentation'
 import { Camera } from '@mediapipe/camera_utils'
@@ -58,7 +57,6 @@ class GameManager {
       console.log(`モバイルデバイスのため、要求されたモード'${requestedMode}'からCursorモードに変更されました。`);
     }
     console.log(`ゲームモード: ${this.currentMode} (URL: ${urlMode}, localStorage: ${storedMode})`);
-    this.hands = null; // MediaPipe Handsインスタンス
     this.pose = null; // MediaPipe Poseインスタンス
     this.bodyDetectionReady = false; // ボディ検出準備完了フラグ
     this.countdownTimer = null; // カウントダウンタイマー
@@ -166,17 +164,13 @@ class GameManager {
     const segmentationCtx = segmentationCanvas.getContext('2d');
 
     // カメラとキャンバスの表示/非表示をモードに応じて切り替える
-    if (this.currentMode === 'hand' || this.currentMode === 'body') {
+    if (this.currentMode === 'body') {
         // videoElementは常にhiddenのまま
         segmentationCanvas.classList.remove('hidden');
     } else {
         // videoElementは常にhiddenのまま
         segmentationCanvas.classList.add('hidden');
         // モードが切り替わった際に、以前のMediaPipeインスタンスを破棄
-        if (this.hands) {
-            this.hands.close();
-            this.hands = null;
-        }
         if (this.pose) {
             this.pose.close();
             this.pose = null;
@@ -205,53 +199,6 @@ class GameManager {
       segmentationCtx.drawImage(results.image, 0, 0, segmentationCanvas.width, segmentationCanvas.height);
       segmentationCtx.restore();
     });
-
-    // Handsの初期化 (handモードの場合のみ)
-    if (this.currentMode === 'hand') {
-        if (!this.hands) {
-            this.hands = new Hands({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-            }});
-            this.hands.setOptions({
-                maxNumHands: 2,
-                modelComplexity: 0, // 軽量モデルを使用（検出速度向上）
-                minDetectionConfidence: 0.3, // 検出閾値を下げる（検出しやすく）
-                minTrackingConfidence: 0.1, // 追跡閾値を下げる（追跡しやすく）
-                selfieMode: true, // セルフィーモード（左右反転）
-                staticImageMode: false // 動画モード
-            });
-            this.hands.onResults((results) => {
-                // 手の検出状況を表示
-                this.updateHandDetectionIndicator(results.multiHandLandmarks);
-                
-                // 手のランドマークを3D描画
-                if (this.liveStageVisuals) {
-                    this.liveStageVisuals.updateHandLandmarks(results);
-                }
-                
-                if (results.multiHandLandmarks) {
-                    for (const landmarks of results.multiHandLandmarks) {
-                        // 手のひらの中心での歌詞判定と手振り検出
-                        const palmCenter = landmarks[0]; // 手のひらの中心
-                        const x = palmCenter.x * window.innerWidth;
-                        const y = palmCenter.y * window.innerHeight;
-                        
-                        // 手振りの検出
-                        this.detectHandWaving(palmCenter, x, y);
-                        
-                        // 従来の人差し指での歌詞判定も残す
-                        const indexFingerTip = landmarks[8];
-                        const fingerX = indexFingerTip.x * window.innerWidth;
-                        const fingerY = indexFingerTip.y * window.innerHeight;
-                        this.checkLyrics(fingerX, fingerY, 70); // 判定範囲を広く
-                    }
-                }
-            });
-        }
-    } else if (this.hands) { // handモードではないがhandsが初期化されている場合
-        this.hands.close();
-        this.hands = null;
-    }
 
     // Poseの初期化 (bodyモードの場合のみ)
     if (this.currentMode === 'body') {
@@ -430,13 +377,7 @@ class GameManager {
   return this.ui.updateInstructions();
   }
 
-  /**
-   * 手の検出状況を表示するインジケーターを更新
-   */
-  updateHandDetectionIndicator(multiHandLandmarks) {
-  // SRP: UIManagerに委譲
-  return this.ui.updateHandDetectionIndicator(multiHandLandmarks);
-  }
+
 
   /**
    * 音楽再生を開始する
@@ -1309,89 +1250,7 @@ class GameManager {
     }
   }
 
-  /**
-   * 手振り動作の検出とポイント獲得
-   * 
-   * @param {Object} palmLandmark - 手のひらの中心ランドマーク
-   * @param {number} screenX - 画面上のX座標
-   * @param {number} screenY - 画面上のY座標
-   */
-  detectHandWaving(palmLandmark, screenX, screenY) {
-    const currentTime = performance.now();
-    
-    // 手の位置履歴を追加（正規化座標で記録）
-    this.handHistory.push({
-      x: palmLandmark.x,
-      y: palmLandmark.y,
-      time: currentTime
-    });
-    
-    // 古い履歴を削除（時間窓より古いもの）
-    this.handHistory = this.handHistory.filter(h => currentTime - h.time <= this.waveTimeWindow);
-    
-    // 手振りの検出（最低3個の履歴点があれば検出）
-    if (this.handHistory.length >= 3) {
-      const movement = this.calculateHandMovement();
-      
-      // 横方向の動きが閾値を超えた場合を手振りと判定
-      if (movement.horizontalRange > this.waveThreshold && 
-          currentTime - this.lastWaveTime > 200) { // 200ms間隔で手振り検出（より頻繁に）        
-        this.lastWaveTime = currentTime;
-        
-        // 歌詞付近での手振りをチェック
-        this.checkLyricsWithWaving(screenX, screenY);
-      }
-    }
-  }
 
-  /**
-   * 手の動きの範囲を計算
-   * 
-   * @return {Object} 横方向と縦方向の動きの範囲
-   */
-  calculateHandMovement() {
-    const xPositions = this.handHistory.map(h => h.x);
-    const yPositions = this.handHistory.map(h => h.y);
-    
-    const minX = Math.min(...xPositions);
-    const maxX = Math.max(...xPositions);
-    const minY = Math.min(...yPositions);
-    const maxY = Math.max(...yPositions);
-    
-    return {
-      horizontalRange: maxX - minX,
-      verticalRange: maxY - minY
-    };
-  }
-
-  /**
-   * 手振りによる歌詞判定（より広い範囲で判定）
-   * 
-   * @param {number} x - X座標
-   * @param {number} y - Y座標
-   */
-  checkLyricsWithWaving(x, y) {
-    if (this.isFirstInteraction) return false;
-    const waveRadius = 150; // 手振りの場合はさらに広い判定範囲
-
-  for (const el of this.activeLyricBubbles) {
-      if (el.style.pointerEvents === 'none') continue;
-      
-      const rect = el.getBoundingClientRect();
-      const elX = rect.left + rect.width / 2;
-      const elY = rect.top + rect.height / 2;
-      
-      const dx = x - elX, dy = y - elY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const hitRadius = waveRadius + Math.max(rect.width, rect.height) / 2;
-      
-      if (distance <= hitRadius) {
-        this.clickLyric(el);
-        this.createHitEffect(elX, elY); // 通常のヒットエフェクトを使用
-        break; // 1つの歌詞のみヒット
-      }
-    }
-  }
 
   /**
    * 歌詞をクリック/タッチした時の処理

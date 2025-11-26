@@ -23,7 +23,7 @@ export const songsData: Song[] = [
   }
 ]
 
-export type GameMode = 'cursor' | 'hand' | 'body'
+export type GameMode = 'cursor' | 'body'
 
 export interface GameConfig {
   songId: number

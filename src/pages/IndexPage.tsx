@@ -165,8 +165,8 @@ export default function IndexPage() {
         {/* モード選択（VIPチケット風） */}
         <div id="mode-selection" className="w-full mb-3">
           <h2 className="text-center text-lg font-bold text-white mb-3 ticket-header">モード選択</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(['cursor', 'hand', 'body'] as const).map((mode) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(['cursor', 'body'] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setGameMode(mode)}
@@ -174,12 +174,10 @@ export default function IndexPage() {
               >
                 <div className="ticket-mode">
                   {mode === 'cursor' && 'Cursor'}
-                  {mode === 'hand' && 'Hand'}
                   {mode === 'body' && 'Body'}
                 </div>
                 <div className="ticket-desc">
                   {mode === 'cursor' && 'マウスで歌詞をクリック'}
-                  {mode === 'hand' && 'カメラで手を認識'}
                   {mode === 'body' && 'カメラで全身を認識'}
                 </div>
                 <div className="ticket-barcode"></div>

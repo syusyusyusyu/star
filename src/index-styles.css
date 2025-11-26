@@ -801,3 +801,108 @@ select:focus-visible {
         opacity: 0.6;
     }
 }
+
+/* Cross Stage Theme */
+.cross-logo-container {
+    position: relative;
+    display: inline-block;
+    padding: 40px;
+    margin-bottom: 20px;
+}
+
+.cross-logo-text {
+    font-family: 'Segoe UI', sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: linear-gradient(135deg, #39C5BB 0%, #fff 50%, #FF69B4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 30px rgba(57, 197, 187, 0.5);
+    position: relative;
+    z-index: 10;
+    font-size: 4rem;
+}
+
+.cross-x {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    transform: translate(-50%, -50%);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.cross-x::before, .cross-x::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 140%;
+    height: 6px;
+    background: linear-gradient(90deg, transparent, rgba(57, 197, 187, 0.8), transparent);
+    box-shadow: 0 0 20px rgba(57, 197, 187, 0.8);
+    border-radius: 3px;
+}
+
+.cross-x::before {
+    transform: translate(-50%, -50%) rotate(25deg);
+    animation: crossPulse1 4s infinite alternate ease-in-out;
+}
+
+.cross-x::after {
+    background: linear-gradient(90deg, transparent, rgba(255, 105, 180, 0.8), transparent);
+    box-shadow: 0 0 20px rgba(255, 105, 180, 0.8);
+    transform: translate(-50%, -50%) rotate(-25deg);
+    animation: crossPulse2 4s infinite alternate-reverse ease-in-out;
+}
+
+@keyframes crossPulse1 {
+    0% { opacity: 0.4; width: 100%; transform: translate(-50%, -50%) rotate(25deg) scale(0.9); }
+    100% { opacity: 1; width: 140%; transform: translate(-50%, -50%) rotate(25deg) scale(1.1); }
+}
+
+@keyframes crossPulse2 {
+    0% { opacity: 0.4; width: 100%; transform: translate(-50%, -50%) rotate(-25deg) scale(0.9); }
+    100% { opacity: 1; width: 140%; transform: translate(-50%, -50%) rotate(-25deg) scale(1.1); }
+}
+
+/* Cross Beam Background */
+.cross-beam-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.beam {
+    position: absolute;
+    width: 200%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    top: 50%;
+    left: 50%;
+    transform-origin: center;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.beam:nth-child(1) { animation: beamRotate1 30s linear infinite; }
+.beam:nth-child(2) { animation: beamRotate2 40s linear infinite; }
+.beam:nth-child(3) { animation: beamRotate1 50s linear infinite reverse; }
+.beam:nth-child(4) { animation: beamRotate2 60s linear infinite reverse; }
+
+@keyframes beamRotate1 {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes beamRotate2 {
+    0% { transform: translate(-50%, -50%) rotate(45deg); }
+    100% { transform: translate(-50%, -50%) rotate(-315deg); }
+}

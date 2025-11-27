@@ -118,6 +118,7 @@ function GamePage() {
           <div id="miku"></div>
           <div id="song-info">
             <div id="song-title">{songData.title}</div>
+            <div id="song-artist">{songData.artist}</div>
             <div id="loading">{`${songData.title} をロード中...`}</div>
           </div>
 

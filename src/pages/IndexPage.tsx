@@ -11,37 +11,11 @@ export default function IndexPage() {
   const lastFocusedElementRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
-    // 星エフェクトを作成
-    createStars()
-
-    // リサイズ時に星の数を調整
-    const handleResize = () => {
-      createStars()
-    }
-    window.addEventListener('resize', handleResize)
-
+    // リサイズイベントのクリーンアップのみ
     return () => {
-      window.removeEventListener('resize', handleResize)
+      // クリーンアップ処理があればここに記述
     }
   }, [])
-
-  const createStars = () => {
-    const starsContainer = document.getElementById('stars-container')
-    if (!starsContainer) return
-
-    const starCount = Math.min(100, Math.floor(window.innerWidth * window.innerHeight / 6000))
-    starsContainer.innerHTML = ''
-
-    for (let i = 0; i < starCount; i++) {
-      const star = document.createElement('div')
-      star.className = 'star'
-      star.style.left = `${Math.random() * 100}%`
-      star.style.top = `${Math.random() * 100}%`
-      star.style.animationDelay = `${Math.random() * 3}s`
-      star.style.animationDuration = `${2 + Math.random() * 2}s`
-      starsContainer.appendChild(star)
-    }
-  }
 
   const handleSongSelect = (song: Song) => {
     localStorage.setItem('selectedSong', JSON.stringify({
@@ -134,91 +108,98 @@ export default function IndexPage() {
         </div>
       </div>
       
-      {/* 星エフェクト（照明効果に変更） */}
-      <div id="stars-container" className="fixed top-0 left-0 w-full h-full z-1 lighting-effects"></div>
-      
       {/* メインコンテンツ */}
-      <div className="relative z-10 w-full max-w-6xl flex flex-col items-center justify-center py-4 px-4 mx-auto min-h-screen" style={{ touchAction: 'pan-y' }}>
-        {/* Cross Stage ロゴ */}
-        <div className="text-center mb-12">
-          <div className="cross-logo-container">
+      <div className="relative z-10 w-full max-w-6xl flex flex-col items-center justify-center py-8 px-6 mx-auto min-h-screen" style={{ touchAction: 'pan-y' }}>
+        
+        {/* タイトルエリア */}
+        <div className="w-full mb-16 flex flex-col items-center">
+            <div className="cross-logo-container transform scale-90 sm:scale-100">
             <div className="cross-x"></div>
             <h1 className="cross-logo-text text-5xl sm:text-6xl md:text-7xl leading-tight tracking-tight">
-              クロステ
+                クロステ
             </h1>
-          </div>
-          <p className="live-subtitle mt-4 text-sm sm:text-base tracking-[0.3em] text-gray-400 font-medium uppercase">Cross Stage</p>
-        </div>
-        
-        {/* ライブ情報バナー（コンパクト版） */}
-        <div className="live-info-banner w-full mb-3 py-2">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xl" role="img" aria-label="マイク">🎤</span>
-              <div>
-                <p className="text-xs text-gray-400">TextAlive App API</p>
-              </div>
             </div>
-            <button 
-              onClick={openHelp}
-              className="miku-glow px-4 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-400 hover:from-teal-600 hover:to-cyan-500 text-white text-sm font-bold rounded-lg transition-all duration-300 shadow-lg transform hover:scale-105"
-              aria-label="操作方法を表示"
-            >
-              ルール説明
-            </button>
-          </div>
+            <p className="live-subtitle mt-4 text-sm sm:text-base tracking-[0.3em] text-gray-400 font-medium uppercase">Cross Stage</p>
         </div>
-        
-        {/* モード選択（VIPチケット風） */}
-        <div id="mode-selection" className="w-full mb-3">
-          <h2 className="text-center text-lg font-bold text-white mb-3 ticket-header">モード選択</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(['cursor', 'body'] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setGameMode(mode)}
-                className={`vip-ticket ${gameMode === mode ? 'vip-ticket-selected' : ''}`}
-              >
-                <div className="ticket-mode">
-                  {mode === 'cursor' && 'Cursor'}
-                  {mode === 'body' && 'Body'}
+
+        <div className="w-full flex flex-col md:flex-row gap-16 items-start justify-center">
+            {/* 左カラム: モード選択 & Info */}
+            <div className="w-full md:w-5/12 flex flex-col gap-8">
+                {/* Info Banner */}
+                <div className="text-right border-b border-miku/50 pb-2 flex justify-between items-end">
+                    <div className="text-left">
+                        <p className="text-[10px] text-gray-500 tracking-widest">POWERED BY TEXTALIVE</p>
+                        <p className="text-[10px] text-gray-500 tracking-widest">SONGLE</p>
+                    </div>
+                    <button onClick={openHelp} className="text-miku font-bold text-sm hover:text-white transition-colors flex items-center gap-2 group">
+                        遊び方を見る <span className="group-hover:translate-x-1 transition-transform">→</span>
+                    </button>
                 </div>
-                <div className="ticket-desc">
-                  {mode === 'cursor' && 'マウスで歌詞をクリック'}
-                  {mode === 'body' && 'カメラで全身を認識'}
+
+                {/* Mode Selection */}
+                <div className="flex flex-col gap-4">
+                    <h2 className="text-sm font-bold text-gray-400 tracking-wider mb-2">モード選択</h2>
+                    {(['cursor', 'body'] as const).map((mode) => (
+                        <button
+                            key={mode}
+                            onClick={() => setGameMode(mode)}
+                            className={`group relative p-6 border transition-all duration-300 text-left overflow-hidden rounded-lg ${
+                                gameMode === mode 
+                                ? 'border-miku bg-miku/20 shadow-[0_0_15px_rgba(57,197,187,0.3)]' 
+                                : 'border-white/20 hover:border-white/40 bg-white/5'
+                            }`}
+                        >
+                            <div className={`absolute inset-0 bg-miku/5 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-300 ${gameMode === mode ? 'translate-x-0' : ''}`}></div>
+                            <div className="relative z-10 flex justify-between items-center">
+                                <div>
+                                    <h3 className={`text-xl font-bold ${gameMode === mode ? 'text-white' : 'text-gray-300'}`}>
+                                        {mode === 'cursor' ? 'マウスモード' : 'カメラモード'}
+                                    </h3>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        {mode === 'cursor' ? 'マウスで歌詞をキャッチ！' : '全身を使って歌詞をキャッチ！'}
+                                    </p>
+                                </div>
+                                {gameMode === mode && <div className="text-2xl text-miku">●</div>}
+                            </div>
+                        </button>
+                    ))}
                 </div>
-                <div className="ticket-barcode"></div>
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* 曲選択（セットリスト風） */}
-        <div className="w-full">
-          <h2 className="text-center text-lg font-bold text-white mb-3 setlist-header">楽曲リスト</h2>
-          <div className="max-h-[32vh] overflow-y-auto pr-2 compact-scrollbar">
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2" id="song-list">
-            {songsData.map((song, index) => (
-              <li
-                key={song.id}
-                id={`song-${song.id}`}
-                className="setlist-item"
-                style={{ animationDelay: `${index * 0.1}s` }}
-                onClick={(e) => {
-                  createClickEffect(e, e.currentTarget)
-                  handleSongSelect(song)
-                }}
-              >
-                <div className="setlist-number">{String(index + 1).padStart(2, '0')}</div>
-                <div className="setlist-content">
-                  <h3 className="setlist-title">{song.title}</h3>
-                  <p className="setlist-artist">{song.artist}</p>
+            </div>
+
+            {/* 右カラム: ゲーム開始エリア */}
+            <div className="w-full md:w-7/12 relative flex flex-col justify-center h-full min-h-[300px]">
+                <h2 className="text-8xl font-black text-white/5 absolute -z-10 -right-4 top-0 pointer-events-none select-none font-sans">START</h2>
+                
+                <div className="w-full pt-8 flex flex-col gap-8">
+                    {/* 曲情報表示 */}
+                    <div className="bg-white/5 rounded-xl p-6 border border-white/10 backdrop-blur-sm">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="w-1 h-4 bg-miku rounded-full"></span>
+                            <p className="text-gray-400 text-xs font-bold">プレイする楽曲</p>
+                        </div>
+                        <h3 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-2">
+                            {songsData[0].title}
+                        </h3>
+                        <p className="text-miku text-sm font-bold">
+                            {songsData[0].artist}
+                        </p>
+                    </div>
+
+                    {/* スタートボタン */}
+                    <button
+                        onClick={(e) => {
+                            createClickEffect(e, e.currentTarget)
+                            handleSongSelect(songsData[0])
+                        }}
+                        className="group relative w-full bg-gradient-to-r from-miku/80 to-blue-500/80 hover:from-miku hover:to-blue-500 transition-all duration-300 py-6 px-8 rounded-xl shadow-lg hover:shadow-miku/50 hover:-translate-y-1"
+                    >
+                        <div className="relative z-10 flex items-center justify-center gap-4">
+                            <span className="text-2xl font-bold text-white tracking-widest">ゲームスタート</span>
+                            <span className="text-2xl text-white animate-pulse">▶</span>
+                        </div>
+                    </button>
                 </div>
-                <div className="setlist-play-icon">▶</div>
-              </li>
-            ))}
-            </ul>
-          </div>
+            </div>
         </div>
       </div>
 
@@ -227,66 +208,74 @@ export default function IndexPage() {
         <div
           id="help-modal"
           ref={helpModalRef}
-          className="fixed inset-0 z-30"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
           onKeyDown={handleKeyDown}
           role="dialog"
           aria-modal="true"
           aria-labelledby="help-modal-title"
         >
-          {/* 背景 */}
           <div
             id="help-backdrop"
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/80 backdrop-blur-md"
             onClick={closeHelp}
           ></div>
-          {/* コンテンツ */}
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto space-y-4 p-6 rounded-xl bg-space-800/90 border border-miku-400 shadow-2xl animate-fade-in text-sm leading-relaxed">
-              <div className="flex justify-between items-start mb-2">
-                <h2 id="help-modal-title" className="text-2xl font-bold text-miku-300">ルール説明</h2>
+          
+          <div className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto crossover-panel p-8 rounded-lg animate-fade-in">
+              <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
+                <h2 id="help-modal-title" className="text-3xl font-bold text-white tracking-tight">遊び方</h2>
                 <button
-                  id="close-help-btn-top"
                   onClick={closeHelp}
-                  className="text-miku-300 hover:text-miku-100 transition text-xl px-2"
-                  aria-label="閉じる"
+                  className="text-gray-400 hover:text-white transition text-2xl"
                 >
                   ×
                 </button>
               </div>
-              {/* セクション: 基本操作 */}
-              <section className="p-4 bg-space-800 bg-opacity-80 rounded-lg border border-miku-400">
-                <h3 className="font-medium text-miku-300 mb-1.5">基本操作</h3>
-                <p>このゲームでは、選択した曲の歌詞がタイミングに合わせて流れてきます。歌詞に触れてスコアとコンボを伸ばしましょう。</p>
-              </section>
-              <section>
-                <h3 className="font-medium text-miku-300 mb-2">操作手順</h3>
-                <ol className="list-decimal pl-6 space-y-2 text-miku-100">
-                  <li>プレイモードを選択</li>
-                  <li>曲リストから曲を選び「プレイ」を押す。</li>
-                  <li>歌詞が表示されたらモードに応じてヒット（クリック / 体）。</li>
-                  <li>タイミングよく全てヒットしてコンボを伸ばす。</li>
-                  <li>曲終了後にスコアとランクを確認。</li>
-                </ol>
-              </section>
-              {/* 表示説明 */}
-              <section>
-                <h3 className="font-medium text-miku-300 mb-2">表示の説明</h3>
-                <ul className="list-disc pl-6 space-y-2 text-miku-100">
-                  <li>歌詞バブル: タイミングに合わせて出現・移動。</li>
-                  <li>スコア / コンボ: 画面上部に表示。</li>
-                  <li>モード別入力: Cursor=クリック / Body=腕や手。</li>
-                </ul>
-              </section>
-              <div className="mt-4 flex justify-end">
+              
+              <div className="space-y-8 text-gray-300">
+                  <section>
+                    <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
+                        <span className="w-1 h-6 bg-miku block"></span>
+                        基本ルール
+                    </h3>
+                    <p className="leading-relaxed">
+                        音楽に合わせて流れてくる歌詞をタイミングよくキャッチするリズムゲームです。
+                        歌詞に触れることでスコアとコンボが加算されます。
+                    </p>
+                  </section>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <section className="bg-white/5 p-4 rounded border border-white/5">
+                        <h3 className="text-white font-bold mb-2">マウスモード</h3>
+                        <p className="text-sm">マウスカーソルを使って歌詞をクリックまたはホバーします。</p>
+                      </section>
+                      <section className="bg-white/5 p-4 rounded border border-white/5">
+                        <h3 className="text-white font-bold mb-2">カメラモード</h3>
+                        <p className="text-sm">Webカメラを使用し、体の動きで歌詞に触れます。</p>
+                      </section>
+                  </div>
+
+                  <section>
+                    <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
+                        <span className="w-1 h-6 bg-miku block"></span>
+                        プレイの流れ
+                    </h3>
+                    <ol className="list-decimal pl-5 space-y-2 marker:text-miku">
+                      <li>プレイモード（マウス / カメラ）を選択</li>
+                      <li>「ゲームスタート」ボタンをクリック</li>
+                      <li>タイミングよく歌詞をキャッチ！</li>
+                      <li>曲が終わるとリザルト画面へ</li>
+                    </ol>
+                  </section>
+              </div>
+
+              <div className="mt-8 flex justify-end">
                 <button
-                  id="close-help-btn"
                   onClick={closeHelp}
-                  className="inline-flex items-center px-5 py-2.5 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-miku-400 to-miku-600 hover:from-miku-300 hover:to-miku-500 focus:outline-none focus:ring-2 focus:ring-miku-500 transition-all duration-200 transform hover:scale-105 miku-glow"
+                  className="miku-glow px-8 py-3 rounded text-white font-bold"
                 >
                   閉じる
                 </button>
               </div>
-            </div>
           </div>
         </div>
       )}

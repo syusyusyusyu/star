@@ -1754,10 +1754,12 @@ class ResultsManager {
     };
 
     addEvents(backToTitle, () => {
-      window.location.href = 'index.html';
+      console.log('Back to title clicked');
+      window.location.href = '/';
     });
 
     addEvents(replaySong, () => {
+      console.log('Replay song clicked');
       const resultsScreen = document.getElementById('results-screen');
       if (resultsScreen) {
         resultsScreen.classList.remove('show');

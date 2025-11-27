@@ -11,11 +11,11 @@ export const Slot: React.FC<SlotProps> = ({ id, position }) => {
       position: 'absolute',
       width: '300px',
       height: '300px',
-      border: '1px solid rgba(57, 197, 187, 0.2)',
+      border: '2px solid #39C5BB',
       borderRadius: '50%',
       overflow: 'hidden',
       backgroundColor: 'rgba(0, 0, 0, 0.2)',
-      boxShadow: 'inset 0 0 20px rgba(0, 0, 0, 0.5)',
+      boxShadow: 'inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 10px rgba(57, 197, 187, 0.4)',
       zIndex: 20, // Ensure it's above background but maybe below some UI?
       pointerEvents: 'none', // Container shouldn't block clicks, but children (bubbles) should
     };
@@ -26,7 +26,7 @@ export const Slot: React.FC<SlotProps> = ({ id, position }) => {
         return { ...baseStyle, top: '5%', left: '50%', transform: 'translateX(-50%)' };
       case 'bottom': 
         // Bottom slot needs to be visible above the "grass" or bottom UI if any
-        return { ...baseStyle, bottom: '15%', left: '50%', transform: 'translateX(-50%)' };
+        return { ...baseStyle, bottom: '5%', left: '50%', transform: 'translateX(-50%)' };
       case 'left': 
         return { ...baseStyle, top: '50%', left: '5%', transform: 'translateY(-50%)' };
       case 'right': 

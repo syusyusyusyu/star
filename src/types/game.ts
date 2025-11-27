@@ -13,13 +13,6 @@ export const songsData: Song[] = [
     artist: "加賀(ネギシャワーP)",
     apiToken: "HmfsoBVch26BmLCm",
     songUrl: "https://piapro.jp/t/ULcJ/20250205120202"
-  },
-  {
-    id: 2,
-    title: "アリフレーション",
-    artist: "雨良 Amala",
-    apiToken: "rdja5JxMEtcYmyKP",
-    songUrl: "https://piapro.jp/t/SuQO/20250127235813"
   }
 ]
 

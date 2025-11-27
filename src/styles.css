@@ -693,7 +693,7 @@ html {
   .viewer-lyric-char {
     display: inline-block;
     color: #ffffff;
-    font-size: 40px;
+    font-size: 28px;
     margin: 0 2px;
     text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
     transition: all 0.3s ease;

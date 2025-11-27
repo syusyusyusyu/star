@@ -119,7 +119,7 @@ export default function IndexPage() {
                 クロステ
             </h1>
             </div>
-            <p className="live-subtitle mt-4 text-sm sm:text-base tracking-[0.3em] text-gray-400 font-medium uppercase">Cross Stage</p>
+            <p className="live-subtitle mt-1 text-sm sm:text-base tracking-[0.3em] text-gray-400 font-medium uppercase">Cross Stage</p>
         </div>
 
         <div className="w-full flex flex-col md:flex-row gap-16 items-start justify-center">

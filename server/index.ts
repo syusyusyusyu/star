@@ -13,6 +13,37 @@ const __dirname = path.dirname(__filename)
 
 const app = new Hono()
 
+// Content Security Policy and related headers for client-side hardening
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com",
+  "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://textalive.jp https://piapro.jp https://unpkg.com https://cdn.jsdelivr.net",
+  "frame-ancestors 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  'upgrade-insecure-requests',
+].join('; ')
+
+app.use('*', async (c, next) => {
+  await next()
+  c.header('Content-Security-Policy', contentSecurityPolicy)
+  c.header(
+    'Permissions-Policy',
+    'camera=(self), microphone=(), geolocation=(), fullscreen=(self), autoplay=(self)'
+  )
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
+  c.header('X-Frame-Options', 'SAMEORIGIN')
+  c.header('X-Content-Type-Options', 'nosniff')
+  c.header('Cross-Origin-Opener-Policy', 'same-origin')
+  c.header('Cross-Origin-Resource-Policy', 'same-origin')
+  c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+})
+
 // Middlewares
 app.use('*', poweredBy())
 app.use('*', logger())

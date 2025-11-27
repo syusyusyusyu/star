@@ -109,11 +109,11 @@ export default function IndexPage() {
       </div>
       
       {/* メインコンテンツ */}
-      <div className="relative z-10 w-full max-w-6xl flex flex-col items-center justify-center py-8 px-6 mx-auto min-h-screen" style={{ touchAction: 'pan-y' }}>
+      <div className="relative z-10 w-full max-w-[1440px] flex flex-col items-center justify-center py-8 px-6 mx-auto min-h-screen" style={{ touchAction: 'pan-y' }}>
         
         {/* タイトルエリア */}
         <div className="w-full mb-16 flex flex-col items-center">
-            <div className="cross-logo-container transform scale-90 sm:scale-100">
+            <div className="cross-logo-container transform scale-105 sm:scale-[1.15]">
             <div className="cross-x"></div>
             <h1 className="cross-logo-text text-5xl sm:text-6xl md:text-7xl leading-tight tracking-tight">
                 クロステ

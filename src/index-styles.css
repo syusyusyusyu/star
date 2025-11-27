@@ -873,19 +873,24 @@ select:focus-visible {
 .cross-logo-container {
     position: relative;
     display: inline-block;
-    padding: 20px 40px;
+    padding: 40px 60px;
     margin-bottom: 20px;
 }
 
 .cross-logo-text {
-    font-family: 'Helvetica Neue', Arial, sans-serif; /* よりスタンダードなフォントへ */
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    color: #fff; /* グラデーションではなく白単色でソリッドに */
-    text-shadow: 0 0 20px rgba(255, 255, 255, 0.3); /* 控えめなグロー */
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: 0.02em;
+    color: #fff;
+    text-shadow: 
+        0 0 10px rgba(255, 255, 255, 0.8),
+        0 0 20px rgba(57, 197, 187, 0.6),
+        0 0 40px rgba(57, 197, 187, 0.4);
     position: relative;
     z-index: 10;
-    font-size: 4rem;
+    font-size: 5rem;
+    transform: skewX(-5deg);
 }
 
 .cross-x {

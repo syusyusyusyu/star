@@ -68,7 +68,6 @@ npm start              # dist-server/index.js を起動（デフォルト :3000�
 - `src/pages/IndexPage.tsx` …… タイトル/モード・選曲 UI
 - `src/pages/GamePage.tsx` …… ゲーム画面の React コンテナ
 - `src/game/GameManager.ts` …… 歌詞同期・判定・入力・演出のコア
-- `public/game.html`, `public/script.js` …… 単体ページ版（Hono 直配信用）
 - `server/index.ts` …… Hono サーバー（静的配信と簡易 API）
 - `docs/` …… ビルド成果物を置くと Hono が優先して配信
 

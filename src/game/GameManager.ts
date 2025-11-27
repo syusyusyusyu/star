@@ -999,12 +999,16 @@ class GameManager {
         let word = phrase.firstWord;
         while (word) {
           const text = (word.text ?? '').toString().normalize('NFC').trim();
-          if (text) {
+          const startTime = typeof word.startTime === 'number' ? word.startTime : 0;
+          const endTime = typeof word.endTime === 'number' ? word.endTime : startTime;
+
+          // TextAlive では曲頭前のアップビートに負のタイムスタンプが入ることがあるためスキップ
+          if (startTime >= 0 && text) {
             this.lyricsData.push({
-              time: word.startTime,
-              endTime: word.endTime,
+              time: startTime,
+              endTime: Math.max(endTime, startTime + 10), // 表示幅が0にならないよう最低10ms確保
               text: text,
-              displayDuration: word.endTime - word.startTime
+              displayDuration: Math.max(endTime - startTime, 10),
             });
           }
           word = word.next;

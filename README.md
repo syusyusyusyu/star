@@ -76,3 +76,13 @@ npm start              # dist-server/index.js ã‚’èµ·å‹•ï¼ˆãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ :3000ï
 - ä½“å…¨ä½“ãŒæ˜ ã‚‹è·é›¢ã‚’ç¢ºä¿ã—ã€èƒŒæ™¯ãŒã”ã¡ã‚ƒã¤ãå ´åˆã¯ Selfie Segmentation ãŒèª¤æ¤œå‡ºã—ã‚„ã™ã„ã®ã§ç…§æ˜ã‚’æ˜ã‚‹ã
 - ãƒ–ãƒ©ã‚¦ã‚¶å…¨ç”»é¢ï¼ˆF11ï¼‰ã§è¦³å®¢å‘ã‘ã«è¦‹ã›ã‚‹ã¨æ¼”å‡ºãŒæ˜ ãˆã¾ã™
 
+
+## ƒ‰ƒ“ƒLƒ“ƒO / Supabase ƒZƒbƒgƒAƒbƒv
+- Supabase ‚É scores ƒe[ƒuƒ‹‚ğì¬i`supabase_scores.sql` ‚Ì SQL ‚ğ‚»‚Ì‚Ü‚ÜÀsj
+- `.env` ‚É `SUPABASE_URL` ‚Æ `SUPABASE_SERVICE_ROLE_KEY` ‚ğİ’èiservice role ‚ÍƒT[ƒo[ê—pEƒtƒƒ“ƒg”ñŒöŠJj
+- ƒT[ƒo[ APIiHonoj
+  - `POST /api/score` : `{ songId, mode: 'cursor'|'body', score, maxCombo, rank }` ‚ğ•Û‘¶i¬Œ÷ `{ ok: true }`j
+  - `GET /api/ranking?songId=...&mode=cursor|body` : score ~‡ Top10 ‚ğ•Ô‹pimode È—ª‰Âj
+- “®ìŠm”F—á
+  - `curl -X POST http://localhost:3000/api/score -H "Content-Type: application/json" -d '{"songId":"HmfsoBVch26BmLCm","mode":"cursor","score":12345,"maxCombo":99,"rank":"A"}'`
+  - `curl "http://localhost:3000/api/ranking?songId=HmfsoBVch26BmLCm&mode=cursor"`

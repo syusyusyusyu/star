@@ -583,19 +583,19 @@ class GameManager {
     ];
     this.fallbackLyricsData = [];
 
-    // フレーズごとに歌詞データを生成（正規化して取り込み）
+    // フレーズごとに歌詞データを生成（熟語単位のバブルにまとめる）
+    const fallbackIdiomDuration = 400;
     fallbackPhrases.forEach(phrase => {
       const normalized = (phrase.text || '').normalize('NFC');
-      Array.from(normalized).forEach((ch, index) => {
-        const normChar = String(ch).normalize('NFC');
-        this.fallbackLyricsData.push({
-          time: phrase.startTime + index * 400, // 同じフレーズ内の文字は400msずつずらす
-          text: normChar,
-          originalChars: [{
-            text: normChar,
-            timeOffset: index * 400
-          }]
-        });
+      const duration = Math.max(normalized.length * fallbackIdiomDuration, fallbackIdiomDuration);
+      this.fallbackLyricsData.push({
+        time: phrase.startTime,
+        text: normalized,
+        displayDuration: duration,
+        originalChars: [{
+          text: normalized,
+          timeOffset: 0
+        }]
       });
     });
     

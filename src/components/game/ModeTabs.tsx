@@ -6,8 +6,8 @@ type ModeTabsProps = {
 }
 
 const tabs: { value: PlayMode; label: string }[] = [
-  { value: 'cursor', label: 'Cursor モード' },
-  { value: 'body', label: 'Body モード' },
+  { value: 'cursor', label: 'マウスモード' },
+  { value: 'body', label: 'カメラモード' },
 ]
 
 const ModeTabs = ({ value, onChange }: ModeTabsProps) => {

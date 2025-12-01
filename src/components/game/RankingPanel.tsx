@@ -21,8 +21,8 @@ const RankingPanel = ({ songId, mode, className = "" }: RankingPanelProps) => {
   const [error, setError] = useState<string | null>(null)
 
   const modeLabel = useMemo(() => {
-    if (!mode) return 'All Modes'
-    return mode === 'cursor' ? 'Cursor Mode' : 'Body Mode'
+    if (!mode) return '全モード'
+    return mode === 'cursor' ? 'マウスモード' : 'カメラモード'
   }, [mode])
 
   useEffect(() => {
@@ -92,7 +92,7 @@ const RankingPanel = ({ songId, mode, className = "" }: RankingPanelProps) => {
                 <span className="tabular-nums">{row.score.toLocaleString()}</span>
                 <span className="tabular-nums">{row.max_combo.toLocaleString()}</span>
                 <span className="font-bold text-white">{row.rank}</span>
-                <span className="text-[10px] text-gray-300">{row.mode === 'cursor' ? 'Cursor' : 'Body'}</span>
+                <span className="text-[10px] text-gray-300">{row.mode === 'cursor' ? 'マウス' : 'カメラ'}</span>
               </div>
             ))}
           </div>

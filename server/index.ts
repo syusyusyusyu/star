@@ -1,4 +1,5 @@
 // Minimal Hono server to serve static files and expose simple APIs
+import 'dotenv/config'
 import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import { poweredBy } from 'hono/powered-by'
@@ -7,6 +8,7 @@ import { cors } from 'hono/cors'
 import { serveStatic } from '@hono/node-server/serve-static'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import scoreRoute from './routes/score'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -21,7 +23,7 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob:",
   "media-src 'self' blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://textalive.jp https://piapro.jp https://unpkg.com https://cdn.jsdelivr.net",
+  "connect-src 'self' https://textalive.jp https://piapro.jp https://unpkg.com https://cdn.jsdelivr.net https://*.supabase.co",
   "frame-ancestors 'self'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -57,6 +59,8 @@ app.post('/api/echo', async (c) => {
   const data = await c.req.json().catch(() => ({}))
   return c.json({ ok: true, received: data })
 })
+
+app.route('/api', scoreRoute)
 
 // Serve from ./docs if exists, otherwise from project root
 import { existsSync } from 'node:fs'

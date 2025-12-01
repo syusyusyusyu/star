@@ -11,10 +11,11 @@ export type SongConfig = Pick<SongData, 'apiToken' | 'songUrl'>
 
 const defaultSong: SongData = {
   id: 1,
-  title: 'SUPERHERO',
-  artist: 'めろくる',
-  apiToken: 'wifkp8ak1TEhQ8pI',
-  songUrl: 'https://piapro.jp/t/hZ35/20240130103028',
+  title: 'ストリートライト',
+  artist: '加賀(ネギシャワーP)',
+  apiToken: 'HmfsoBVch26BmLCm',
+  songUrl: 'https://piapro.jp/t/ULcJ/20250205120202',
+  difficulty: 'easy',
 }
 
 const colorVariations: Record<string, string> = {

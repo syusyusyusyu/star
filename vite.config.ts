@@ -8,10 +8,13 @@ export default defineConfig({
     port: 5173,
     strictPort: true, // ポートが使用中の場合はエラーにする
     watch: {
-      usePolling: true, // Dockerでファイル変更を確実に検知
+      usePolling: true,
+      interval: 100,
+      binaryInterval: 300,
     },
     hmr: {
-      clientPort: 5173, // HMRのクライアントポート
+      host: 'localhost',
+      clientPort: 5173,
     },
     proxy: {
       '/api': {

@@ -6,6 +6,15 @@ import { SelfieSegmentation } from '@mediapipe/selfie_segmentation'
 import { Camera } from '@mediapipe/camera_utils'
 
 const TextAliveApp = { Player }
+const DEFAULT_SONG_ID = 'HmfsoBVch26BmLCm'
+
+const calculateRank = (score) => {
+  if (typeof score !== 'number') return 'C'
+  if (score >= 10000) return 'S'
+  if (score >= 8000) return 'A'
+  if (score >= 6000) return 'B'
+  return 'C'
+}
 
 /**
  * ボイスアイドル・ミュージックゲーム - 内部処理のみ最適化版
@@ -19,10 +28,13 @@ class GameManager {
    * ゲームマネージャーの初期化
    * ゲームの基本設定、DOM要素の取得、イベントリスナーの設定を行う
    */
-  constructor() {
+  constructor(config = {}) {
     // ????????
     this.apiToken = window.songConfig?.apiToken;
     this.songUrl = window.songConfig?.songUrl;
+    this.songId = config.songId || this.apiToken || DEFAULT_SONG_ID;
+    this.onGameEnd = config.onGameEnd;
+    this.resultReported = false;
     this.score = this.combo = this.maxCombo = 0;
     this.startTime = Date.now();
     this.isPlaying = this.isPlayerInit = false;
@@ -50,7 +62,7 @@ class GameManager {
     const urlParams = new URLSearchParams(window.location.search);
     const urlMode = urlParams.get('mode');
     const storedMode = localStorage.getItem('gameMode');
-    const requestedMode = urlMode || storedMode || 'cursor';
+    const requestedMode = config.mode || urlMode || storedMode || 'cursor';
     this.currentMode = this.isMobile ? 'cursor' : requestedMode; // モバイルではcursor固定
     
     if (this.isMobile && requestedMode !== 'cursor') {
@@ -720,6 +732,7 @@ class GameManager {
     this.scoreEl.textContent = '0';
     this.comboEl.textContent = `コンボ: 0`;
     this.resultsDisplayed = false; // リザルト表示フラグをリセット（重要）
+    this.resultReported = false;
     
     // ボディモードの場合は検出フラグをリセット（再度カウントダウンが必要）
     if (this.currentMode === 'body') {
@@ -1715,10 +1728,23 @@ class ResultsManager {
 
     this.game.maxCombo = Math.max(this.game.maxCombo || 0, this.game.combo);
 
-    let rank = 'C';
-    if (this.game.score >= 10000) rank = 'S';
-    else if (this.game.score >= 8000) rank = 'A';
-    else if (this.game.score >= 6000) rank = 'B';
+    const rank = calculateRank(this.game.score);
+    const modeForResult = this.game.currentMode === 'body' ? 'body' : 'cursor';
+
+    if (!this.game.resultReported && typeof this.game.onGameEnd === 'function') {
+      this.game.resultReported = true;
+      try {
+        this.game.onGameEnd({
+          songId: this.game.songId || DEFAULT_SONG_ID,
+          mode: modeForResult,
+          score: this.game.score,
+          maxCombo: this.game.maxCombo,
+          rank,
+        });
+      } catch (error) {
+        console.error('onGameEnd handler error', error);
+      }
+    }
 
     const resultsScreen = document.getElementById('results-screen');
     if (!resultsScreen) {

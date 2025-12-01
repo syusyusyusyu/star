@@ -1,12 +1,54 @@
-﻿import { useEffect, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Helmet } from "react-helmet-async"
 import GameManager from "../game/GameManager"
 import { initLiveParticles, loadSongConfig } from "../game/gameLoader"
 import { Slot } from "../components/game/Slot"
+import ModeTabs from "../components/game/ModeTabs"
+import RankingPanel from "../components/game/RankingPanel"
+import { type GameResult, type PlayMode } from "../types/game"
 import "../styles.css"
+
+const SONG_ID = "HmfsoBVch26BmLCm"
 
 function GamePage() {
   const { songData, accentColor } = useMemo(() => loadSongConfig(), [])
+  const [result, setResult] = useState<GameResult | null>(null)
+  const [rankingMode, setRankingMode] = useState<PlayMode>("cursor")
+  const [showRanking, setShowRanking] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const lastSubmittedKeyRef = useRef<string | null>(null)
+
+  const submitScore = useCallback(async (gameResult: GameResult) => {
+    const key = `${gameResult.songId}-${gameResult.mode}-${gameResult.score}-${gameResult.maxCombo}-${gameResult.rank}`
+    if (lastSubmittedKeyRef.current === key) return
+    lastSubmittedKeyRef.current = key
+
+    setIsSubmitting(true)
+    try {
+      const res = await fetch("/api/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(gameResult),
+      })
+      const payload = await res.json().catch(() => null)
+      if (!res.ok || (payload && payload.ok === false)) {
+        console.error("Score submit failed", payload?.error ?? res.statusText)
+      }
+    } catch (error) {
+      console.error("Score submit error", error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [])
+
+  const handleGameEnd = useCallback(
+    (gameResult: GameResult) => {
+      setResult(gameResult)
+      setRankingMode(gameResult.mode)
+      submitScore(gameResult)
+    },
+    [submitScore]
+  )
 
   useEffect(() => {
     const bodyClass = "game-body"
@@ -16,24 +58,31 @@ function GamePage() {
     const titleEl = document.getElementById("song-title")
     if (titleEl) titleEl.textContent = songData.title
     const loadingEl = document.getElementById("loading")
-    if (loadingEl) loadingEl.textContent = `${songData.title} をロード中...`
+    if (loadingEl) loadingEl.textContent = `${songData.title} ロード中...`
 
     initLiveParticles(document.getElementById("game-particles"))
 
-    // Initialize GameManager after a short delay to ensure DOM is ready
+    const params = new URLSearchParams(window.location.search)
+    const initialMode: PlayMode = params.get("mode") === "body" ? "body" : "cursor"
+
+    let manager: GameManager | null = null
+    const handleBeforeUnload = () => manager?.cleanup?.()
+
     const timer = setTimeout(() => {
-       const manager = new GameManager()
-       const handleBeforeUnload = () => manager?.cleanup?.()
-       window.gameManager = manager
-   
-       window.addEventListener("beforeunload", handleBeforeUnload)
-    }, 100);
+      manager = new GameManager({
+        songId: SONG_ID,
+        mode: initialMode,
+        onGameEnd: handleGameEnd,
+      })
+      window.gameManager = manager
+      window.addEventListener("beforeunload", handleBeforeUnload)
+    }, 100)
 
     return () => {
-      clearTimeout(timer);
-      window.removeEventListener("beforeunload", () => window.gameManager?.cleanup?.())
+      clearTimeout(timer)
+      window.removeEventListener("beforeunload", handleBeforeUnload)
       try {
-        window.gameManager?.cleanup?.()
+        manager?.cleanup?.()
       } catch (error) {
         console.error("Game cleanup error", error)
       }
@@ -41,8 +90,9 @@ function GamePage() {
         delete window.gameManager
       }
       document.body.classList.remove(bodyClass)
+      lastSubmittedKeyRef.current = null
     }
-  }, [accentColor, songData.title])
+  }, [accentColor, handleGameEnd, songData.title])
 
   return (
     <>
@@ -119,12 +169,12 @@ function GamePage() {
           <div id="song-info">
             <div id="song-title">{songData.title}</div>
             <div id="song-artist">{songData.artist}</div>
-            <div id="loading">{`${songData.title} をロード中...`}</div>
+            <div id="loading">{`${songData.title} ロード中...`}</div>
           </div>
 
           <div id="score-container">
             <div id="score">0</div>
-            <div id="combo">コンボ 0</div>
+            <div id="combo">コンボ: 0</div>
           </div>
 
           <div id="instructions">歌詞にマウスを当ててポイントを獲得しよう！</div>
@@ -150,6 +200,74 @@ function GamePage() {
             </div>
           </div>
         </div>
+
+        {result && (
+          <>
+            <div className="pointer-events-auto absolute bottom-8 right-8 z-[1200] animate-fade-in-up">
+               <button
+                  onClick={() => setShowRanking(true)}
+                  className="text-miku font-bold text-sm hover:text-white transition-colors flex items-center gap-2 group"
+                  style={{ textShadow: '0 0 10px rgba(0,0,0,0.8)' }}
+                >
+                  ランキングを見る <span className="group-hover:translate-x-1 transition-transform">→</span>
+               </button>
+            </div>
+
+            {showRanking && (
+              <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4 sm:p-8 animate-fade-in">
+                <div 
+                  className="absolute inset-0 bg-black/90 backdrop-blur-md"
+                  onClick={() => setShowRanking(false)}
+                ></div>
+                
+                <div className="relative w-full max-w-5xl max-h-[90vh] bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-scale-in">
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/5">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-miku/20 p-3 rounded-xl">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-miku" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-400 uppercase tracking-[0.2em]">Global Ranking</p>
+                        <h2 className="text-2xl font-bold text-white">ランキング</h2>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-6">
+                      <ModeTabs value={rankingMode} onChange={setRankingMode} />
+                      <button 
+                        onClick={() => setShowRanking(false)}
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition border border-white/5"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-gradient-to-b from-[#0a0a0a] to-[#111]">
+                    <RankingPanel 
+                      songId={SONG_ID} 
+                      mode={rankingMode} 
+                      className="!bg-transparent !border-none !shadow-none p-0 h-full" 
+                    />
+                  </div>
+                  
+                  {/* Footer */}
+                  {isSubmitting && (
+                    <div className="p-3 bg-miku/10 border-t border-miku/20 text-center">
+                      <p className="text-sm text-miku animate-pulse">スコア送信中...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </>
   )

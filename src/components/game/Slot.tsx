@@ -23,13 +23,13 @@ export const Slot: React.FC<SlotProps> = ({ id, position }) => {
     // Adjust positions based on the screenshot/requirements
     switch (pos) {
       case 'top-left': 
-        return { ...baseStyle, top: '10%', left: '10%' };
+        return { ...baseStyle, top: '10%', left: '20%' };
       case 'top-right': 
-        return { ...baseStyle, top: '10%', right: '10%' };
+        return { ...baseStyle, top: '10%', right: '20%' };
       case 'bottom-left': 
-        return { ...baseStyle, bottom: '10%', left: '10%' };
+        return { ...baseStyle, bottom: '10%', left: '20%' };
       case 'bottom-right': 
-        return { ...baseStyle, bottom: '10%', right: '10%' };
+        return { ...baseStyle, bottom: '10%', right: '20%' };
     }
   };
 

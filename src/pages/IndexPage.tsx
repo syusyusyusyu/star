@@ -202,7 +202,6 @@ export default function IndexPage() {
 
             {/* 右カラム: ゲーム開始エリア */}
             <div className="w-full md:w-7/12 relative flex flex-col justify-center h-full min-h-[300px]">
-                <h2 className="text-8xl font-black text-white/5 absolute -z-10 -right-4 top-0 pointer-events-none select-none font-sans">START</h2>
                 
                 <div className="w-full pt-8 flex flex-col gap-8">
                     {/* 曲情報表示 */}

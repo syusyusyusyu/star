@@ -10,9 +10,9 @@ const DEFAULT_SONG_ID = 'HmfsoBVch26BmLCm'
 
 const calculateRank = (score) => {
   if (typeof score !== 'number') return 'C'
-  if (score >= 10000) return 'S'
-  if (score >= 8000) return 'A'
-  if (score >= 6000) return 'B'
+  if (score >= 900000) return 'S'
+  if (score >= 800000) return 'A'
+  if (score >= 700000) return 'B'
   return 'C'
 }
 
@@ -36,6 +36,7 @@ class GameManager {
     this.onGameEnd = config.onGameEnd;
     this.resultReported = false;
     this.score = this.combo = this.maxCombo = 0;
+    this.scorePerHit = 0;
     this.startTime = Date.now();
     this.isPlaying = this.isPlayerInit = false;
     this.isFirstInteraction = true; // ?????????????
@@ -77,6 +78,7 @@ class GameManager {
     
     // 内部処理用のグループサイズを設定（パフォーマンス最適化）
     this.groupSize = 1;
+    this.visuals = null; // Only create heavy 3D visuals when the mode requires it
     
   // SRP: マネージャを準備（UI/入力/エフェクト/ビューポート）
   this.ui = new UIManager(this);
@@ -179,6 +181,9 @@ class GameManager {
     if (this.currentMode === 'body') {
         // videoElementは常にhiddenのまま
         segmentationCanvas.classList.remove('hidden');
+        if (!this.visuals) {
+            this.visuals = new LiveStageVisuals(this.gamecontainer);
+        }
     } else {
         // videoElementは常にhiddenのまま
         segmentationCanvas.classList.add('hidden');
@@ -231,7 +236,9 @@ class GameManager {
                     const flippedLandmarks = results.poseLandmarks.map(landmark => {
                         return { ...landmark, x: 1 - landmark.x };
                     });
-                    this.visuals.updatePlayerAvatar(flippedLandmarks);
+                    if (this.visuals) {
+                      this.visuals.updatePlayerAvatar(flippedLandmarks);
+                    }
 
                     // 全身検出の確認（常に実行）
                     if (this.currentMode === 'body') {
@@ -571,7 +578,7 @@ class GameManager {
    * 背景要素の生成と歌詞データの準備
    */
   initGame() {
-    this.visuals = new LiveStageVisuals(this.gamecontainer); // ← これを createAudience の直後に追加
+    this.visuals = this.currentMode === 'body' ? new LiveStageVisuals(this.gamecontainer) : null;
     this.createAudiencePenlights();
     this.lyricsData = [];
     
@@ -724,6 +731,7 @@ class GameManager {
     
     // スコアと状態のリセット
     this.score = this.combo = this.currentLyricIndex = 0;
+    this.scorePerHit = 0;
     this.startTime = Date.now();
     this.songStartTime = Date.now(); // 曲の開始時間をリセット
   this._lyricScanIndex = 0; // 歌詞インデックスをリセット
@@ -1029,6 +1037,23 @@ class GameManager {
         phrase = phrase.next;
       }
 
+      // 重複する歌詞（同じ時間、同じテキスト）を除外して、表示されるバブル数と分母を一致させる
+      const uniqueLyrics = [];
+      const seen = new Set();
+      for (const item of this.lyricsData) {
+        const key = `${item.time}_${item.text}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueLyrics.push(item);
+        }
+      }
+      this.lyricsData = uniqueLyrics;
+
+      // Calculate score per hit for 1,000,000 max score
+      const totalNotes = this.lyricsData.length;
+      this.scorePerHit = totalNotes > 0 ? 1000000 / totalNotes : 0;
+      console.log(`[GameManager] Total notes (unique): ${totalNotes}, Score per hit: ${this.scorePerHit}`);
+
       // TextAliveプレーヤー利用時は onFinish イベントでのみリザルト表示する
       // （ユーザー要望：曲が完全に終わったらリザルト画面へ）
       // フォールバック時のみ安全のためのタイマーを設定する
@@ -1281,11 +1306,23 @@ class GameManager {
     // スコアとコンボを更新
     this.combo++;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
-    const points = 100 * (Math.floor(this.combo / 5) + 1); // コンボボーナス
-    this.score += points;
+    
+    if (this.scorePerHit) {
+      this.score += this.scorePerHit;
+      
+      // 最終ノーツ（フルコンボ）の場合は誤差補正して確実に1,000,000点にする
+      if (this.lyricsData && this.combo === this.lyricsData.length) {
+        this.score = 1000000;
+        console.log('Full Combo! Score corrected to 1,000,000');
+      }
+      
+      console.log(`Hit! Combo: ${this.combo}, ScorePerHit: ${this.scorePerHit}, NewScore: ${this.score}`);
+    } else {
+      console.warn('ScorePerHit is 0 or undefined!');
+    }
     
     // 表示を更新
-    this.scoreEl.textContent = this.score;
+    this.scoreEl.textContent = Math.round(this.score);
     this.comboEl.textContent = `コンボ: ${this.combo}`;
     
     // 視覚効果
@@ -1384,9 +1421,9 @@ class LiveStageVisuals {
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
     this.camera.position.set(0, 100, 150);
 
-    this.renderer = new THREE.WebGLRenderer({ alpha: true });
+    this.renderer = new THREE.WebGLRenderer({ alpha: true, powerPreference: 'low-power' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.domElement.style.position = 'absolute';
     this.renderer.domElement.style.top = 0;
     this.renderer.domElement.style.left = 0;
@@ -1737,7 +1774,7 @@ class ResultsManager {
         this.game.onGameEnd({
           songId: this.game.songId || DEFAULT_SONG_ID,
           mode: modeForResult,
-          score: this.game.score,
+          score: Math.round(this.game.score),
           maxCombo: this.game.maxCombo,
           rank,
         });
@@ -1756,7 +1793,7 @@ class ResultsManager {
     const finalComboDisplay = document.getElementById('final-combo-display');
     const rankDisplay = document.getElementById('rank-display');
 
-    if (finalScoreDisplay) finalScoreDisplay.textContent = this.game.score;
+    if (finalScoreDisplay) finalScoreDisplay.textContent = Math.round(this.game.score);
     if (finalComboDisplay) finalComboDisplay.textContent = `最大コンボ: ${this.game.maxCombo}`;
     if (rankDisplay) rankDisplay.textContent = `ランク: ${rank}`;
 
@@ -1907,7 +1944,7 @@ class EffectsManager {
 
     const pointDisplay = document.createElement('div');
     pointDisplay.className = 'lyric-bubble';
-    pointDisplay.textContent = `+${100 * (Math.floor(this.game.combo / 5) + 1)}`;
+    pointDisplay.textContent = `+${Math.round(this.game.scorePerHit)}`;
     pointDisplay.style.left = `${x}px`;
     pointDisplay.style.top = `${y}px`;
     pointDisplay.style.color = '#FFFF00';

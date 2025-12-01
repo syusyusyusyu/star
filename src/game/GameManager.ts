@@ -1610,7 +1610,7 @@ class LyricsRenderer {
     bubble.style.opacity = '1';
 
     // Slot selection logic
-    const slots = ['slot-top', 'slot-bottom', 'slot-left', 'slot-right'];
+    const slots = ['slot-top-left', 'slot-top-right', 'slot-bottom-left', 'slot-bottom-right'];
     const randomSlotId = slots[Math.floor(Math.random() * slots.length)];
     const slotElement = document.getElementById(randomSlotId);
 

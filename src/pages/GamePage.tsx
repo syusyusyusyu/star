@@ -108,10 +108,10 @@ function GamePage() {
         <canvas id="segmentation-canvas" className="fixed top-0 left-0 w-full h-full z-[1]" />
 
         {/* Slots for bubbles */}
-        <Slot id="slot-top" position="top" />
-        <Slot id="slot-bottom" position="bottom" />
-        <Slot id="slot-left" position="left" />
-        <Slot id="slot-right" position="right" />
+        <Slot id="slot-top-left" position="top-left" />
+        <Slot id="slot-top-right" position="top-right" />
+        <Slot id="slot-bottom-left" position="bottom-left" />
+        <Slot id="slot-bottom-right" position="bottom-right" />
 
         <div
           id="countdown-overlay"

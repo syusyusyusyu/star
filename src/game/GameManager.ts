@@ -69,8 +69,8 @@ class GameManager {
   public isMobile: boolean
   public currentMode: PlayMode
   private pose: Pose | null
-  public bodyDetectionReady: boolean
   public enableBodyWarning: boolean
+  private bodyDetection!: BodyDetectionManager
   private visuals: LiveStageVisuals | null
   private gameLoop: GameLoop
   private playbackPosition: number
@@ -175,7 +175,6 @@ class GameManager {
     }
     console.log(`ゲームモード: ${this.currentMode} (URL: ${urlMode}, localStorage: ${storedMode})`);
     this.pose = null; // MediaPipe Poseインスタンス
-    this.bodyDetectionReady = false; // ボディ検出準備完了フラグ
     this.enableBodyWarning = true; // Body warning toggle for testing
     
     // 内部処理用のグループサイズはプロパティ宣言時に初期化済み
@@ -224,6 +223,8 @@ class GameManager {
     this.loading = getEl('loading')
     this.countdownOverlay = getEl('countdown-overlay') as HTMLElement
     this.countdownText = getEl('countdown-text') as HTMLElement
+    // SRP: ボディ検出に関する状態更新を専任マネージャーに委譲
+    this.bodyDetection = new BodyDetectionManager({ game: this, timers: this.timers })
     
     // 初期状態ではすべてのボタンを読み込み中と表示
     this.isPaused = true;
@@ -380,55 +381,6 @@ class GameManager {
   }
 
   /**
-   * 全身検出の確認とカウントダウンの開始
-   */
-  checkFullBodyDetection(landmarks: Landmark[]): void {
-    console.log("checkFullBodyDetection called.");
-    // 主要なランドマーク（頭、両肩、両腰、両足首）が存在するか確認
-    const requiredLandmarks = [
-      0, // 鼻
-      11, // 左肩
-      12, // 右肩
-      23, // 左腰
-      24, // 右腰
-      27, // 左足首
-      28  // 右足首
-    ];
-
-    const allDetected = requiredLandmarks.every(index => landmarks[index] && (landmarks[index].visibility ?? 0) > 0.8);
-    console.log("allDetected:", allDetected);
-    console.log("player isPlaying:", this.player?.isPlaying);
-
-    if (allDetected) {
-      console.log("Full body detected.");
-      if (!this.isCountdownActive()) {
-        this.hideCountdownOverlay();
-      }
-      this.cancelFullBodyWarning();
-      if (!this.bodyDetectionReady && !this.isCountdownActive()) {
-        console.log("ボディモード: カウントダウン開始（歌詞表示停止中）");
-        this.startBodyDetectionCountdown();
-      }
-    } else {
-      if (this.isCountdownActive()) {
-        console.log("Body lost during countdown, clearing countdown timer.");
-        this.cancelBodyCountdown("全身が映るように調整してください");
-      }
-
-      console.log("Body not detected. Player is playing:", this.player?.isPlaying, "Full body lost timer active:", this.timers.has(TIMER_KEYS.FullBodyLost));
-
-      if (this.enableBodyWarning && (this.bodyDetectionReady || this.player?.isPlaying) && !this.timers.has(TIMER_KEYS.FullBodyLost)) {
-        console.log("Setting full body lost timer.");
-        this.timers.setTimeout(TIMER_KEYS.FullBodyLost, () => {
-          console.log("Full body lost timer expired, showing warning.");
-          this.countdownOverlay.classList.remove('hidden');
-          this.countdownText.textContent = "全身が画面から外れています！";
-        }, 3000);
-      }
-    }
-  }
-
-  /**
    * ゲームの指示テキストを更新する
    */
   updateInstructions() {
@@ -443,7 +395,7 @@ class GameManager {
     if (this.showFpsCounter) {
       this.updateFpsDisplay(delta, elapsed);
     }
-    if (this.isPaused || this.isFirstInteraction || this.isCountdownActive()) return;
+    if (this.isPaused || this.isFirstInteraction || this.bodyDetection.isCountdownActive()) return;
     const position = this.getPlaybackPosition();
     if (position == null) return;
     this.updateLyrics(position);
@@ -483,16 +435,11 @@ class GameManager {
     if (this._operationInProgress) return;
     this._operationInProgress = true;
 
-    if (this.currentMode === 'body' && !this.bodyDetectionReady) {
-        console.log("playMusic: body mode and bodyDetectionReady is false. Showing adjustment message.");
-        if (this.enableBodyWarning) {
-            this.countdownOverlay.classList.remove('hidden');
-            this.countdownText.textContent = "全身が映るように調整してください";
-        } else {
-            this.countdownOverlay.classList.add('hidden');
-        }
-        this._operationInProgress = false; // ロック解除
-        return;
+    if (this.currentMode === 'body' && !this.bodyDetection.isReady()) {
+      console.log("playMusic: body mode and detection is not ready. Showing adjustment message.");
+      this.bodyDetection.remindAdjustment();
+      this._operationInProgress = false; // ロック解除
+      return;
     }
     
     try {
@@ -790,8 +737,7 @@ class GameManager {
     this.clearResultTimers();
     this.timers.clearTimer(TIMER_KEYS.SongProgress);
     this.cancelFinishGuards();
-    this.cancelBodyCountdown();
-    this.cancelFullBodyWarning();
+    this.bodyDetection.reset();
     
     // スコアと状態のリセット
     this.score = this.combo = this.currentLyricIndex = 0;
@@ -808,7 +754,6 @@ class GameManager {
     
     // ボディモードの場合は検出フラグをリセット（再度カウントダウンが必要）
     if (this.currentMode === 'body') {
-      this.bodyDetectionReady = false;
       this.isFirstInteraction = true;
       console.log("ボディモード: リスタート時に検出フラグをリセット");
     }
@@ -1101,7 +1046,7 @@ class GameManager {
    */
   updateLyrics(position: number): void {
     // 一時停止中、初回インタラクション前、またはボディモードのカウントダウン中は歌詞を表示しない
-    if (this.isPaused || this.isFirstInteraction || this.isCountdownActive()) return;
+    if (this.isPaused || this.isFirstInteraction || this.bodyDetection.isCountdownActive()) return;
 
     // 再生位置が巻き戻った場合は歌詞インデックスを再同期
     if (this._lastLyricsPosition != null && position < this._lastLyricsPosition - 1000) {
@@ -1270,51 +1215,6 @@ class GameManager {
     this.lastFpsUpdate = elapsed;
   }
 
-  private isCountdownActive(): boolean {
-    return this.timers.has(TIMER_KEYS.BodyCountdown);
-  }
-
-  private hideCountdownOverlay(): void {
-    this.countdownText.textContent = '';
-    this.countdownOverlay.classList.add('hidden');
-  }
-
-  private startBodyDetectionCountdown(): void {
-    let count = 5;
-    this.countdownOverlay.classList.remove('hidden');
-    this.countdownText.textContent = String(count);
-    this.isPaused = true;
-    this.isFirstInteraction = true;
-    this.timers.setInterval(TIMER_KEYS.BodyCountdown, () => {
-      count--;
-      if (count > 0) {
-        this.countdownText.textContent = String(count);
-        return;
-      }
-      this.timers.clearTimer(TIMER_KEYS.BodyCountdown);
-      this.bodyDetectionReady = true;
-      this.hideCountdownOverlay();
-      this.playMusic();
-    }, 1000);
-  }
-
-  private cancelBodyCountdown(message?: string): void {
-    if (!this.isCountdownActive()) return;
-    this.timers.clearTimer(TIMER_KEYS.BodyCountdown);
-    if (message && this.enableBodyWarning) {
-      this.countdownOverlay.classList.remove('hidden');
-      this.countdownText.textContent = message;
-    } else {
-      this.hideCountdownOverlay();
-    }
-  }
-
-  private cancelFullBodyWarning(): void {
-    if (!this.timers.has(TIMER_KEYS.FullBodyLost)) return;
-    this.timers.clearTimer(TIMER_KEYS.FullBodyLost);
-    this.hideCountdownOverlay();
-  }
-
   public cancelFinishGuards(): void {
     this.timers.clearTimer(TIMER_KEYS.FinishWatch);
     this.timers.clearTimer(TIMER_KEYS.FinishFallback);
@@ -1358,7 +1258,7 @@ class GameManager {
       this.visuals.updatePlayerAvatar(flippedLandmarks);
     }
     if (this.currentMode === 'body') {
-      this.checkFullBodyDetection(flippedLandmarks);
+      this.bodyDetection.evaluateLandmarks(flippedLandmarks);
     }
     const rightHand = flippedLandmarks[16];
     if (rightHand) {
@@ -1769,6 +1669,130 @@ class LiveStageVisuals {
       LiveStageVisuals.tipJointGeometry = new THREE.SphereGeometry(8, 16, 16);
     }
     return LiveStageVisuals.tipJointGeometry;
+  }
+}
+
+type BodyDetectionDeps = {
+  game: GameManager
+  timers: TimerManager
+}
+
+/**
+ * BodyDetectionManager
+ * 全身検出・カウントダウン・警告表示の責務をまとめて担当するクラス
+ * GameManager本体は状態管理とモード切替に専念できるようになる
+ */
+class BodyDetectionManager {
+  private readonly game: GameManager
+  private readonly timers: TimerManager
+  private ready = false
+
+  constructor({ game, timers }: BodyDetectionDeps) {
+    this.game = game;
+    this.timers = timers;
+  }
+
+  /** 全身が映って再生を開始できる状態か */
+  isReady(): boolean {
+    return this.ready;
+  }
+
+  /** カウントダウン中かどうか（歌詞出現を一時停止するために利用） */
+  isCountdownActive(): boolean {
+    return this.timers.has(TIMER_KEYS.BodyCountdown);
+  }
+
+  /** リスタート時などに検出状態と警告を完全リセット */
+  reset(): void {
+    this.ready = false;
+    this.cancelCountdown();
+    this.cancelFullBodyWarning();
+  }
+
+  /** 再生ボタン押下時に全身調整メッセージを提示 */
+  remindAdjustment(): void {
+    if (!this.game.enableBodyWarning) {
+      this.hideCountdownOverlay();
+      return;
+    }
+    this.game.countdownOverlay.classList.remove('hidden');
+    this.game.countdownText.textContent = '全身が映るように調整してください';
+  }
+
+  /** MediaPipeのランドマークを評価し、全身検出の状態を更新 */
+  evaluateLandmarks(landmarks: Landmark[]): void {
+    const requiredLandmarks = [0, 11, 12, 23, 24, 27, 28];
+    const allDetected = requiredLandmarks.every(index => {
+      const lm = landmarks[index];
+      return lm && (lm.visibility ?? 0) > 0.8;
+    });
+
+    if (allDetected) {
+      if (!this.isCountdownActive()) {
+        this.hideCountdownOverlay();
+      }
+      this.cancelFullBodyWarning();
+      if (!this.ready && !this.isCountdownActive()) {
+        this.startCountdown();
+      }
+      return;
+    }
+
+    if (this.isCountdownActive()) {
+      this.cancelCountdown('全身が映るように調整してください');
+    }
+
+    if (
+      this.game.enableBodyWarning &&
+      (this.ready || this.game.player?.isPlaying) &&
+      !this.timers.has(TIMER_KEYS.FullBodyLost)
+    ) {
+      this.timers.setTimeout(TIMER_KEYS.FullBodyLost, () => {
+        this.game.countdownOverlay.classList.remove('hidden');
+        this.game.countdownText.textContent = '全身が画面から外れています！';
+      }, 3000);
+    }
+  }
+
+  private startCountdown(): void {
+    let count = 5;
+    this.game.countdownOverlay.classList.remove('hidden');
+    this.game.countdownText.textContent = String(count);
+    this.game.isPaused = true;
+    this.game.isFirstInteraction = true;
+    this.timers.setInterval(TIMER_KEYS.BodyCountdown, () => {
+      count--;
+      if (count > 0) {
+        this.game.countdownText.textContent = String(count);
+        return;
+      }
+      this.timers.clearTimer(TIMER_KEYS.BodyCountdown);
+      this.ready = true;
+      this.hideCountdownOverlay();
+      void this.game.playMusic();
+    }, 1000);
+  }
+
+  cancelCountdown(message?: string): void {
+    if (!this.isCountdownActive()) return;
+    this.timers.clearTimer(TIMER_KEYS.BodyCountdown);
+    if (message && this.game.enableBodyWarning) {
+      this.game.countdownOverlay.classList.remove('hidden');
+      this.game.countdownText.textContent = message;
+    } else {
+      this.hideCountdownOverlay();
+    }
+  }
+
+  cancelFullBodyWarning(): void {
+    if (!this.timers.has(TIMER_KEYS.FullBodyLost)) return;
+    this.timers.clearTimer(TIMER_KEYS.FullBodyLost);
+    this.hideCountdownOverlay();
+  }
+
+  private hideCountdownOverlay(): void {
+    this.game.countdownText.textContent = '';
+    this.game.countdownOverlay.classList.add('hidden');
   }
 }
 

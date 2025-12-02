@@ -6,6 +6,37 @@ type PlayMode = 'cursor' | 'body'
 const isPlayMode = (mode: unknown): mode is PlayMode =>
   mode === 'cursor' || mode === 'body'
 
+type CacheKey = string
+type RankingCacheEntry = { timestamp: number; data: unknown }
+
+const CACHE_TTL_MS = 30_000
+const rankingCache = new Map<CacheKey, RankingCacheEntry>()
+
+const buildCacheKey = (songId: string, mode?: PlayMode | null) => `${songId}:${mode ?? 'all'}`
+
+const getCachedRanking = (songId: string, mode?: PlayMode | null) => {
+  const key = buildCacheKey(songId, mode ?? null)
+  const entry = rankingCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    rankingCache.delete(key)
+    return null
+  }
+  return entry.data
+}
+
+const setCachedRanking = (songId: string, mode: PlayMode | null, data: unknown) => {
+  rankingCache.set(buildCacheKey(songId, mode), {
+    timestamp: Date.now(),
+    data,
+  })
+}
+
+const invalidateRankingCache = (songId: string, mode: PlayMode) => {
+  rankingCache.delete(buildCacheKey(songId, null))
+  rankingCache.delete(buildCacheKey(songId, mode))
+}
+
 export const scoreRoute = new Hono()
 
 scoreRoute.post('/score', async (c) => {
@@ -47,6 +78,8 @@ scoreRoute.post('/score', async (c) => {
     return c.json({ ok: false, error: 'Failed to save score' }, 500)
   }
 
+  invalidateRankingCache(songId, mode)
+
   return c.json({ ok: true })
 })
 
@@ -60,6 +93,11 @@ scoreRoute.get('/ranking', async (c) => {
 
   if (modeParam && !isPlayMode(modeParam)) {
     return c.json({ ok: false, error: 'mode must be cursor or body' }, 400)
+  }
+
+  const cached = getCachedRanking(songId, modeParam as PlayMode | null)
+  if (cached) {
+    return c.json({ ok: true, data: cached, cached: true })
   }
 
   let query = supabase
@@ -80,7 +118,9 @@ scoreRoute.get('/ranking', async (c) => {
     return c.json({ ok: false, error: 'Failed to fetch ranking' }, 500)
   }
 
-  return c.json({ ok: true, data })
+  setCachedRanking(songId, (modeParam as PlayMode | null) ?? null, data)
+
+  return c.json({ ok: true, data, cached: false })
 })
 
 export default scoreRoute

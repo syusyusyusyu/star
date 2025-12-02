@@ -3,6 +3,9 @@ import { Player } from 'textalive-app-api'
 import { Pose, POSE_CONNECTIONS } from '@mediapipe/pose'
 import { SelfieSegmentation } from '@mediapipe/selfie_segmentation'
 import { Camera } from '@mediapipe/camera_utils'
+import { GameLoop } from './GameLoop'
+import { BubblePool } from './BubblePool'
+import { TimerManager } from './TimerManager'
 import type {
   PlayMode,
   GameConfig,
@@ -18,6 +21,16 @@ import { calculateRank } from './types'
 
 const TextAliveApp = { Player }
 const DEFAULT_SONG_ID = 'HmfsoBVch26BmLCm'
+const TIMER_KEYS = {
+  ComboReset: 'combo-reset',
+  ResultCheck: 'result-check',
+  ResultBackup: 'result-backup',
+  SongProgress: 'song-progress',
+  FinishWatch: 'finish-watch',
+  FinishFallback: 'finish-fallback',
+  BodyCountdown: 'body-countdown',
+  FullBodyLost: 'full-body-lost',
+} as const
 
 /**
  * ボイスアイドル・ミュージックゲーム - 内部処理のみ最適化版
@@ -57,10 +70,14 @@ class GameManager {
   public currentMode: PlayMode
   private pose: Pose | null
   public bodyDetectionReady: boolean
-  public countdownTimer: ReturnType<typeof setInterval> | null
-  private fullBodyLostTimer: ReturnType<typeof setTimeout> | null
   public enableBodyWarning: boolean
   private visuals: LiveStageVisuals | null
+  private gameLoop: GameLoop
+  private playbackPosition: number
+  private fallbackStartTime: number
+  private bubbleBounds: Map<HTMLElement, { x: number; y: number; radius: number }>
+  private lastBoundsUpdate = 0
+  private timers: TimerManager
   
   // ハンド検出
   private hands: { send(options: { image: HTMLVideoElement }): Promise<void> } | null
@@ -75,6 +92,11 @@ class GameManager {
   public effects: EffectsManager
   public input: InputManager
   public viewport: ViewportManager
+  public bubblePool: BubblePool
+  private showFpsCounter: boolean
+  private fpsOverlay: HTMLElement | null
+  private fpsSamples: number[]
+  private lastFpsUpdate: number
   
   // DOM要素
   public gamecontainer!: HTMLElement
@@ -88,10 +110,6 @@ class GameManager {
   
   // ゲーム状態
   public isPaused: boolean
-  public resultCheckTimer: ReturnType<typeof setTimeout> | null
-  private songProgressTimer: ReturnType<typeof setInterval> | null
-  public finishWatchInterval: ReturnType<typeof setInterval> | null
-  public finishFallbackTimeout: ReturnType<typeof setTimeout> | null
   
   // 歌詞
   public enableViewerLyrics: boolean
@@ -108,7 +126,6 @@ class GameManager {
   public _lastLyricsPosition = 0
   private lastPlayerPosition = 0
   private songStartTime = 0
-  private comboResetTimer: ReturnType<typeof setInterval> | null = null
   public lastScoreTime = 0
 
   /**
@@ -159,12 +176,13 @@ class GameManager {
     console.log(`ゲームモード: ${this.currentMode} (URL: ${urlMode}, localStorage: ${storedMode})`);
     this.pose = null; // MediaPipe Poseインスタンス
     this.bodyDetectionReady = false; // ボディ検出準備完了フラグ
-    this.countdownTimer = null; // カウントダウンタイマー
-    this.fullBodyLostTimer = null; // 全身ロスト時のタイマー
     this.enableBodyWarning = true; // Body warning toggle for testing
     
     // 内部処理用のグループサイズはプロパティ宣言時に初期化済み
     this.visuals = null; // Only create heavy 3D visuals when the mode requires it
+    this.gameLoop = new GameLoop({ onUpdate: this.handleGameLoopUpdate });
+    this.playbackPosition = 0;
+    this.fallbackStartTime = 0;
     
     // ハンド検出用の初期化
     this.hands = null;
@@ -178,6 +196,16 @@ class GameManager {
   this.effects = new EffectsManager(this);
   this.input = new InputManager(this);
   this.viewport = new ViewportManager();
+  this.bubblePool = new BubblePool(48, 160);
+  this.bubbleBounds = new Map();
+  this.timers = new TimerManager();
+  this.showFpsCounter = this.shouldEnableFpsCounter();
+  this.fpsOverlay = null;
+  this.fpsSamples = [];
+  this.lastFpsUpdate = 0;
+  if (this.showFpsCounter) {
+    this.createFpsOverlay();
+  }
     
     // モバイルブラウザのビューポート処理（画面サイズ対応）
     this.updateViewportHeight();
@@ -208,10 +236,6 @@ class GameManager {
     this.gamecontainer.style.userSelect = 'none';
     
     // 結果表示用のタイマーを追加（曲終了時に確実にリザルト画面へ移行するため）
-    this.resultCheckTimer = null;
-    this.songProgressTimer = null; // 曲の進行状況監視タイマー
-    this.finishWatchInterval = null; // onFinish未発火監視用（既存）
-    this.finishFallbackTimeout = null; // 最終フォールバック用タイマー（新規）
 
     // 鑑賞用歌詞（左上に流れる応援/閲覧用テキスト）機能
     // 要望によりデフォルト無効化（再度有効にしたい場合は true に変更）
@@ -232,6 +256,7 @@ class GameManager {
     // 初期モードに基づいてカメラを初期化
     this.initCamera();
     this.updateInstructions(); // 初期指示を更新
+    this.gameLoop.start();
   }
 
   /**
@@ -290,106 +315,57 @@ class GameManager {
         return; // カメラが不要なモードではここで処理を終了
     }
 
-    // Selfie Segmentationの初期化 (常に実行、背景除去のため)
-    const selfieSegmentation = new SelfieSegmentation({locateFile: (file) => {
-      return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
-    }});
-    selfieSegmentation.setOptions({
-      modelSelection: 0,
-      selfieMode: true
-    });
-    selfieSegmentation.onResults((results) => {
+    let canvasInitialized = false;
+    const processInterval = 33; // ~30FPS
+    let lastProcessTime = 0;
+
+    const selfieSegmentation = new SelfieSegmentation({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
+    selfieSegmentation.setOptions({ modelSelection: 0, selfieMode: true });
+    selfieSegmentation.onResults(results => {
       segmentationCtx.save();
       segmentationCtx.clearRect(0, 0, segmentationCanvas.width, segmentationCanvas.height);
-      // 左右反転
       segmentationCtx.translate(segmentationCanvas.width, 0);
       segmentationCtx.scale(-1, 1);
-      segmentationCtx.drawImage(results.segmentationMask, 0, 0,
-                          segmentationCanvas.width, segmentationCanvas.height);
-
+      segmentationCtx.drawImage(results.segmentationMask, 0, 0, segmentationCanvas.width, segmentationCanvas.height);
       segmentationCtx.globalCompositeOperation = 'source-in';
       segmentationCtx.drawImage(results.image, 0, 0, segmentationCanvas.width, segmentationCanvas.height);
       segmentationCtx.restore();
     });
 
-    // Poseの初期化 (bodyモードの場合のみ)
     if (this.currentMode === 'body') {
-        if (!this.pose) {
-            this.pose = new Pose({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
-            }});
-            this.pose.setOptions({
-                modelComplexity: 0,
-                smoothLandmarks: true,
-                enableSegmentation: false,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-            this.pose.onResults((results) => {
-                if (results.poseLandmarks) {
-                    // Poseのランドマークも左右反転
-                    const flippedLandmarks = results.poseLandmarks.map(landmark => {
-                        return { ...landmark, x: 1 - landmark.x };
-                    });
-                    if (this.visuals) {
-                      this.visuals.updatePlayerAvatar(flippedLandmarks);
-                    }
-
-                    // 全身検出の確認（常に実行）
-                    if (this.currentMode === 'body') {
-                        this.checkFullBodyDetection(flippedLandmarks);
-                    }
-
-                    const rightHand = flippedLandmarks[16]; // 右手首 (Pose: 16)
-                    if (rightHand) {
-                        const x = rightHand.x * window.innerWidth;
-                        const y = rightHand.y * window.innerHeight;
-                        this.checkLyrics(x, y, 80);
-                    }
-
-                    const leftHand = flippedLandmarks[15]; // 左手首 (Pose: 15)
-                    if (leftHand) {
-                        const x = leftHand.x * window.innerWidth;
-                        const y = leftHand.y * window.innerHeight;
-                        this.checkLyrics(x, y, 80);
-                    }
-                }
-            });
-        }
-    } else if (this.pose) { // bodyモードではないがposeが初期化されている場合
-        this.pose.close();
-        this.pose = null;
+      if (!this.pose) {
+        this.pose = new Pose({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+        this.pose.setOptions({
+          modelComplexity: 0,
+          smoothLandmarks: true,
+          enableSegmentation: false,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+        this.pose.onResults(results => this.handlePoseResults(results?.poseLandmarks));
+      }
+    } else if (this.pose) {
+      this.pose.close();
+      this.pose = null;
     }
 
-    let lastProcessTime = 0;
-    const processInterval = 33; // 33msごとに処理 (約30FPS) - さらに検出頻度を上げる
-
-    // キャンバス解像度を一度だけ設定
-    let canvasInitialized = false;
-    
     const camera = new Camera(videoElement, {
       onFrame: async () => {
-        // キャンバスの解像度は初回のみ設定（毎フレームの再設定を回避）
         if (!canvasInitialized && videoElement.videoWidth > 0) {
           segmentationCanvas.width = videoElement.videoWidth;
           segmentationCanvas.height = videoElement.videoHeight;
           canvasInitialized = true;
         }
-
         const now = performance.now();
-        if (now - lastProcessTime > processInterval) {
-          lastProcessTime = now;
-          if (this.hands) {
-              await this.hands.send({image: videoElement});
-          }
-          if (this.pose) {
-              await this.pose.send({image: videoElement});
-          }
-        }
-        await selfieSegmentation.send({image: videoElement});
+        if (now - lastProcessTime < processInterval) return;
+        lastProcessTime = now;
+        const frame = { image: videoElement };
+        await selfieSegmentation.send(frame);
+        if (this.pose) await this.pose.send(frame);
+        if (this.hands) await this.hands.send(frame);
       },
-      width: 320, // 解像度をさらに下げて検出速度向上
-      height: 240 // 解像度をさらに下げて検出速度向上
+      width: 320,
+      height: 240,
     });
     camera.start();
   }
@@ -424,66 +400,30 @@ class GameManager {
     console.log("player isPlaying:", this.player?.isPlaying);
 
     if (allDetected) {
-      if (this.fullBodyLostTimer) {
-        console.log("Full body re-detected, clearing fullBodyLostTimer.");
-        clearTimeout(this.fullBodyLostTimer);
-        this.fullBodyLostTimer = null;
-        // 警告表示中だった場合は即座にメッセージをクリア
-        if (!this.countdownOverlay.classList.contains('hidden')) {
-            this.countdownText.textContent = '';
-            this.countdownOverlay.classList.add('hidden');
-        }
+      console.log("Full body detected.");
+      if (!this.isCountdownActive()) {
+        this.hideCountdownOverlay();
       }
-      if (!this.countdownTimer && !this.bodyDetectionReady) {
-        let count = 5;
-        this.countdownOverlay.classList.remove('hidden');
-        this.countdownText.textContent = String(count);
-        // カウントダウン中は歌詞表示を確実に停止
-        this.isPaused = true;
-        this.isFirstInteraction = true;
+      this.cancelFullBodyWarning();
+      if (!this.bodyDetectionReady && !this.isCountdownActive()) {
         console.log("ボディモード: カウントダウン開始（歌詞表示停止中）");
-        
-        this.countdownTimer = setInterval(() => {
-          count--;
-          if (count > 0) {
-            this.countdownText.textContent = String(count);
-          } else {
-            if (this.countdownTimer) clearInterval(this.countdownTimer);
-            this.countdownTimer = null;
-            this.bodyDetectionReady = true;
-            this.countdownOverlay.classList.add('hidden');
-            console.log("ボディモード: カウントダウン完了 → 音楽再生開始");
-            // カウントダウン終了後、音楽再生を開始
-            this.playMusic();
-          }
-        }, 1000);
+        this.startBodyDetectionCountdown();
       }
     } else {
-      if (this.countdownTimer) {
-        console.log("Body lost during countdown, clearing countdownTimer.");
-        clearInterval(this.countdownTimer);
-        this.countdownTimer = null;
-        if (this.enableBodyWarning) {
-          this.countdownOverlay.classList.remove('hidden');
-          this.countdownText.textContent = "全身が映るように調整してください";
-        } else {
-          this.countdownOverlay.classList.add('hidden');
-        }
+      if (this.isCountdownActive()) {
+        console.log("Body lost during countdown, clearing countdown timer.");
+        this.cancelBodyCountdown("全身が映るように調整してください");
       }
-      // bodyDetectionReadyは一度trueになったらリセットしない
-      // this.bodyDetectionReady = false;
 
-      console.log("Body not detected. Player is playing:", this.player?.isPlaying, "Full body lost timer active:", !!this.fullBodyLostTimer);
+      console.log("Body not detected. Player is playing:", this.player?.isPlaying, "Full body lost timer active:", this.timers.has(TIMER_KEYS.FullBodyLost));
 
-      // 再生中または準備完了後で全身がロストした場合
-      if (this.enableBodyWarning && (this.bodyDetectionReady || this.player?.isPlaying) && !this.fullBodyLostTimer) {
+      if (this.enableBodyWarning && (this.bodyDetectionReady || this.player?.isPlaying) && !this.timers.has(TIMER_KEYS.FullBodyLost)) {
         console.log("Setting full body lost timer.");
-        this.fullBodyLostTimer = setTimeout(() => {
+        this.timers.setTimeout(TIMER_KEYS.FullBodyLost, () => {
           console.log("Full body lost timer expired, showing warning.");
           this.countdownOverlay.classList.remove('hidden');
           this.countdownText.textContent = "全身が画面から外れています！";
-          // 必要であればゲームを一時停止するなどの処理を追加
-        }, 3000); // 3秒間全身が検出されなかったら警告
+        }, 3000);
       }
     }
   }
@@ -494,6 +434,38 @@ class GameManager {
   updateInstructions() {
   // SRP: UIManagerに委譲
   return this.ui.updateInstructions();
+  }
+
+  private handleGameLoopUpdate = (delta: number, elapsed: number): void => {
+    if (this.showFpsCounter) {
+      this.updateFpsDisplay(delta, elapsed);
+    }
+    if (this.isPaused || this.isFirstInteraction || this.isCountdownActive()) return;
+    const position = this.getPlaybackPosition();
+    if (position == null) return;
+    this.updateLyrics(position);
+    this.refreshBubbleBounds(elapsed);
+  }
+
+  private getPlaybackPosition(): number | null {
+    if (this.useFallback) {
+      if (!this.fallbackStartTime) return null;
+      const fallbackPos = performance.now() - this.fallbackStartTime;
+      this.playbackPosition = fallbackPos;
+      return fallbackPos;
+    }
+
+    if (this.player && this.isPlayerInit) {
+      try {
+        const pos = this.player.timer?.position ?? this.playbackPosition;
+        this.playbackPosition = pos;
+        return pos;
+      } catch {
+        return this.playbackPosition;
+      }
+    }
+
+    return this.playbackPosition;
   }
 
 
@@ -553,6 +525,8 @@ class GameManager {
         // フォールバックモードですでに初期化済みの場合
         this.useFallback = true;
         this.startTime = Date.now();
+        this.fallbackStartTime = performance.now();
+        this.playbackPosition = 0;
         this.startLyricsTimer();
       }
       
@@ -587,12 +561,7 @@ class GameManager {
    * 曲の進行状況を監視して終了を検出する
    */
   startSongProgressMonitor(): void {
-    // 既存の監視タイマーをクリア
-    if (this.songProgressTimer) {
-      clearInterval(this.songProgressTimer);
-    }
-    
-    this.songProgressTimer = setInterval(() => {
+    this.timers.setInterval(TIMER_KEYS.SongProgress, () => {
       if (this.player && this.player.video) {
         const currentTime = this.player.timer.position;
         const duration = this.player.video.duration;
@@ -605,7 +574,7 @@ class GameManager {
             duration,
             remaining: duration - currentTime
           });
-          if (this.songProgressTimer) clearInterval(this.songProgressTimer);
+          this.timers.clearTimer(TIMER_KEYS.SongProgress);
           if (!this.resultsDisplayed) {
             this.showResults();
           }
@@ -620,7 +589,7 @@ class GameManager {
             duration,
             progress: (currentTime / duration * 100).toFixed(1) + '%'
           });
-          if (this.songProgressTimer) clearInterval(this.songProgressTimer);
+          this.timers.clearTimer(TIMER_KEYS.SongProgress);
           if (!this.resultsDisplayed) {
             this.showResults();
           }
@@ -635,12 +604,10 @@ class GameManager {
    */
   setupResultCheckTimer(duration: number): void {
     // 既存のタイマーをクリア（重複防止）
-    if (this.resultCheckTimer) {
-      clearTimeout(this.resultCheckTimer);
-    }
-    
+    this.clearResultTimers();
+
     // 曲の終了時に結果を表示するタイマーを設定
-    this.resultCheckTimer = setTimeout(() => {
+    this.timers.setTimeout(TIMER_KEYS.ResultCheck, () => {
       if (!this.isPaused && !this.resultsDisplayed) {
         console.log("⏰ 結果表示タイマーが発火しました - リザルト画面を表示します");
         this.showResults();
@@ -654,12 +621,21 @@ class GameManager {
     
     // バックアップとして、さらに長い時間が経過した場合も強制的に結果を表示
     // （何らかの理由で上のタイマーが機能しなかった場合の保険）
-    setTimeout(() => {
+    this.timers.setTimeout(TIMER_KEYS.ResultBackup, () => {
       if (!this.resultsDisplayed) {
         console.log("バックアップタイマーが発火しました");
         this.showResults();
       }
     }, duration + 20000); // メインタイマーから20秒後に変更
+  }
+
+  public cancelResultTimers(): void {
+    this.clearResultTimers();
+  }
+
+  private clearResultTimers(): void {
+    this.timers.clearTimer(TIMER_KEYS.ResultCheck);
+    this.timers.clearTimer(TIMER_KEYS.ResultBackup);
   }
 
   /**
@@ -705,7 +681,7 @@ class GameManager {
     });
     
     // コンボをリセットするタイマー（30秒間何も取らなかったらコンボリセット）
-    this.comboResetTimer = setInterval(() => {
+    this.timers.setInterval(TIMER_KEYS.ComboReset, () => {
       if (Date.now() - (this.lastScoreTime || 0) > 30000 && this.combo > 0) {
         this.combo = 0;
         this.comboEl.textContent = `コンボ: 0`;
@@ -769,10 +745,8 @@ class GameManager {
         }
         
         // 一時停止時にタイマーを停止
-        if (this.resultCheckTimer) {
-          clearTimeout(this.resultCheckTimer);
-          this.resultCheckTimer = null;
-        }
+        this.clearResultTimers();
+        this.cancelFinishGuards();
       } else {
         // 再生処理
         if (this.player) {
@@ -810,22 +784,11 @@ class GameManager {
     this._operationInProgress = true;
     
     // 各種タイマーをクリア
-    if (this.resultCheckTimer) {
-      clearTimeout(this.resultCheckTimer);
-      this.resultCheckTimer = null;
-    }
-    if (this.songProgressTimer) {
-      clearInterval(this.songProgressTimer);
-      this.songProgressTimer = null;
-    }
-    if (this.countdownTimer) {
-      clearInterval(this.countdownTimer);
-      this.countdownTimer = null;
-    }
-    if (this.fullBodyLostTimer) {
-      clearTimeout(this.fullBodyLostTimer);
-      this.fullBodyLostTimer = null;
-    }
+    this.clearResultTimers();
+    this.timers.clearTimer(TIMER_KEYS.SongProgress);
+    this.cancelFinishGuards();
+    this.cancelBodyCountdown();
+    this.cancelFullBodyWarning();
     
     // スコアと状態のリセット
     this.score = this.combo = this.currentLyricIndex = 0;
@@ -854,15 +817,12 @@ class GameManager {
       resultsScreen.classList.add('hidden');
     }
     
-    // 表示中の歌詞を全て削除
-    document.querySelectorAll('.lyric-bubble').forEach(l => l.remove());
+    // 表示中の歌詞を全てプールに戻す
+    this.clearActiveBubbles();
     this.displayedLyrics.clear();
-  this.activeLyricBubbles.clear();
     
     // リザルト表示タイマーを再設定
-    if (this.resultCheckTimer) {
-      clearTimeout(this.resultCheckTimer);
-    }
+    this.clearResultTimers();
     if (!this.player || !this.isPlayerInit) {
       this.setupResultCheckTimer(60000);
     }
@@ -963,10 +923,7 @@ class GameManager {
         },
         // 時間更新時（歌詞表示タイミング制御）
         onTimeUpdate: (pos: number) => {
-          // 一時停止中またはボディモードのカウントダウン中は歌詞を更新しない
-          if (!this.isPaused && !this.countdownTimer) {
-            this.updateLyrics(pos);
-          }
+          this.playbackPosition = pos;
           this.lastPlayerPosition = pos; // 最終再生位置を記録
         },
         // 再生開始時
@@ -980,47 +937,7 @@ class GameManager {
             this._lastLyricsPosition = pos;
           } catch {}
           // 観客のランダムテキスト機能は削除
-          // 終了検出フォールバック監視（既存があればクリア）
-          if (this.finishWatchInterval) clearInterval(this.finishWatchInterval);
-          this.finishWatchInterval = setInterval(() => {
-            if (!this.player || !this.player.video || this.resultsDisplayed) return;
-            const duration = this.player.video.duration;
-            const pos = this.player.timer.position;
-            if (duration && pos >= duration - 500) {
-              setTimeout(() => {
-                if (!this.resultsDisplayed && this.player && this.player.timer.position >= duration - 200) {
-                  console.log('フォールバック監視によるリザルト表示');
-                  this.showResults();
-                }
-              }, 600);
-              if (this.finishWatchInterval) clearInterval(this.finishWatchInterval);
-              this.finishWatchInterval = null;
-            }
-          }, 1000);
-          // 追加: 絶対的フォールバック（onFinish不発対策）
-          if (this.finishFallbackTimeout) {
-            clearTimeout(this.finishFallbackTimeout);
-            this.finishFallbackTimeout = null;
-          }
-          const d = this.player?.video?.duration;
-          if (d) {
-            // ボディモードのカウントダウン分+バッファ（3秒）を考慮
-            const extra = this.currentMode === 'body' ? 5000 : 0;
-            this.finishFallbackTimeout = setTimeout(() => {
-              if (!this.resultsDisplayed) {
-                console.warn('finishFallbackTimeout発火: onFinish未検出のためリザルト表示');
-                this.showResults();
-              }
-            }, d + extra + 3000);
-          } else {
-            // 曲長不明時の安全策 2分
-            this.finishFallbackTimeout = setTimeout(() => {
-              if (!this.resultsDisplayed) {
-                console.warn('finishFallbackTimeout(デフォルト)発火: 曲長不明でリザルト表示');
-                this.showResults();
-              }
-            }, 120000);
-          }
+          this.startFinishGuards();
         },
         // 一時停止時
         onPause: () => {
@@ -1045,8 +962,7 @@ class GameManager {
           console.log("🎵 onFinish イベントが発火しました");
           console.log("resultsDisplayed状態:", this.resultsDisplayed);
           console.log("現在のモード:", this.currentMode);
-          if (this.finishWatchInterval) { clearInterval(this.finishWatchInterval); this.finishWatchInterval = null; }
-          if (this.finishFallbackTimeout) { clearTimeout(this.finishFallbackTimeout); this.finishFallbackTimeout = null; }
+          this.cancelFinishGuards();
           if (!this.resultsDisplayed) {
             this.showResults();
           } else {
@@ -1074,6 +990,8 @@ class GameManager {
     // ??????
     if (this.useFallback) return;
     this.useFallback = true;
+    this.fallbackStartTime = performance.now();
+    this.playbackPosition = 0;
 
     this.isPlayerInit = false;
     if (this.player?.mediaElement) {
@@ -1166,11 +1084,7 @@ class GameManager {
         }
       } else {
         console.log('TextAlive使用中: resultCheckTimerは設定せず onFinish を待機');
-        // 既存の resultCheckTimer があればクリア（安全策）
-        if (this.resultCheckTimer) {
-          clearTimeout(this.resultCheckTimer);
-          this.resultCheckTimer = null;
-        }
+        this.clearResultTimers();
       }
     } catch (e) {
       console.error("歌詞処理エラー:", e);
@@ -1184,7 +1098,7 @@ class GameManager {
    */
   updateLyrics(position: number): void {
     // 一時停止中、初回インタラクション前、またはボディモードのカウントダウン中は歌詞を表示しない
-    if (this.isPaused || this.isFirstInteraction || this.countdownTimer) return;
+    if (this.isPaused || this.isFirstInteraction || this.isCountdownActive()) return;
 
     // 再生位置が巻き戻った場合は歌詞インデックスを再同期
     if (this._lastLyricsPosition != null && position < this._lastLyricsPosition - 1000) {
@@ -1259,85 +1173,13 @@ class GameManager {
    * フォールバックモード用の歌詞タイミング処理
    */
   startLyricsTimer(): void {
-    if (!this.useFallback) {
-      return;
-    }
+    if (!this.useFallback) return;
     this.currentLyricIndex = 0;
     this.startTime = Date.now();
-    this.songStartTime = Date.now(); // 曲の開始時間を記録
+    this.songStartTime = Date.now();
     this._lyricScanIndex = 0;
-    
-    const checkLyrics = () => {
-      // プレーヤーモード、一時停止中、初回インタラクション前、またはボディモードのカウントダウン中なら処理しない
-      if ((this.isPlayerInit && this.player) || this.isPaused || this.isFirstInteraction || this.countdownTimer) {
-        requestAnimationFrame(checkLyrics);
-        return;
-      }
-      
-      const now = Date.now() - this.startTime;
-      let processed = 0;
-      
-      // 現在の時間に対応する歌詞を表示
-      while (this.currentLyricIndex < this.lyricsData.length && 
-             this.lyricsData[this.currentLyricIndex].time <= now && 
-             processed < 2) { // グループ処理なので1回の処理量を減らす（パフォーマンス対策）
-        
-        const lyricGroup = this.lyricsData[this.currentLyricIndex];
-        
-        if (!this.displayedLyrics.has(lyricGroup.time)) {
-          // グループ内の各文字を個別に表示（時間差で）
-          if (lyricGroup.originalChars) {
-            lyricGroup.originalChars.forEach((charData, idx) => {
-              // 各文字の表示時間にオフセットを適用
-              setTimeout(() => {
-                // 既に表示済み判定がついていない場合のみ表示
-                if (!this.displayedLyrics.has(lyricGroup.time + "-" + idx)) {
-                  this.displayLyric(charData.text);
-                  this.displayedLyrics.add(lyricGroup.time + "-" + idx);
-                  
-                  // しばらくしたら削除フラグを消す
-                  setTimeout(() => {
-                    this.displayedLyrics.delete(lyricGroup.time + "-" + idx);
-                  }, 8000);
-                }
-              }, charData.timeOffset || (idx * 50)); // オフセットがなければ50msずつずらす
-            });
-          }
-          
-          this.displayedLyrics.add(lyricGroup.time);
-          processed++;
-          
-          // グループ全体のフラグを一定時間後に削除
-          setTimeout(() => {
-            this.displayedLyrics.delete(lyricGroup.time);
-          }, 8000 + ((lyricGroup.originalChars?.length ?? 0) * 100)); // 最後の文字の表示終了から8秒後
-        }
-        
-        this.currentLyricIndex++;
-      }
-      
-      // 全ての歌詞を表示し終わったら、少し待ってから結果表示
-      if (this.currentLyricIndex >= this.lyricsData.length) {
-        // 歌詞を1周したら、5秒後に結果画面を表示（強制的に）
-        if (!this.resultsDisplayed && !this.player) {
-          setTimeout(() => {
-            if (!this.resultsDisplayed) {
-              console.log("歌詞1周完了後の強制結果表示");
-              this.showResults();
-            }
-          }, 5000);
-        }
-        
-        // 歌詞を最初からループ（フォールバックモード）
-        this.currentLyricIndex = 0;
-        this.displayedLyrics.clear();
-        this.startTime = Date.now();
-      }
-      
-      requestAnimationFrame(checkLyrics);
-    };
-    
-    requestAnimationFrame(checkLyrics);
+    this.fallbackStartTime = performance.now();
+    this.playbackPosition = 0;
   }
 
   /**
@@ -1348,6 +1190,181 @@ class GameManager {
    */
   displayLyric(text: string): HTMLElement | undefined {
   return this.lyricsRenderer.displayLyric(text);
+  }
+
+  releaseBubble(element: HTMLElement): void {
+    this.activeLyricBubbles.delete(element);
+    this.displayedViewerLyrics.delete(element);
+    this.bubblePool.release(element);
+    this.bubbleBounds.delete(element);
+  }
+
+  clearActiveBubbles(): void {
+    const actives = Array.from(this.activeLyricBubbles);
+    actives.forEach(bubble => this.releaseBubble(bubble));
+    this.activeLyricBubbles.clear();
+    this.bubbleBounds.clear();
+  }
+
+  updateBubbleBounds(element: HTMLElement): void {
+    if (!element.isConnected) return;
+    const rect = element.getBoundingClientRect();
+    const radius = Math.max(rect.width, rect.height) / 2;
+    this.bubbleBounds.set(element, {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+      radius,
+    });
+  }
+
+  private refreshBubbleBounds(elapsed: number): void {
+    if (elapsed - this.lastBoundsUpdate < 32) return;
+    this.lastBoundsUpdate = elapsed;
+    this.activeLyricBubbles.forEach(bubble => this.updateBubbleBounds(bubble));
+  }
+
+  private shouldEnableFpsCounter(): boolean {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const debugParam = params.get('debug');
+      if (debugParam && debugParam.split(',').map(token => token.trim().toLowerCase()).includes('fps')) {
+        return true;
+      }
+      return window.location.hash.toLowerCase().includes('fps');
+    } catch {
+      return false;
+    }
+  }
+
+  private createFpsOverlay(): void {
+    if (this.fpsOverlay) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'fps-counter';
+    overlay.textContent = 'FPS --';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '12px';
+    overlay.style.right = '16px';
+    overlay.style.zIndex = '2000';
+    overlay.style.padding = '6px 10px';
+    overlay.style.background = 'rgba(0, 0, 0, 0.6)';
+    overlay.style.color = '#39c5bb';
+    overlay.style.fontFamily = 'monospace';
+    overlay.style.fontSize = '13px';
+    overlay.style.borderRadius = '6px';
+    overlay.style.pointerEvents = 'none';
+    document.body.appendChild(overlay);
+    this.fpsOverlay = overlay;
+  }
+
+  private updateFpsDisplay(delta: number, elapsed: number): void {
+    if (!this.fpsOverlay || delta <= 0) return;
+    const fps = 1000 / delta;
+    this.fpsSamples.push(fps);
+    if (this.fpsSamples.length > 60) this.fpsSamples.shift();
+    if (elapsed - this.lastFpsUpdate < 250) return;
+    const average = this.fpsSamples.reduce((sum, value) => sum + value, 0) / this.fpsSamples.length;
+    this.fpsOverlay.textContent = `FPS ${average.toFixed(1)}`;
+    this.lastFpsUpdate = elapsed;
+  }
+
+  private isCountdownActive(): boolean {
+    return this.timers.has(TIMER_KEYS.BodyCountdown);
+  }
+
+  private hideCountdownOverlay(): void {
+    this.countdownText.textContent = '';
+    this.countdownOverlay.classList.add('hidden');
+  }
+
+  private startBodyDetectionCountdown(): void {
+    let count = 5;
+    this.countdownOverlay.classList.remove('hidden');
+    this.countdownText.textContent = String(count);
+    this.isPaused = true;
+    this.isFirstInteraction = true;
+    this.timers.setInterval(TIMER_KEYS.BodyCountdown, () => {
+      count--;
+      if (count > 0) {
+        this.countdownText.textContent = String(count);
+        return;
+      }
+      this.timers.clearTimer(TIMER_KEYS.BodyCountdown);
+      this.bodyDetectionReady = true;
+      this.hideCountdownOverlay();
+      this.playMusic();
+    }, 1000);
+  }
+
+  private cancelBodyCountdown(message?: string): void {
+    if (!this.isCountdownActive()) return;
+    this.timers.clearTimer(TIMER_KEYS.BodyCountdown);
+    if (message && this.enableBodyWarning) {
+      this.countdownOverlay.classList.remove('hidden');
+      this.countdownText.textContent = message;
+    } else {
+      this.hideCountdownOverlay();
+    }
+  }
+
+  private cancelFullBodyWarning(): void {
+    if (!this.timers.has(TIMER_KEYS.FullBodyLost)) return;
+    this.timers.clearTimer(TIMER_KEYS.FullBodyLost);
+    this.hideCountdownOverlay();
+  }
+
+  public cancelFinishGuards(): void {
+    this.timers.clearTimer(TIMER_KEYS.FinishWatch);
+    this.timers.clearTimer(TIMER_KEYS.FinishFallback);
+  }
+
+  private startFinishGuards(): void {
+    if (!this.player) return;
+    this.cancelFinishGuards();
+
+    this.timers.setInterval(TIMER_KEYS.FinishWatch, () => {
+      if (!this.player || !this.player.video || this.resultsDisplayed) return;
+      const duration = this.player.video.duration;
+      const pos = this.player.timer.position;
+      if (!duration || pos < duration - 500) return;
+
+      setTimeout(() => {
+        if (!this.resultsDisplayed && this.player && this.player.timer.position >= duration - 200) {
+          console.log('フォールバック監視によるリザルト表示');
+          this.showResults();
+        }
+      }, 600);
+      this.timers.clearTimer(TIMER_KEYS.FinishWatch);
+    }, 1000);
+
+    const duration = this.player.video?.duration;
+    const extra = this.currentMode === 'body' ? 5000 : 0;
+    const fallbackDelay = (duration ?? 120000) + (duration ? extra + 3000 : 0);
+
+    this.timers.setTimeout(TIMER_KEYS.FinishFallback, () => {
+      if (!this.resultsDisplayed) {
+        console.warn('finishFallbackTimeout発火: onFinish未検出のためリザルト表示');
+        this.showResults();
+      }
+    }, fallbackDelay);
+  }
+
+  private handlePoseResults(landmarks?: Landmark[]): void {
+    if (!landmarks) return;
+    const flippedLandmarks = landmarks.map(landmark => ({ ...landmark, x: 1 - landmark.x }));
+    if (this.visuals) {
+      this.visuals.updatePlayerAvatar(flippedLandmarks);
+    }
+    if (this.currentMode === 'body') {
+      this.checkFullBodyDetection(flippedLandmarks);
+    }
+    const rightHand = flippedLandmarks[16];
+    if (rightHand) {
+      this.checkLyrics(rightHand.x * window.innerWidth, rightHand.y * window.innerHeight, 80);
+    }
+    const leftHand = flippedLandmarks[15];
+    if (leftHand) {
+      this.checkLyrics(leftHand.x * window.innerWidth, leftHand.y * window.innerHeight, 80);
+    }
   }
 
   /**
@@ -1368,16 +1385,14 @@ class GameManager {
     // 生成時に追跡している集合を使用
     for (const el of this.activeLyricBubbles) {
       if (el.style.pointerEvents === 'none') continue; // 既にクリック済みの場合はスキップ
-      
-      const rect = el.getBoundingClientRect();
-      const elX = rect.left + rect.width / 2;
-      const elY = rect.top + rect.height / 2;
-      
-      const dx = x - elX, dy = y - elY;
-      const hit = dx * dx + dy * dy <= (radius + Math.max(rect.width, rect.height) / 2) ** 2;
+      const bounds = this.bubbleBounds.get(el);
+      if (!bounds) continue;
+      const dx = x - bounds.x;
+      const dy = y - bounds.y;
+      const hit = dx * dx + dy * dy <= (radius + bounds.radius) ** 2;
       if (hit) {
         this.clickLyric(el);
-        this.createHitEffect(elX, elY);
+        this.createHitEffect(bounds.x, bounds.y);
       }
     }
   }
@@ -1475,8 +1490,8 @@ class GameManager {
    */
   cleanup(): void {
   // 観客のランダムテキスト機能は削除
-    if (this.comboResetTimer) clearInterval(this.comboResetTimer);
-    if (this.resultCheckTimer) clearTimeout(this.resultCheckTimer);
+    this.timers.clearAll();
+    this.gameLoop.stop();
     
     // マウストレイルの要素を削除
     this.mouseTrail.forEach(item => {
@@ -1493,7 +1508,14 @@ class GameManager {
     if (this.viewerLyricsContainer) {
       this.viewerLyricsContainer.innerHTML = '';
     }
+      this.clearActiveBubbles();
     this.displayedViewerLyrics.clear();
+
+    if (this.fpsOverlay?.parentElement) {
+      this.fpsOverlay.parentElement.removeChild(this.fpsOverlay);
+    }
+    this.fpsOverlay = null;
+    this.fpsSamples = [];
   }
 }
 
@@ -1503,9 +1525,18 @@ class LiveStageVisuals {
   private camera!: THREE.PerspectiveCamera
   private renderer!: THREE.WebGLRenderer
   private playerAvatar: PlayerAvatar = {}
-  private handJoints: THREE.Mesh[] = []
+  private activeHandJoints: THREE.Mesh[] = []
+  private palmJointPool: THREE.Mesh[] = []
+  private tipJointPool: THREE.Mesh[] = []
   private leftPenlight!: THREE.Mesh
   private rightPenlight!: THREE.Mesh
+  private static jointGeometry: THREE.SphereGeometry | null = null
+  private static jointMaterial: THREE.MeshBasicMaterial | null = null
+  private static boneMaterial: THREE.LineBasicMaterial | null = null
+  private static penlightGeometry: THREE.CylinderGeometry | null = null
+  private static penlightMaterial: THREE.MeshBasicMaterial | null = null
+  private static palmJointGeometry: THREE.SphereGeometry | null = null
+  private static tipJointGeometry: THREE.SphereGeometry | null = null
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -1532,8 +1563,8 @@ class LiveStageVisuals {
 
     // 手の描画用配列を初期化済み
 
-    const penlightGeometry = new THREE.CylinderGeometry(2, 2, 40, 32);
-    const penlightMaterial = new THREE.MeshBasicMaterial({ color: 0x39C5BB, transparent: true, opacity: 0.8 });
+    const penlightGeometry = LiveStageVisuals.getPenlightGeometry();
+    const penlightMaterial = LiveStageVisuals.getPenlightMaterial();
     this.leftPenlight = new THREE.Mesh(penlightGeometry, penlightMaterial);
     this.rightPenlight = new THREE.Mesh(penlightGeometry, penlightMaterial);
   }
@@ -1550,8 +1581,6 @@ class LiveStageVisuals {
       this.playerAvatar.joints = {};
       this.playerAvatar.bones = {};
 
-      const boneMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 5 });
-
       const connections = POSE_CONNECTIONS;
       for (let i = 0; i < connections.length; i++) {
         const pair = connections[i];
@@ -1559,21 +1588,21 @@ class LiveStageVisuals {
         const end = pair[1];
 
         if (!this.playerAvatar.joints[start]) {
-          const geometry = new THREE.SphereGeometry(5, 32, 32);
-          const material = new THREE.MeshBasicMaterial({ color: 0x39C5BB });
-          this.playerAvatar.joints[start] = new THREE.Mesh(geometry, material);
+          const jointGeometry = LiveStageVisuals.getJointGeometry();
+          const jointMaterial = LiveStageVisuals.getJointMaterial();
+          this.playerAvatar.joints[start] = new THREE.Mesh(jointGeometry, jointMaterial);
           this.scene.add(this.playerAvatar.joints[start]);
         }
         if (!this.playerAvatar.joints[end]) {
-          const geometry = new THREE.SphereGeometry(5, 32, 32);
-          const material = new THREE.MeshBasicMaterial({ color: 0x39C5BB });
-          this.playerAvatar.joints[end] = new THREE.Mesh(geometry, material);
+          const jointGeometry = LiveStageVisuals.getJointGeometry();
+          const jointMaterial = LiveStageVisuals.getJointMaterial();
+          this.playerAvatar.joints[end] = new THREE.Mesh(jointGeometry, jointMaterial);
           this.scene.add(this.playerAvatar.joints[end]);
         }
 
         const boneGeometry = new THREE.BufferGeometry();
         boneGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
-        this.playerAvatar.bones[i] = new THREE.Line(boneGeometry, boneMaterial);
+        this.playerAvatar.bones[i] = new THREE.Line(boneGeometry, LiveStageVisuals.getBoneMaterial());
         this.scene.add(this.playerAvatar.bones[i]);
       }
     }
@@ -1618,52 +1647,62 @@ class LiveStageVisuals {
   }
 
   updateHandLandmarks(handsResults: { multiHandLandmarks?: Array<Landmark[]> }): void {
-    // 既存の手の描画をクリア
-    if (this.handJoints) {
-      this.handJoints.forEach(joint => this.scene.remove(joint));
-    }
-    
-    this.handJoints = [];
-
+    this.recycleHandJoints();
     if (!handsResults.multiHandLandmarks) return;
 
     handsResults.multiHandLandmarks.forEach((landmarks: Landmark[], handIndex: number) => {
       // 手のひらの中心（ランドマーク0）を大きな球体で表示
       const palmLandmark = landmarks[0];
-      const palmGeometry = new THREE.SphereGeometry(15, 32, 32);
-      const palmMaterial = new THREE.MeshBasicMaterial({ 
-        color: handIndex === 0 ? 0x39C5BB : 0xFF6B6B, // 左手：青、右手：ピンク
-        transparent: true,
-        opacity: 0.8
-      });
-      const palmJoint = new THREE.Mesh(palmGeometry, palmMaterial);
-      
-      // 手のひら位置を3D空間に変換
-      palmJoint.position.x = (palmLandmark.x - 0.5) * -window.innerWidth;
-      palmJoint.position.y = (1 - palmLandmark.y) * window.innerHeight - (window.innerHeight / 2);
-      palmJoint.position.z = (palmLandmark.z || 0) * -800;
-      
-      this.scene.add(palmJoint);
-      this.handJoints.push(palmJoint);
+      const palmJoint = this.acquireHandJoint('palm');
+      this.updateHandJointAppearance(palmJoint, handIndex === 0 ? 0x39c5bb : 0xff6b6b, 0.8);
+      this.positionHandJoint(palmJoint, palmLandmark, -800);
+      this.activeHandJoints.push(palmJoint);
 
       // 人差し指の先端（ランドマーク8）を小さな球体で表示
       const fingerTip = landmarks[8];
-      const tipGeometry = new THREE.SphereGeometry(8, 16, 16);
-      const tipMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0xFFFFFF, // 白色で目立たせる
-        transparent: true,
-        opacity: 0.9
-      });
-      const tipJoint = new THREE.Mesh(tipGeometry, tipMaterial);
-      
-      // 指先位置を3D空間に変換
-      tipJoint.position.x = (fingerTip.x - 0.5) * -window.innerWidth;
-      tipJoint.position.y = (1 - fingerTip.y) * window.innerHeight - (window.innerHeight / 2);
-      tipJoint.position.z = (fingerTip.z || 0) * -800;
-      
-      this.scene.add(tipJoint);
-      this.handJoints.push(tipJoint);
+      const tipJoint = this.acquireHandJoint('tip');
+      this.updateHandJointAppearance(tipJoint, 0xffffff, 0.9);
+      this.positionHandJoint(tipJoint, fingerTip, -800);
+      this.activeHandJoints.push(tipJoint);
     });
+  }
+
+  private recycleHandJoints(): void {
+    if (this.activeHandJoints.length === 0) return;
+    this.activeHandJoints.forEach(mesh => this.releaseHandJoint(mesh));
+    this.activeHandJoints.length = 0;
+  }
+
+  private acquireHandJoint(type: 'palm' | 'tip'): THREE.Mesh {
+    const pool = type === 'palm' ? this.palmJointPool : this.tipJointPool;
+    let mesh = pool.pop();
+    if (!mesh) {
+      const geometry = type === 'palm' ? LiveStageVisuals.getPalmGeometry() : LiveStageVisuals.getTipGeometry();
+      mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ transparent: true }));
+      mesh.userData.handJointType = type;
+      this.scene.add(mesh);
+    }
+    mesh.visible = true;
+    return mesh;
+  }
+
+  private releaseHandJoint(mesh: THREE.Mesh): void {
+    mesh.visible = false;
+    const type = mesh.userData.handJointType === 'tip' ? 'tip' : 'palm';
+    const pool = type === 'palm' ? this.palmJointPool : this.tipJointPool;
+    pool.push(mesh);
+  }
+
+  private positionHandJoint(mesh: THREE.Mesh, landmark: Landmark, depthScale: number): void {
+    mesh.position.x = (landmark.x - 0.5) * -window.innerWidth;
+    mesh.position.y = (1 - landmark.y) * window.innerHeight - (window.innerHeight / 2);
+    mesh.position.z = (landmark.z || 0) * depthScale;
+  }
+
+  private updateHandJointAppearance(mesh: THREE.Mesh, color: number, opacity: number): void {
+    const material = mesh.material as THREE.MeshBasicMaterial;
+    material.color.setHex(color);
+    material.opacity = opacity;
   }
 
   animate(): void {
@@ -1676,114 +1715,183 @@ class LiveStageVisuals {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
+
+  private static getJointGeometry(): THREE.SphereGeometry {
+    if (!LiveStageVisuals.jointGeometry) {
+      LiveStageVisuals.jointGeometry = new THREE.SphereGeometry(5, 32, 32);
+    }
+    return LiveStageVisuals.jointGeometry;
+  }
+
+  private static getJointMaterial(): THREE.MeshBasicMaterial {
+    if (!LiveStageVisuals.jointMaterial) {
+      LiveStageVisuals.jointMaterial = new THREE.MeshBasicMaterial({ color: 0x39c5bb });
+    }
+    return LiveStageVisuals.jointMaterial;
+  }
+
+  private static getBoneMaterial(): THREE.LineBasicMaterial {
+    if (!LiveStageVisuals.boneMaterial) {
+      LiveStageVisuals.boneMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 5 });
+    }
+    return LiveStageVisuals.boneMaterial;
+  }
+
+  private static getPenlightGeometry(): THREE.CylinderGeometry {
+    if (!LiveStageVisuals.penlightGeometry) {
+      LiveStageVisuals.penlightGeometry = new THREE.CylinderGeometry(2, 2, 40, 32);
+    }
+    return LiveStageVisuals.penlightGeometry;
+  }
+
+  private static getPenlightMaterial(): THREE.MeshBasicMaterial {
+    if (!LiveStageVisuals.penlightMaterial) {
+      LiveStageVisuals.penlightMaterial = new THREE.MeshBasicMaterial({ color: 0x39c5bb, transparent: true, opacity: 0.8 });
+    }
+    return LiveStageVisuals.penlightMaterial;
+  }
+
+  private static getPalmGeometry(): THREE.SphereGeometry {
+    if (!LiveStageVisuals.palmJointGeometry) {
+      LiveStageVisuals.palmJointGeometry = new THREE.SphereGeometry(15, 32, 32);
+    }
+    return LiveStageVisuals.palmJointGeometry;
+  }
+
+  private static getTipGeometry(): THREE.SphereGeometry {
+    if (!LiveStageVisuals.tipJointGeometry) {
+      LiveStageVisuals.tipJointGeometry = new THREE.SphereGeometry(8, 16, 16);
+    }
+    return LiveStageVisuals.tipJointGeometry;
+  }
 }
 
 // SRP: 歌詞のDOM表示と鑑賞用表示を担当
 class LyricsRenderer {
-  private game: GameManager
+  private readonly game: GameManager
+  private readonly slotIds = ['slot-top-left', 'slot-top-right', 'slot-bottom-left', 'slot-bottom-right']
+  private readonly maxLyricsOnScreen = 50
 
   constructor(game: GameManager) {
     this.game = game;
   }
 
-  displayLyric(text: string | null): HTMLElement | undefined {
-    if (text == null) return;
-    
-    // パフォーマンス対策: 画面上の歌詞が多すぎる場合は新規表示を制限
-    const maxLyricsOnScreen = 50; // 画面上に最大50個まで
-    if (this.game.activeLyricBubbles.size >= maxLyricsOnScreen) {
-      // 古い歌詞を削除
-      const oldestBubble = Array.from(this.game.activeLyricBubbles)[0];
-      if (oldestBubble) {
-        this.game.activeLyricBubbles.delete(oldestBubble);
-        oldestBubble.remove();
-      }
-    }
-    
-    const norm = String(text).normalize('NFC');
+  private bindBubbleEvents(bubble: HTMLElement): void {
+    if (bubble.dataset.bound === 'true') return;
+    bubble.dataset.bound = 'true';
+    bubble.addEventListener('mouseenter', this.handleBubbleHover);
+    bubble.addEventListener('touchstart', this.handleBubbleTouch, { passive: false });
+    bubble.addEventListener('animationend', this.handleBubbleAnimationEnd);
+  }
 
-    const bubble = document.createElement('div');
+  private handleBubbleHover = (event: Event): void => {
+    const bubble = event.currentTarget as HTMLElement;
+    this.game.clickLyric(bubble);
+  }
+
+  private handleBubbleTouch = (event: TouchEvent): void => {
+    event.preventDefault();
+    const bubble = event.currentTarget as HTMLElement;
+    this.game.clickLyric(bubble);
+  }
+
+  private handleBubbleAnimationEnd = (event: AnimationEvent): void => {
+    const bubble = event.currentTarget as HTMLElement;
+    if (bubble.style.pointerEvents !== 'none') {
+      this.game.combo = 0;
+      this.game.comboEl.textContent = `コンボ: 0`;
+    }
+    this.game.releaseBubble(bubble);
+  }
+
+  private resetBubbleStyles(bubble: HTMLElement): void {
+    bubble.removeAttribute('style');
     bubble.className = 'lyric-bubble';
-    bubble.textContent = norm;
     bubble.style.pointerEvents = 'auto';
     bubble.style.opacity = '1';
+    bubble.style.display = '';
+  }
 
-    // Slot selection logic
-    const slots = ['slot-top-left', 'slot-top-right', 'slot-bottom-left', 'slot-bottom-right'];
-    const randomSlotId = slots[Math.floor(Math.random() * slots.length)];
-    const slotElement = document.getElementById(randomSlotId);
+  private prepareForSlot(bubble: HTMLElement, slotElement: HTMLElement): void {
+    slotElement.appendChild(bubble);
+    bubble.style.position = 'absolute';
+    const randomX = 20 + Math.random() * 60;
+    bubble.style.left = `${randomX}%`;
+    bubble.style.bottom = '-50px';
+    bubble.style.transform = 'translateX(-50%)';
+    bubble.style.color = '#39C5BB';
+    bubble.style.fontSize = '28px';
+    bubble.style.animation = 'none';
+    void bubble.offsetWidth; // reflow to restart animation
+    bubble.style.animation = 'slotFloat var(--lyric-speed) linear forwards';
+  }
 
-    if (slotElement) {
-        slotElement.appendChild(bubble);
-        
-        // Style for slot-based bubble
-        bubble.style.position = 'absolute';
-        
-        // Randomize horizontal position within the slot (20% to 80% to keep it mostly visible)
-        const randomX = 20 + Math.random() * 60;
-        bubble.style.left = `${randomX}%`;
-
-        // Start position is handled by animation, but set initial state
-        bubble.style.bottom = '-50px'; 
-        bubble.style.transform = 'translateX(-50%)';
-        bubble.style.color = '#39C5BB';
-        bubble.style.fontSize = '28px'; // Slightly larger than small screen default
-        
-        // Apply new animation
-        bubble.style.animation = 'slotFloat var(--lyric-speed) linear forwards'; 
+  private prepareFallbackPosition(bubble: HTMLElement): void {
+    const screenWidth = window.innerWidth;
+    const isSmallScreen = screenWidth <= 768;
+    let x: number;
+    let y: number;
+    let fontSize: string;
+    if (isSmallScreen) {
+      x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
+      y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
+      fontSize = screenWidth <= 480 ? '18px' : '22px';
     } else {
-        // Fallback if slots are not found
-        const screenWidth = window.innerWidth;
-        const isSmallScreen = screenWidth <= 768;
-        let x, y, fontSize;
-        if (isSmallScreen) {
-          x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
-          y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
-          fontSize = screenWidth <= 480 ? '18px' : '22px';
-        } else {
-          x = 100 + Math.random() * (screenWidth - 300);
-          y = window.innerHeight - 300 - Math.random() * 100;
-          fontSize = '48px';
-        }
+      x = 100 + Math.random() * (screenWidth - 300);
+      y = window.innerHeight - 300 - Math.random() * 100;
+      fontSize = '48px';
+    }
+    bubble.style.position = 'absolute';
+    bubble.style.left = `${x}px`;
+    bubble.style.top = `${y}px`;
+    bubble.style.color = '#39C5BB';
+    bubble.style.fontSize = fontSize;
+    this.game.gamecontainer.appendChild(bubble);
+    bubble.style.animation = 'none';
+    void bubble.offsetWidth;
+    bubble.style.animation = 'slotFloat var(--lyric-speed) linear forwards';
+  }
 
-        bubble.style.left = `${x}px`;
-        bubble.style.top = `${y}px`;
-        bubble.style.color = '#39C5BB';
-        bubble.style.fontSize = fontSize;
-        
-        this.game.gamecontainer.appendChild(bubble);
+  displayLyric(text: string | null): HTMLElement | undefined {
+    if (text == null) return;
+
+    if (this.game.activeLyricBubbles.size >= this.maxLyricsOnScreen) {
+      const iterator = this.game.activeLyricBubbles.values().next();
+      if (!iterator.done) {
+        this.game.releaseBubble(iterator.value as HTMLElement);
+      }
     }
 
-    bubble.addEventListener('mouseenter', () => this.game.clickLyric(bubble));
-    bubble.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      this.game.clickLyric(bubble);
-    }, { passive: false });
+    const norm = String(text).normalize('NFC');
+    const bubble = this.game.bubblePool.acquire();
+    this.resetBubbleStyles(bubble);
+    bubble.textContent = norm;
+    this.bindBubbleEvents(bubble);
 
-    // アクティブ集合に登録
+    const slotElement = this.pickRandomSlot();
+    if (slotElement) {
+      this.prepareForSlot(bubble, slotElement);
+    } else {
+      this.prepareFallbackPosition(bubble);
+    }
+
     this.game.activeLyricBubbles.add(bubble);
+    this.game.updateBubbleBounds(bubble);
 
-    // アニメーション終了時に判定と削除を行う
-    bubble.addEventListener('animationend', () => {
-      if (bubble.style.pointerEvents !== 'none') {
-        this.game.combo = 0;
-        this.game.comboEl.textContent = `コンボ: 0`;
-      }
-      // 解放
-      this.game.activeLyricBubbles.delete(bubble);
-      bubble.remove();
-    });
-
-    // 左上の鑑賞用テキストは無効化フラグで制御
     if (this.game.enableViewerLyrics) {
       this.displayViewerLyric(norm, bubble);
     }
+
     return bubble;
+  }
+
+  private pickRandomSlot(): HTMLElement | null {
+    const slotId = this.slotIds[Math.floor(Math.random() * this.slotIds.length)];
+    return document.getElementById(slotId);
   }
 
   displayViewerLyric(text: string, gameBubble: HTMLElement): void {
     if (!this.game.enableViewerLyrics || !this.game.viewerLyricsContainer) return;
-    if (this.game.displayedViewerLyrics.has(gameBubble)) return;
 
     const viewerChar = document.createElement('span');
     viewerChar.className = 'viewer-lyric-char';
@@ -1798,18 +1906,13 @@ class LyricsRenderer {
 
     this.game.displayedViewerLyrics.set(gameBubble, viewerChar);
 
-    gameBubble.addEventListener('click', () => {
-      const vc = this.game.displayedViewerLyrics.get(gameBubble);
-      if (vc) vc.classList.add('highlighted');
-    });
-
     setTimeout(() => {
       viewerChar.style.opacity = '0';
       setTimeout(() => {
         if (viewerChar.parentNode) viewerChar.parentNode.removeChild(viewerChar);
-        this.game.displayedViewerLyrics.delete(gameBubble);
-  // バブル側が既に消えていれば集合からも除外
-  this.game.activeLyricBubbles.delete(gameBubble);
+        if (this.game.displayedViewerLyrics.get(gameBubble) === viewerChar) {
+          this.game.displayedViewerLyrics.delete(gameBubble);
+        }
       }, 1000);
     }, 8000);
   }
@@ -1830,35 +1933,17 @@ class ResultsManager {
     }
     console.log('結果画面を表示します');
     this.game.resultsDisplayed = true;
-    if (this.game.finishWatchInterval) { clearInterval(this.game.finishWatchInterval); this.game.finishWatchInterval = null; }
-    if (this.game.finishFallbackTimeout) { clearTimeout(this.game.finishFallbackTimeout); this.game.finishFallbackTimeout = null; }
+    this.game.cancelFinishGuards();
 
     if (this.game.player?.isPlaying) {
       try { this.game.player.requestPause(); } catch (e) { console.error('Results pause error:', e); }
     }
 
-    if (this.game.resultCheckTimer) {
-      clearTimeout(this.game.resultCheckTimer);
-      this.game.resultCheckTimer = null;
-    }
+    this.game.cancelResultTimers();
 
     // 曲終了時に画面上の全ての歌詞を即座に削除（最適化版）
     console.log('画面上の歌詞を全て削除します');
-    
-    // activeLyricBubblesから直接削除（より効率的）
-    this.game.activeLyricBubbles.forEach(bubble => {
-      bubble.remove();
-    });
-    this.game.activeLyricBubbles.clear();
-    
-    // クラス名で検索して念のため残っている要素も削除
-    const allLyricElements = document.querySelectorAll('.lyric-bubble');
-    if (allLyricElements.length > 0) {
-      console.log(`残留歌詞要素を削除: ${allLyricElements.length}個`);
-      allLyricElements.forEach(lyric => {
-        lyric.remove();
-      });
-    }
+    this.game.clearActiveBubbles();
     
     // 表示済みリストもクリア
     this.game.displayedLyrics.clear();
@@ -2034,8 +2119,9 @@ class EffectsManager {
     const rect = element.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;
-
-    for (let i = 0; i < 6; i++) {
+    const burstCount = this.game.isMobile ? 3 : 6;
+    const lifespan = this.game.isMobile ? 600 : 800;
+    for (let i = 0; i < burstCount; i++) {
       const particle = document.createElement('div');
       particle.className = 'particle';
       const size = 10 + Math.random() * 15;
@@ -2044,7 +2130,7 @@ class EffectsManager {
       particle.style.left = `${x - size/2 + (Math.random() - 0.5) * 30}px`;
       particle.style.top = `${y - size/2 + (Math.random() - 0.5) * 30}px`;
       this.game.gamecontainer.appendChild(particle);
-      setTimeout(() => particle.remove(), 800);
+      setTimeout(() => particle.remove(), lifespan);
     }
 
     const pointDisplay = document.createElement('div');

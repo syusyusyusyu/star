@@ -2,12 +2,15 @@
 
 TextAlive の歌詞同期と MediaPipe のカメラ入力を組み合わせ、three.js のライブステージに流れる歌詞バブルへ「触れて」スコアを稼ぐ Web リズムゲームです。学内作品展ですぐ動かせるよう、仕様と手順を具体的にまとめました。
 
+> 2025 年冬アップデート: 独立 GameLoop / BubblePool / TimerManager、three.js ジオメトリ共有、手/歌詞バブルのプール化、MediaPipe cadence 最適化、ランキングモーダル分離、サーバー側ランキングキャッシュ、FPS オーバーレイ（`?debug=fps` または `#fps`）などパフォーマンス改善を多数実装しました。
+
 ## 作品概要
 - 歌詞同期バブル: TextAlive App API で取得した歌詞をタイミング通りにバブル化し、ヒットでスコア/コンボ加算
 - 2 つのプレイモード: `マウスモード`（マウス/タップ）と `カメラモード`（MediaPipe Pose + Selfie Segmentation で全身入力）
 - 3D ライブ演出: three.js でステージ/ライト/粒子を描画し、身体シルエットを合成
 - 判定とリザルト: NFC 正規化した歌詞で判定の揺らぎを抑制し、曲終了後にスコア・最大コンボ・ランクを表示
 - フォールバック再生: TextAlive が使えない場合でも簡易歌詞データでプレイ可能
+- パフォーマンス: DOM/three.js/MediaPipe を分離する GameManager リファクタ、オブジェクトプール、計測用 FPS オーバーレイ
 
 ## 主な仕様
 - モード仕様
@@ -20,7 +23,7 @@ TextAlive の歌詞同期と MediaPipe のカメラ入力を組み合わせ、th
 - 収録曲（TextAlive API トークン同梱）
   - 加賀(ネギシャワーP)「ストリートライト」 (`HmfsoBVch26BmLCm`, https://piapro.jp/t/ULcJ/20250205120202)
   - 雨良 Amala「アリフレーション」 (`rdja5JxMEtcYmyKP`, https://piapro.jp/t/SuQO/20250127235813)
-- サーバー API: `GET /api/health` で疎通確認、`POST /api/echo` はデバッグ用
+- サーバー API: `GET /api/health` で疎通確認、`POST /api/echo` はデバッグ用、`/api/ranking` は 30 秒 TTL のインメモリキャッシュを経由
 
 ## 技術スタック
 - フロント: React 18 + TypeScript / Vite、Tailwind CSS（index-styles.css でカスタム演出）
@@ -63,6 +66,7 @@ npm start              # dist-server/index.js を起動（デフォルト :3000�
 6) 曲終了でリザルト（スコア・最大コンボ・ランク）を確認  
 - フレームアウト警告が出たらカメラに体を戻す  
 - TextAlive が使えない環境でも簡易歌詞でプレイ可能
+- FPS 計測が必要な場合は `?debug=fps` もしくは `#fps` を URL に付けてオーバーレイを表示
 
 ## ディレクトリ案内
 - `src/pages/IndexPage.tsx` …… タイトル/モード・選曲 UI
@@ -81,7 +85,7 @@ npm start              # dist-server/index.js を起動（デフォルト :3000�
 - `.env` に `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を設定（service role はサーバー用・フロントには公開禁止）
 - サーバー API（Hono）
   - `POST /api/score` : `{ songId, mode: 'cursor'|'body', score, maxCombo, rank }` を保存（成功時 `{ ok: true }`）
-  - `GET /api/ranking?songId=...&mode=cursor|body` : score 降順 Top10 を返却（mode 省略可）
+  - `GET /api/ranking?songId=...&mode=cursor|body` : score 降順 Top10 を返却（mode 省略可 / 30 秒キャッシュ）
 - 動作確認例
   - `curl -X POST http://localhost:3000/api/score -H "Content-Type: application/json" -d '{"songId":"HmfsoBVch26BmLCm","mode":"cursor","score":12345,"maxCombo":99,"rank":"A"}'`
   - `curl "http://localhost:3000/api/ranking?songId=HmfsoBVch26BmLCm&mode=cursor"`

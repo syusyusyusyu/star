@@ -58,7 +58,10 @@ function safeParseSong(raw: string | null): SongData | null {
 export function initLiveParticles(container: HTMLElement | null) {
   if (!container) return
 
-  const particleCount = Math.min(80, Math.floor((window.innerWidth * window.innerHeight) / 8000))
+  const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window
+  const densityBase = Math.min(80, Math.floor((window.innerWidth * window.innerHeight) / 8000))
+  const densityFactor = isMobile ? 0.4 : 1
+  const particleCount = Math.max(20, Math.floor(densityBase * densityFactor))
 
   for (let i = 0; i < particleCount; i++) {
     const particle = document.createElement('div')

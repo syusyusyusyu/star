@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, memo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { songsData, type GameMode, type PlayMode, type Song } from '../types/game'
 import RankingModal from '../components/game/RankingModal'
@@ -6,23 +6,105 @@ import '../index-styles.css'
 
 const SONG_ID = 'HmfsoBVch26BmLCm'
 
+// ヘルプモーダル（メモ化で再レンダリング削減）
+const HelpModal = memo(function HelpModal({
+  show,
+  onClose,
+}: {
+  show: boolean
+  onClose: () => void
+}) {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') onClose()
+  }, [onClose])
+
+  if (!show) return null
+
+  return (
+    <div
+      id="help-modal"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="help-modal-title"
+    >
+      <div
+        id="help-backdrop"
+        className="absolute inset-0 bg-black/80 backdrop-blur-md"
+        onClick={onClose}
+      ></div>
+      
+      <div className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto crossover-panel p-8 rounded-lg animate-fade-in">
+          <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
+            <h2 id="help-modal-title" className="text-3xl font-bold text-white tracking-tight">遊び方</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition text-2xl"
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className="space-y-8 text-gray-300">
+              <section>
+                <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
+                    <span className="w-1 h-6 bg-miku block"></span>
+                    基本ルール
+                </h3>
+                <p className="leading-relaxed">
+                    音楽に合わせて流れてくる歌詞をタイミングよくキャッチするリズムゲームです。
+                    歌詞に触れることでスコアとコンボが加算されます。
+                </p>
+              </section>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <section className="bg-white/5 p-4 rounded border border-white/5">
+                    <h3 className="text-white font-bold mb-2">マウスモード</h3>
+                    <p className="text-sm">マウスカーソルを使って歌詞をクリックまたはホバーします。</p>
+                  </section>
+                  <section className="bg-white/5 p-4 rounded border border-white/5">
+                    <h3 className="text-white font-bold mb-2">カメラモード</h3>
+                    <p className="text-sm">Webカメラを使用し、体の動きで歌詞に触れます。</p>
+                  </section>
+              </div>
+
+              <section>
+                <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
+                    <span className="w-1 h-6 bg-miku block"></span>
+                    プレイの流れ
+                </h3>
+                <ol className="list-decimal pl-5 space-y-2 marker:text-miku">
+                  <li>プレイモード（マウス / カメラ）を選択</li>
+                  <li>「ゲームスタート」ボタンをクリック</li>
+                  <li>タイミングよく歌詞をキャッチ！</li>
+                  <li>曲が終わるとリザルト画面へ</li>
+                </ol>
+              </section>
+          </div>
+
+          <div className="mt-8 flex justify-end">
+            <button
+              onClick={onClose}
+              className="miku-glow px-8 py-3 rounded text-white font-bold"
+            >
+              閉じる
+            </button>
+          </div>
+      </div>
+    </div>
+  )
+})
+
 export default function IndexPage() {
   const navigate = useNavigate()
   const [gameMode, setGameMode] = useState<GameMode>('cursor')
   const [rankingMode, setRankingMode] = useState<PlayMode>('cursor')
   const [showHelp, setShowHelp] = useState(false)
   const [showRanking, setShowRanking] = useState(false)
-  const helpModalRef = useRef<HTMLDivElement>(null)
   const lastFocusedElementRef = useRef<HTMLElement | null>(null)
 
-  useEffect(() => {
-    // リサイズイベントのクリーンアップのみ
-    return () => {
-      // クリーンアップ処理があればここに記述
-    }
-  }, [])
-
-  const handleSongSelect = (song: Song) => {
+  const handleSongSelect = useCallback((song: Song) => {
     localStorage.setItem('selectedSong', JSON.stringify({
       ...song,
       difficulty: 'easy'
@@ -41,9 +123,9 @@ export default function IndexPage() {
     setTimeout(() => {
       navigate(`/game?mode=${gameMode}`)
     }, 200)
-  }
+  }, [gameMode, navigate])
 
-  const createClickEffect = (e: React.MouseEvent, element: HTMLElement) => {
+  const createClickEffect = useCallback((e: React.MouseEvent, element: HTMLElement) => {
     const ripple = document.createElement('div')
     const rect = element.getBoundingClientRect()
     const relX = e.clientX - rect.left
@@ -62,29 +144,19 @@ export default function IndexPage() {
     element.appendChild(ripple)
 
     setTimeout(() => ripple.remove(), 600)
-  }
+  }, [])
 
-  const openHelp = () => {
+  const openHelp = useCallback(() => {
     lastFocusedElementRef.current = document.activeElement as HTMLElement
     setShowHelp(true)
-    setTimeout(() => {
-      const closeBtn = document.getElementById('close-help-btn')
-      if (closeBtn) closeBtn.focus()
-    }, 100)
-  }
+  }, [])
 
-  const closeHelp = () => {
+  const closeHelp = useCallback(() => {
     setShowHelp(false)
     if (lastFocusedElementRef.current) {
       lastFocusedElementRef.current.focus()
     }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape' && showHelp) {
-      closeHelp()
-    }
-  }
+  }, [])
 
   return (
     <div className="live-venue-bg min-h-screen w-full text-white relative overflow-hidden" style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
@@ -247,82 +319,7 @@ export default function IndexPage() {
         songId={SONG_ID}
       />
 
-      {/* ヘルプモーダル */}
-      {showHelp && (
-        <div
-          id="help-modal"
-          ref={helpModalRef}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onKeyDown={handleKeyDown}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="help-modal-title"
-        >
-          <div
-            id="help-backdrop"
-            className="absolute inset-0 bg-black/80 backdrop-blur-md"
-            onClick={closeHelp}
-          ></div>
-          
-          <div className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto crossover-panel p-8 rounded-lg animate-fade-in">
-              <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
-                <h2 id="help-modal-title" className="text-3xl font-bold text-white tracking-tight">遊び方</h2>
-                <button
-                  onClick={closeHelp}
-                  className="text-gray-400 hover:text-white transition text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div className="space-y-8 text-gray-300">
-                  <section>
-                    <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
-                        <span className="w-1 h-6 bg-miku block"></span>
-                        基本ルール
-                    </h3>
-                    <p className="leading-relaxed">
-                        音楽に合わせて流れてくる歌詞をタイミングよくキャッチするリズムゲームです。
-                        歌詞に触れることでスコアとコンボが加算されます。
-                    </p>
-                  </section>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <section className="bg-white/5 p-4 rounded border border-white/5">
-                        <h3 className="text-white font-bold mb-2">マウスモード</h3>
-                        <p className="text-sm">マウスカーソルを使って歌詞をクリックまたはホバーします。</p>
-                      </section>
-                      <section className="bg-white/5 p-4 rounded border border-white/5">
-                        <h3 className="text-white font-bold mb-2">カメラモード</h3>
-                        <p className="text-sm">Webカメラを使用し、体の動きで歌詞に触れます。</p>
-                      </section>
-                  </div>
-
-                  <section>
-                    <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
-                        <span className="w-1 h-6 bg-miku block"></span>
-                        プレイの流れ
-                    </h3>
-                    <ol className="list-decimal pl-5 space-y-2 marker:text-miku">
-                      <li>プレイモード（マウス / カメラ）を選択</li>
-                      <li>「ゲームスタート」ボタンをクリック</li>
-                      <li>タイミングよく歌詞をキャッチ！</li>
-                      <li>曲が終わるとリザルト画面へ</li>
-                    </ol>
-                  </section>
-              </div>
-
-              <div className="mt-8 flex justify-end">
-                <button
-                  onClick={closeHelp}
-                  className="miku-glow px-8 py-3 rounded text-white font-bold"
-                >
-                  閉じる
-                </button>
-              </div>
-          </div>
-        </div>
-      )}
+      <HelpModal show={showHelp} onClose={closeHelp} />
     </div>
   )
 }

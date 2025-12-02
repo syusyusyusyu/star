@@ -437,6 +437,9 @@ class GameManager {
   }
 
   private handleGameLoopUpdate = (delta: number, elapsed: number): void => {
+    // three.js シーン描画を統合（body モード時のみ）
+    this.visuals?.render();
+
     if (this.showFpsCounter) {
       this.updateFpsDisplay(delta, elapsed);
     }
@@ -1541,7 +1544,7 @@ class LiveStageVisuals {
   constructor(container: HTMLElement) {
     this.container = container;
     this.initThreeJS();
-    this.animate();
+    // render() は GameManager の GameLoop から呼び出すため、自己再帰 animate() は使用しない
   }
 
   initThreeJS(): void {
@@ -1705,8 +1708,11 @@ class LiveStageVisuals {
     material.opacity = opacity;
   }
 
-  animate(): void {
-    requestAnimationFrame(() => this.animate());
+  /**
+   * 1フレーム分のレンダリングを実行。
+   * GameManager の GameLoop から呼ばれる（自己再帰ではない）。
+   */
+  render(): void {
     this.renderer.render(this.scene, this.camera);
   }
 

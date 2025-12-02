@@ -153,3 +153,25 @@ npm start              # dist-server/index.js を起動（デフォルト :3000�
 - 動作確認例
   - `curl -X POST http://localhost:3000/api/score -H "Content-Type: application/json" -d '{"songId":"HmfsoBVch26BmLCm","mode":"cursor","score":12345,"maxCombo":99,"rank":"A"}'`
   - `curl "http://localhost:3000/api/ranking?songId=HmfsoBVch26BmLCm&mode=cursor"`
+
+## セキュリティ対策
+本プロジェクトでは以下のセキュリティ対策を実装しています：
+
+### サーバーサイド
+- **レート制限**: IP ベースで 1 分間に 30 リクエストまで（DoS 対策）
+- **入力バリデーション**:
+  - `songId`: 英数字・ハイフン・アンダースコアのみ、最大 64 文字（SQL インジェクション対策）
+  - `score`: 0〜1,000,000 の範囲のみ許可
+  - `maxCombo`: 0〜10,000 の整数のみ許可
+  - `rank`: SS/S/A/B/C/D/F のいずれかのみ許可
+  - `mode`: cursor/body のいずれかのみ許可
+- **パラメータ化クエリ**: Supabase クライアントによる自動エスケープ
+
+### HTTP ヘッダー
+- `Content-Security-Policy`: XSS 対策、許可ドメインを限定
+- `X-Frame-Options: SAMEORIGIN`: クリックジャッキング対策
+- `X-Content-Type-Options: nosniff`: MIME スニッフィング対策
+- `Strict-Transport-Security`: HTTPS 強制（本番環境）
+- `Referrer-Policy: strict-origin-when-cross-origin`: リファラー情報の制限
+- `Cross-Origin-Opener-Policy / Cross-Origin-Resource-Policy`: クロスオリジン分離
+- `Permissions-Policy`: カメラ以外の機能を制限

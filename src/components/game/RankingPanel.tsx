@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { PlayMode } from '../../types/game'
 
 type RankingRow = {
@@ -15,45 +15,69 @@ type RankingPanelProps = {
   className?: string
 }
 
+// キャッシュ用のグローバル Map（コンポーネント外に配置）
+const rankingCache = new Map<string, { data: RankingRow[]; timestamp: number }>()
+const CACHE_TTL = 30000 // 30秒キャッシュ
+
 const RankingPanel = ({ songId, mode, className = "" }: RankingPanelProps) => {
   const [rows, setRows] = useState<RankingRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const modeLabel = useMemo(() => {
     if (!mode) return '全モード'
     return mode === 'cursor' ? 'マウスモード' : 'カメラモード'
   }, [mode])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    const fetchRanking = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const params = new URLSearchParams({ songId })
-        if (mode) params.append('mode', mode)
-        const res = await fetch(`/api/ranking?${params.toString()}`, { signal: controller.signal })
-        if (!res.ok) {
-          const payload = await res.json().catch(() => null)
-          throw new Error(payload?.error ?? 'Failed to fetch ranking')
-        }
-        const payload = (await res.json()) as { ok: boolean; data?: RankingRow[]; error?: string }
-        if (!payload.ok) {
-          throw new Error(payload.error || 'Failed to fetch ranking')
-        }
-        setRows(payload.data || [])
-      } catch (err) {
-        if (controller.signal.aborted) return
-        setError(err instanceof Error ? err.message : 'Failed to fetch ranking')
-      } finally {
-        if (!controller.signal.aborted) setLoading(false)
-      }
+  const cacheKey = useMemo(() => `${songId}-${mode ?? 'all'}`, [songId, mode])
+
+  const fetchRanking = useCallback(async (signal: AbortSignal) => {
+    // キャッシュをチェック
+    const cached = rankingCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      setRows(cached.data)
+      setLoading(false)
+      return
     }
 
-    fetchRanking()
+    setLoading(true)
+    setError(null)
+    try {
+      const params = new URLSearchParams({ songId })
+      if (mode) params.append('mode', mode)
+      const res = await fetch(`/api/ranking?${params.toString()}`, { signal })
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        throw new Error(payload?.error ?? 'Failed to fetch ranking')
+      }
+      const payload = (await res.json()) as { ok: boolean; data?: RankingRow[]; error?: string }
+      if (!payload.ok) {
+        throw new Error(payload.error || 'Failed to fetch ranking')
+      }
+      const data = payload.data || []
+      
+      // キャッシュに保存
+      rankingCache.set(cacheKey, { data, timestamp: Date.now() })
+      setRows(data)
+    } catch (err) {
+      if (signal.aborted) return
+      setError(err instanceof Error ? err.message : 'Failed to fetch ranking')
+    } finally {
+      if (!signal.aborted) setLoading(false)
+    }
+  }, [cacheKey, mode, songId])
+
+  useEffect(() => {
+    // 前のリクエストをキャンセル
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    fetchRanking(controller.signal)
+
     return () => controller.abort()
-  }, [mode, songId])
+  }, [fetchRanking])
 
   return (
     <div className={`w-full rounded-2xl bg-black/40 border border-white/10 p-4 backdrop-blur-md shadow-[0_0_25px_rgba(0,0,0,0.35)] flex flex-col ${className}`}>

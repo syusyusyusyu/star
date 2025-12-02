@@ -16,7 +16,7 @@ export const songsData: Song[] = [
   },
 ]
 
-export type PlayMode = 'cursor' | 'body'
+export type PlayMode = 'cursor' | 'body' | 'hand'
 export type GameMode = PlayMode
 
 export interface GameConfig {

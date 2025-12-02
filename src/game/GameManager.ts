@@ -1,20 +1,23 @@
-// @ts-nocheck
 import * as THREE from 'three'
 import { Player } from 'textalive-app-api'
 import { Pose, POSE_CONNECTIONS } from '@mediapipe/pose'
 import { SelfieSegmentation } from '@mediapipe/selfie_segmentation'
 import { Camera } from '@mediapipe/camera_utils'
+import type {
+  PlayMode,
+  GameConfig,
+  GameResult,
+  LyricData,
+  MousePosition,
+  ExtendedPlayer,
+  PlayerAvatar,
+  Landmark,
+  TextAliveVideo,
+} from './types'
+import { calculateRank } from './types'
 
 const TextAliveApp = { Player }
 const DEFAULT_SONG_ID = 'HmfsoBVch26BmLCm'
-
-const calculateRank = (score) => {
-  if (typeof score !== 'number') return 'C'
-  if (score >= 900000) return 'S'
-  if (score >= 800000) return 'A'
-  if (score >= 700000) return 'B'
-  return 'C'
-}
 
 /**
  * ボイスアイドル・ミュージックゲーム - 内部処理のみ最適化版
@@ -24,11 +27,95 @@ const calculateRank = (score) => {
  * APIが利用できない場合はフォールバックモードで動作
  */
 class GameManager {
+  // 基本設定
+  private apiToken: string | undefined
+  private songUrl: string | undefined
+  public songId: string
+  public onGameEnd: ((result: GameResult) => void) | undefined
+  public resultReported: boolean
+  public score: number
+  public combo: number
+  public maxCombo: number
+  public scorePerHit: number
+  private startTime: number
+  public isPlaying: boolean
+  private isPlayerInit: boolean
+  public isFirstInteraction: boolean
+  public player: ExtendedPlayer | null
+  public displayedLyrics: Set<string | number>
+  public activeLyricBubbles: Set<HTMLElement>
+  private allowFallback: boolean
+  private useFallback: boolean
+  public mouseTrail: Array<{ element: HTMLElement }>
+  public lastMousePos: MousePosition
+  public apiLoaded: boolean
+  private _operationInProgress: boolean
+  public resultsDisplayed: boolean
+  
+  // デバイス・モード
+  public isMobile: boolean
+  public currentMode: PlayMode
+  private pose: Pose | null
+  public bodyDetectionReady: boolean
+  public countdownTimer: ReturnType<typeof setInterval> | null
+  private fullBodyLostTimer: ReturnType<typeof setTimeout> | null
+  public enableBodyWarning: boolean
+  private visuals: LiveStageVisuals | null
+  
+  // ハンド検出
+  private hands: { send(options: { image: HTMLVideoElement }): Promise<void> } | null
+  // 以下は将来のhand mode実装用に保持
+  private _handHistory: Array<{ x: number; y: number }>
+  private _lastWaveTime: number
+  private _waveThreshold: number
+  private _waveTimeWindow: number
+  
+  // マネージャー
+  public ui: UIManager
+  public effects: EffectsManager
+  public input: InputManager
+  public viewport: ViewportManager
+  
+  // DOM要素
+  public gamecontainer!: HTMLElement
+  public scoreEl!: HTMLElement
+  public comboEl!: HTMLElement
+  public playpause!: HTMLButtonElement
+  public restart!: HTMLButtonElement
+  private loading: HTMLElement | null = null
+  public countdownOverlay!: HTMLElement
+  public countdownText!: HTMLElement
+  
+  // ゲーム状態
+  public isPaused: boolean
+  public resultCheckTimer: ReturnType<typeof setTimeout> | null
+  private songProgressTimer: ReturnType<typeof setInterval> | null
+  public finishWatchInterval: ReturnType<typeof setInterval> | null
+  public finishFallbackTimeout: ReturnType<typeof setTimeout> | null
+  
+  // 歌詞
+  public enableViewerLyrics: boolean
+  public displayedViewerLyrics: Map<HTMLElement, HTMLElement>
+  public viewerLyricsContainer: HTMLElement | null
+  public lyricsRenderer!: LyricsRenderer
+  public resultsManager!: ResultsManager
+  
+  // 歌詞データ
+  public lyricsData: LyricData[] = []
+  private fallbackLyricsData: LyricData[] = []
+  public currentLyricIndex = 0
+  public _lyricScanIndex = 0
+  public _lastLyricsPosition = 0
+  private lastPlayerPosition = 0
+  private songStartTime = 0
+  private comboResetTimer: ReturnType<typeof setInterval> | null = null
+  public lastScoreTime = 0
+
   /**
    * ゲームマネージャーの初期化
    * ゲームの基本設定、DOM要素の取得、イベントリスナーの設定を行う
    */
-  constructor(config = {}) {
+  constructor(config: GameConfig = {}) {
     // ????????
     this.apiToken = window.songConfig?.apiToken;
     this.songUrl = window.songConfig?.songUrl;
@@ -41,13 +128,13 @@ class GameManager {
     this.isPlaying = this.isPlayerInit = false;
     this.isFirstInteraction = true; // ?????????????
     this.player = null;
-    this.activeChars = new Set();
+    // _activeChars はプロパティ宣言時に初期化済み
     this.displayedLyrics = new Set(); // ?????????
     this.activeLyricBubbles = new Set(); // ????????DOM???????
     this.allowFallback = false; // フォールバックを許可するか
     this.useFallback = false; // フォールバックが動作中か
     this.mouseTrail = [];
-    this.maxTrailLength = 15;
+    // _maxTrailLength はプロパティ宣言時に初期化済み
     this.lastMousePos = { x: 0, y: 0 };
     this.apiLoaded = false; // TextAlive APIがロード完了したかを追跡
     this._operationInProgress = false; // 操作のロック状態を追跡（連打防止）
@@ -64,7 +151,7 @@ class GameManager {
     const urlMode = urlParams.get('mode');
     const storedMode = localStorage.getItem('gameMode');
     const requestedMode = config.mode || urlMode || storedMode || 'cursor';
-    this.currentMode = this.isMobile ? 'cursor' : requestedMode; // モバイルではcursor固定
+    this.currentMode = this.isMobile ? 'cursor' : (requestedMode as PlayMode); // モバイルではcursor固定
     
     if (this.isMobile && requestedMode !== 'cursor') {
       console.log(`モバイルデバイスのため、要求されたモード'${requestedMode}'からCursorモードに変更されました。`);
@@ -76,9 +163,15 @@ class GameManager {
     this.fullBodyLostTimer = null; // 全身ロスト時のタイマー
     this.enableBodyWarning = true; // Body warning toggle for testing
     
-    // 内部処理用のグループサイズを設定（パフォーマンス最適化）
-    this.groupSize = 1;
+    // 内部処理用のグループサイズはプロパティ宣言時に初期化済み
     this.visuals = null; // Only create heavy 3D visuals when the mode requires it
+    
+    // ハンド検出用の初期化
+    this.hands = null;
+    this._handHistory = [];
+    this._lastWaveTime = 0;
+    this._waveThreshold = 0.1;
+    this._waveTimeWindow = 400;
     
   // SRP: マネージャを準備（UI/入力/エフェクト/ビューポート）
   this.ui = new UIManager(this);
@@ -94,8 +187,15 @@ class GameManager {
     });
     
     // 必要なDOM要素の取得
-    [this.gamecontainer, this.scoreEl, this.comboEl, this.playpause, this.restart, this.loading, this.countdownOverlay, this.countdownText] = 
-      ['game-container', 'score', 'combo', 'play-pause', 'restart', 'loading', 'countdown-overlay', 'countdown-text'].map(id => document.getElementById(id));
+    const getEl = (id: string) => document.getElementById(id)
+    this.gamecontainer = getEl('game-container') as HTMLElement
+    this.scoreEl = getEl('score') as HTMLElement
+    this.comboEl = getEl('combo') as HTMLElement
+    this.playpause = getEl('play-pause') as HTMLButtonElement
+    this.restart = getEl('restart') as HTMLButtonElement
+    this.loading = getEl('loading')
+    this.countdownOverlay = getEl('countdown-overlay') as HTMLElement
+    this.countdownText = getEl('countdown-text') as HTMLElement
     
     // 初期状態ではすべてのボタンを読み込み中と表示
     this.isPaused = true;
@@ -129,12 +229,6 @@ class GameManager {
   this.lyricsRenderer = new LyricsRenderer(this);
   this.resultsManager = new ResultsManager(this);
 
-    // 手振り検出用の変数
-    this.handHistory = []; // 手の位置履歴
-    this.lastWaveTime = 0; // 最後に手振りを検出した時間
-    this.waveThreshold = 0.1; // 手振り検出の閾値を緩く（画面幅の10%）
-    this.waveTimeWindow = 400; // 手振り検出の時間窓を短く（400ms）
-
     // 初期モードに基づいてカメラを初期化
     this.initCamera();
     this.updateInstructions(); // 初期指示を更新
@@ -142,9 +236,8 @@ class GameManager {
 
   /**
    * モバイルデバイスかどうかを検出
-   * @return {boolean} モバイルデバイスの場合true
    */
-  detectMobileDevice() {
+  detectMobileDevice(): boolean {
     // ユーザーエージェントによる検出
     const mobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
@@ -160,22 +253,24 @@ class GameManager {
     return mobileUA || (hasTouch && smallScreen) || limitedCamera;
   }
 
-  initCamera() {
+  initCamera(): void {
     // モバイルデバイスの場合はカメラ機能を無効化
     if (this.isMobile) {
       console.log('モバイルデバイスが検出されました。カメラ機能は無効化されます。');
       return;
     }
     
-    let videoElement = document.getElementById('camera-video');
+    let videoElement = document.getElementById('camera-video') as HTMLVideoElement | null;
     if (!videoElement) {
         videoElement = document.createElement('video');
         videoElement.id = 'camera-video';
         videoElement.classList.add('hidden'); // デフォルトで非表示
         document.body.appendChild(videoElement);
     }
-    const segmentationCanvas = document.getElementById('segmentation-canvas');
+    const segmentationCanvas = document.getElementById('segmentation-canvas') as HTMLCanvasElement | null;
+    if (!segmentationCanvas) return;
     const segmentationCtx = segmentationCanvas.getContext('2d');
+    if (!segmentationCtx) return;
 
     // カメラとキャンバスの表示/非表示をモードに応じて切り替える
     if (this.currentMode === 'body') {
@@ -201,7 +296,7 @@ class GameManager {
     }});
     selfieSegmentation.setOptions({
       modelSelection: 0,
-      delegate: 'CPU'
+      selfieMode: true
     });
     selfieSegmentation.onResults((results) => {
       segmentationCtx.save();
@@ -226,9 +321,9 @@ class GameManager {
             this.pose.setOptions({
                 modelComplexity: 0,
                 smoothLandmarks: true,
+                enableSegmentation: false,
                 minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5,
-                delegate: 'CPU'
+                minTrackingConfidence: 0.5
             });
             this.pose.onResults((results) => {
                 if (results.poseLandmarks) {
@@ -269,11 +364,17 @@ class GameManager {
     let lastProcessTime = 0;
     const processInterval = 33; // 33msごとに処理 (約30FPS) - さらに検出頻度を上げる
 
+    // キャンバス解像度を一度だけ設定
+    let canvasInitialized = false;
+    
     const camera = new Camera(videoElement, {
       onFrame: async () => {
-        // キャンバスの解像度をビデオの解像度に合わせる
-        segmentationCanvas.width = videoElement.videoWidth;
-        segmentationCanvas.height = videoElement.videoHeight;
+        // キャンバスの解像度は初回のみ設定（毎フレームの再設定を回避）
+        if (!canvasInitialized && videoElement.videoWidth > 0) {
+          segmentationCanvas.width = videoElement.videoWidth;
+          segmentationCanvas.height = videoElement.videoHeight;
+          canvasInitialized = true;
+        }
 
         const now = performance.now();
         if (now - lastProcessTime > processInterval) {
@@ -287,8 +388,8 @@ class GameManager {
         }
         await selfieSegmentation.send({image: videoElement});
       },
-      width: 480, // 解像度を下げて検出速度向上
-      height: 360 // 解像度を下げて検出速度向上
+      width: 320, // 解像度をさらに下げて検出速度向上
+      height: 240 // 解像度をさらに下げて検出速度向上
     });
     camera.start();
   }
@@ -304,9 +405,8 @@ class GameManager {
 
   /**
    * 全身検出の確認とカウントダウンの開始
-   * @param {Array} landmarks - MediaPipe Poseのランドマークデータ
    */
-  checkFullBodyDetection(landmarks) {
+  checkFullBodyDetection(landmarks: Landmark[]): void {
     console.log("checkFullBodyDetection called.");
     // 主要なランドマーク（頭、両肩、両腰、両足首）が存在するか確認
     const requiredLandmarks = [
@@ -319,7 +419,7 @@ class GameManager {
       28  // 右足首
     ];
 
-    const allDetected = requiredLandmarks.every(index => landmarks[index] && landmarks[index].visibility > 0.8);
+    const allDetected = requiredLandmarks.every(index => landmarks[index] && (landmarks[index].visibility ?? 0) > 0.8);
     console.log("allDetected:", allDetected);
     console.log("player isPlaying:", this.player?.isPlaying);
 
@@ -337,7 +437,7 @@ class GameManager {
       if (!this.countdownTimer && !this.bodyDetectionReady) {
         let count = 5;
         this.countdownOverlay.classList.remove('hidden');
-        this.countdownText.textContent = count;
+        this.countdownText.textContent = String(count);
         // カウントダウン中は歌詞表示を確実に停止
         this.isPaused = true;
         this.isFirstInteraction = true;
@@ -346,9 +446,9 @@ class GameManager {
         this.countdownTimer = setInterval(() => {
           count--;
           if (count > 0) {
-            this.countdownText.textContent = count;
+            this.countdownText.textContent = String(count);
           } else {
-            clearInterval(this.countdownTimer);
+            if (this.countdownTimer) clearInterval(this.countdownTimer);
             this.countdownTimer = null;
             this.bodyDetectionReady = true;
             this.countdownOverlay.classList.add('hidden');
@@ -402,7 +502,7 @@ class GameManager {
    * 音楽再生を開始する
    * プレーヤーの初期化状態に応じて、TextAlivePlayerまたはフォールバックモードで再生
    */
-  async playMusic() {
+  async playMusic(): Promise<void> {
     console.log("playMusic called.");
     // 操作が進行中なら何もしない（連打防止）
     if (this._operationInProgress) return;
@@ -486,7 +586,7 @@ class GameManager {
   /**
    * 曲の進行状況を監視して終了を検出する
    */
-  startSongProgressMonitor() {
+  startSongProgressMonitor(): void {
     // 既存の監視タイマーをクリア
     if (this.songProgressTimer) {
       clearInterval(this.songProgressTimer);
@@ -505,7 +605,7 @@ class GameManager {
             duration,
             remaining: duration - currentTime
           });
-          clearInterval(this.songProgressTimer);
+          if (this.songProgressTimer) clearInterval(this.songProgressTimer);
           if (!this.resultsDisplayed) {
             this.showResults();
           }
@@ -520,7 +620,7 @@ class GameManager {
             duration,
             progress: (currentTime / duration * 100).toFixed(1) + '%'
           });
-          clearInterval(this.songProgressTimer);
+          if (this.songProgressTimer) clearInterval(this.songProgressTimer);
           if (!this.resultsDisplayed) {
             this.showResults();
           }
@@ -532,10 +632,8 @@ class GameManager {
   /**
    * 結果表示のための確認タイマーをセットアップ
    * 指定された時間が経過したらリザルト画面を表示する
-   * 
-   * @param {number} duration - リザルト表示までの時間（ミリ秒）
    */
-  setupResultCheckTimer(duration) {
+  setupResultCheckTimer(duration: number): void {
     // 既存のタイマーをクリア（重複防止）
     if (this.resultCheckTimer) {
       clearTimeout(this.resultCheckTimer);
@@ -577,7 +675,7 @@ class GameManager {
    * ゲームの初期化
    * 背景要素の生成と歌詞データの準備
    */
-  initGame() {
+  initGame(): void {
     this.visuals = this.currentMode === 'body' ? new LiveStageVisuals(this.gamecontainer) : null;
     this.createAudiencePenlights();
     this.lyricsData = [];
@@ -615,7 +713,7 @@ class GameManager {
     }, 1000);
   }
 
-  createAudiencePenlights() {
+  createAudiencePenlights(): void {
     const audienceArea = document.getElementById('audience-area');
     if (!audienceArea) return;
 
@@ -651,7 +749,7 @@ class GameManager {
    * 再生/一時停止を切り替える
    * プレーヤーの状態に応じて適切な処理を行う
    */
-  async togglePlay() {
+  async togglePlay(): Promise<void> {
     if (this._operationInProgress) return; // 連打防止
     this._operationInProgress = true;
     
@@ -707,7 +805,7 @@ class GameManager {
    * ゲームをリスタートする
    * スコアとコンボをリセットし、曲を最初から再生
    */
-  async restartGame() {
+  async restartGame(): Promise<void> {
     if (this._operationInProgress) return; // 連打防止
     this._operationInProgress = true;
     
@@ -808,7 +906,7 @@ class GameManager {
    * TextAlive Playerを初期化する
    * 歌詞同期のためのプレーヤーをセットアップ
    */
-  initPlayer() {
+  initPlayer(): void {
     // TextAliveが利用可能かチェック
     if (typeof TextAliveApp === 'undefined') {
       if (this.loading) this.loading.textContent = "TextAliveが見つかりません。代替モードで起動中...";
@@ -819,19 +917,19 @@ class GameManager {
     try {
       // プレーヤーの作成
       this.player = new TextAliveApp.Player({
-        app: { token: this.apiToken },
+        app: { token: this.apiToken ?? '' },
         mediaElement: document.createElement('audio')
-      });
-      document.body.appendChild(this.player.mediaElement);
+      }) as ExtendedPlayer;
+      if (this.player.mediaElement) document.body.appendChild(this.player.mediaElement);
       this.isPlayerInit = true;
       
       // 各種イベントリスナーを設定
       this.player.addListener({
         // アプリ準備完了時
-        onAppReady: (app) => {
+        onAppReady: (app: { managed?: boolean }) => {
           if (app && !app.managed) {
             try {
-              this.player.createFromSongUrl(this.songUrl);
+              if (this.player && this.songUrl) this.player.createFromSongUrl(this.songUrl);
             } catch (e) {
               console.error("Song creation error:", e);
               if (this.allowFallback) this.fallback();
@@ -839,7 +937,7 @@ class GameManager {
           }
         },
         // 動画準備完了時（歌詞データ取得） 
-        onVideoReady: (video) => {
+        onVideoReady: (video: TextAliveVideo | null) => {
           this.useFallback = false; // TextAlive正常利用
           if (video?.firstPhrase) this.processLyrics(video);
           
@@ -864,7 +962,7 @@ class GameManager {
           }, 2000); // 2秒の追加待機時間
         },
         // 時間更新時（歌詞表示タイミング制御）
-        onTimeUpdate: (pos) => {
+        onTimeUpdate: (pos: number) => {
           // 一時停止中またはボディモードのカウントダウン中は歌詞を更新しない
           if (!this.isPaused && !this.countdownTimer) {
             this.updateLyrics(pos);
@@ -895,7 +993,7 @@ class GameManager {
                   this.showResults();
                 }
               }, 600);
-              clearInterval(this.finishWatchInterval);
+              if (this.finishWatchInterval) clearInterval(this.finishWatchInterval);
               this.finishWatchInterval = null;
             }
           }, 1000);
@@ -956,7 +1054,7 @@ class GameManager {
           }
         },
         // エラー発生時
-        onError: (e) => {
+        onError: (e: Error) => {
           console.error("Player error:", e);
           this.fallback();
         }
@@ -979,7 +1077,7 @@ class GameManager {
 
     this.isPlayerInit = false;
     if (this.player?.mediaElement) {
-      try { this.player.mediaElement.pause(); } catch {}
+      try { (this.player.mediaElement as HTMLAudioElement).pause(); } catch {}
     }
     this.player = null;
     
@@ -1007,10 +1105,8 @@ class GameManager {
   /**
    * 歌詞データを処理する
    * TextAliveから取得した歌詞データをシンプルに内部形式に変換
-   * 
-   * @param {Object} video - TextAliveから取得した動画データ
    */
-  processLyrics(video) {
+  processLyrics(video: TextAliveVideo): void {
     try {
       this.lyricsData = [];
       this._lyricScanIndex = 0;
@@ -1085,10 +1181,8 @@ class GameManager {
   /**
    * 歌詞の表示を更新する
    * 現在の再生位置に応じて表示すべき歌詞を判定
-   * 
-   * @param {number} position - 現在の再生位置（ミリ秒）
    */
-  updateLyrics(position) {
+  updateLyrics(position: number): void {
     // 一時停止中、初回インタラクション前、またはボディモードのカウントダウン中は歌詞を表示しない
     if (this.isPaused || this.isFirstInteraction || this.countdownTimer) return;
 
@@ -1143,9 +1237,8 @@ class GameManager {
 
   /**
    * 現在位置に最も近い歌詞インデックスへ同期する
-   * @param {number} position
    */
-  syncLyricIndexToPosition(position) {
+  syncLyricIndexToPosition(position: number): void {
     if (!this.lyricsData || this.lyricsData.length === 0) {
       this._lyricScanIndex = 0;
       return;
@@ -1165,7 +1258,7 @@ class GameManager {
    * 歌詞表示タイマーを開始
    * フォールバックモード用の歌詞タイミング処理
    */
-  startLyricsTimer() {
+  startLyricsTimer(): void {
     if (!this.useFallback) {
       return;
     }
@@ -1193,21 +1286,23 @@ class GameManager {
         
         if (!this.displayedLyrics.has(lyricGroup.time)) {
           // グループ内の各文字を個別に表示（時間差で）
-          lyricGroup.originalChars.forEach((charData, idx) => {
-            // 各文字の表示時間にオフセットを適用
-            setTimeout(() => {
-              // 既に表示済み判定がついていない場合のみ表示
-              if (!this.displayedLyrics.has(lyricGroup.time + "-" + idx)) {
-                this.displayLyric(charData.text);
-                this.displayedLyrics.add(lyricGroup.time + "-" + idx);
-                
-                // しばらくしたら削除フラグを消す
-                setTimeout(() => {
-                  this.displayedLyrics.delete(lyricGroup.time + "-" + idx);
-                }, 8000);
-              }
-            }, charData.timeOffset || (idx * 50)); // オフセットがなければ50msずつずらす
-          });
+          if (lyricGroup.originalChars) {
+            lyricGroup.originalChars.forEach((charData, idx) => {
+              // 各文字の表示時間にオフセットを適用
+              setTimeout(() => {
+                // 既に表示済み判定がついていない場合のみ表示
+                if (!this.displayedLyrics.has(lyricGroup.time + "-" + idx)) {
+                  this.displayLyric(charData.text);
+                  this.displayedLyrics.add(lyricGroup.time + "-" + idx);
+                  
+                  // しばらくしたら削除フラグを消す
+                  setTimeout(() => {
+                    this.displayedLyrics.delete(lyricGroup.time + "-" + idx);
+                  }, 8000);
+                }
+              }, charData.timeOffset || (idx * 50)); // オフセットがなければ50msずつずらす
+            });
+          }
           
           this.displayedLyrics.add(lyricGroup.time);
           processed++;
@@ -1215,7 +1310,7 @@ class GameManager {
           // グループ全体のフラグを一定時間後に削除
           setTimeout(() => {
             this.displayedLyrics.delete(lyricGroup.time);
-          }, 8000 + (lyricGroup.originalChars.length * 100)); // 最後の文字の表示終了から8秒後
+          }, 8000 + ((lyricGroup.originalChars?.length ?? 0) * 100)); // 最後の文字の表示終了から8秒後
         }
         
         this.currentLyricIndex++;
@@ -1251,7 +1346,7 @@ class GameManager {
    * 
    * @param {string} text - 表示する文字
    */
-  displayLyric(text) {
+  displayLyric(text: string): HTMLElement | undefined {
   return this.lyricsRenderer.displayLyric(text);
   }
 
@@ -1260,21 +1355,16 @@ class GameManager {
    * @param {string} text - 表示する文字
    * @param {HTMLElement} gameBubble - ゲーム用歌詞要素
    */
-  displayViewerLyric(text, gameBubble) {
+  displayViewerLyric(text: string, gameBubble: HTMLElement): void {
   return this.lyricsRenderer.displayViewerLyric(text, gameBubble);
   }
 
   /**
    * マウス/指の位置と歌詞の当たり判定
-   * 
-   * @param {number} x - X座標
-   * @param {number} y - Y座標
-   * @param {number} radius - 判定半径
-   * @return {boolean} - 当たった場合はtrue
    */
-  checkLyrics(x, y, radius) {
-    if (this.isFirstInteraction) return false;
-    const radiusSquared = radius * radius;
+  checkLyrics(x: number, y: number, radius: number): void {
+    if (this.isFirstInteraction) return;
+    // radiusSquared は以前使っていたが現在は未使用
     // 生成時に追跡している集合を使用
     for (const el of this.activeLyricBubbles) {
       if (el.style.pointerEvents === 'none') continue; // 既にクリック済みの場合はスキップ
@@ -1297,10 +1387,8 @@ class GameManager {
   /**
    * 歌詞をクリック/タッチした時の処理
    * スコア加算と視覚効果を処理
-   * 
-   * @param {HTMLElement} element - クリックされた歌詞要素
    */
-  clickLyric(element) {
+  clickLyric(element: HTMLElement): void {
     if (element.style.pointerEvents === 'none') return;
     
     // スコアとコンボを更新
@@ -1322,7 +1410,7 @@ class GameManager {
     }
     
     // 表示を更新
-    this.scoreEl.textContent = Math.round(this.score);
+    this.scoreEl.textContent = String(Math.round(this.score));
     this.comboEl.textContent = `コンボ: ${this.combo}`;
     
     // 視覚効果
@@ -1350,7 +1438,7 @@ class GameManager {
    * 
    * @param {HTMLElement} element - クリックされた要素
    */
-  createClickEffect(element) {
+  createClickEffect(element: HTMLElement): void {
   // SRP: EffectsManagerに委譲
   return this.effects.createClickEffect(element);
   }
@@ -1361,7 +1449,7 @@ class GameManager {
    * @param {number} x - X座標
    * @param {number} y - Y座標
    */
-  createHitEffect(x, y) {
+  createHitEffect(x: number, y: number): void {
   // SRP: EffectsManagerに委譲
   return this.effects.createHitEffect(x, y);
   }
@@ -1385,7 +1473,7 @@ class GameManager {
    * リソースの解放とクリーンアップ
    * ゲーム終了時に呼び出す
    */
-  cleanup() {
+  cleanup(): void {
   // 観客のランダムテキスト機能は削除
     if (this.comboResetTimer) clearInterval(this.comboResetTimer);
     if (this.resultCheckTimer) clearTimeout(this.resultCheckTimer);
@@ -1410,33 +1498,39 @@ class GameManager {
 }
 
 class LiveStageVisuals {
-  constructor(container) {
+  private container: HTMLElement
+  private scene!: THREE.Scene
+  private camera!: THREE.PerspectiveCamera
+  private renderer!: THREE.WebGLRenderer
+  private playerAvatar: PlayerAvatar = {}
+  private handJoints: THREE.Mesh[] = []
+  private leftPenlight!: THREE.Mesh
+  private rightPenlight!: THREE.Mesh
+
+  constructor(container: HTMLElement) {
     this.container = container;
     this.initThreeJS();
     this.animate();
   }
 
-  initThreeJS() {
+  initThreeJS(): void {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
     this.camera.position.set(0, 100, 150);
 
-    this.renderer = new THREE.WebGLRenderer({ alpha: true, powerPreference: 'low-power' });
+    this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false, powerPreference: 'high-performance' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     this.renderer.domElement.style.position = 'absolute';
-    this.renderer.domElement.style.top = 0;
-    this.renderer.domElement.style.left = 0;
-    this.renderer.domElement.style.zIndex = 2; // UIの下、背景の上
+    this.renderer.domElement.style.top = '0';
+    this.renderer.domElement.style.left = '0';
+    this.renderer.domElement.style.zIndex = '2'; // UIの下、背景の上
     this.container.appendChild(this.renderer.domElement);
 
     // リサイズイベントの設定
     window.addEventListener('resize', () => this.onResize());
 
-    this.playerAvatar = {};
-    
-    // 手の描画用配列を初期化
-    this.handJoints = [];
+    // 手の描画用配列を初期化済み
 
     const penlightGeometry = new THREE.CylinderGeometry(2, 2, 40, 32);
     const penlightMaterial = new THREE.MeshBasicMaterial({ color: 0x39C5BB, transparent: true, opacity: 0.8 });
@@ -1444,14 +1538,14 @@ class LiveStageVisuals {
     this.rightPenlight = new THREE.Mesh(penlightGeometry, penlightMaterial);
   }
 
-  setVideoTexture(videoElement) {
+  setVideoTexture(videoElement: HTMLVideoElement): void {
     const videoTexture = new THREE.VideoTexture(videoElement);
     videoTexture.wrapS = THREE.RepeatWrapping;
     videoTexture.repeat.x = -1;
     this.scene.background = videoTexture;
   }
 
-  updatePlayerAvatar(landmarks) {
+  updatePlayerAvatar(landmarks: Landmark[]): void {
     if (!this.playerAvatar.joints) {
       this.playerAvatar.joints = {};
       this.playerAvatar.bones = {};
@@ -1497,17 +1591,20 @@ class LiveStageVisuals {
     const connections = POSE_CONNECTIONS;
     for (let i = 0; i < connections.length; i++) {
       const pair = connections[i];
+      if (!pair) continue;
       const start = pair[0];
       const end = pair[1];
-      const bone = this.playerAvatar.bones[i];
-      if (bone) {
-        const positions = bone.geometry.attributes.position.array;
-        positions[0] = this.playerAvatar.joints[start].position.x;
-        positions[1] = this.playerAvatar.joints[start].position.y;
-        positions[2] = this.playerAvatar.joints[start].position.z;
-        positions[3] = this.playerAvatar.joints[end].position.x;
-        positions[4] = this.playerAvatar.joints[end].position.y;
-        positions[5] = this.playerAvatar.joints[end].position.z;
+      const bone = this.playerAvatar.bones?.[i];
+      const startJoint = this.playerAvatar.joints?.[start];
+      const endJoint = this.playerAvatar.joints?.[end];
+      if (bone && startJoint && endJoint) {
+        const positions = bone.geometry.attributes.position.array as Float32Array;
+        positions[0] = startJoint.position.x;
+        positions[1] = startJoint.position.y;
+        positions[2] = startJoint.position.z;
+        positions[3] = endJoint.position.x;
+        positions[4] = endJoint.position.y;
+        positions[5] = endJoint.position.z;
         bone.geometry.attributes.position.needsUpdate = true;
       }
     }
@@ -1520,7 +1617,7 @@ class LiveStageVisuals {
     }
   }
 
-  updateHandLandmarks(handsResults) {
+  updateHandLandmarks(handsResults: { multiHandLandmarks?: Array<Landmark[]> }): void {
     // 既存の手の描画をクリア
     if (this.handJoints) {
       this.handJoints.forEach(joint => this.scene.remove(joint));
@@ -1530,7 +1627,7 @@ class LiveStageVisuals {
 
     if (!handsResults.multiHandLandmarks) return;
 
-    handsResults.multiHandLandmarks.forEach((landmarks, handIndex) => {
+    handsResults.multiHandLandmarks.forEach((landmarks: Landmark[], handIndex: number) => {
       // 手のひらの中心（ランドマーク0）を大きな球体で表示
       const palmLandmark = landmarks[0];
       const palmGeometry = new THREE.SphereGeometry(15, 32, 32);
@@ -1569,12 +1666,12 @@ class LiveStageVisuals {
     });
   }
 
-  animate() {
+  animate(): void {
     requestAnimationFrame(() => this.animate());
     this.renderer.render(this.scene, this.camera);
   }
 
-  onResize() {
+  onResize(): void {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1583,11 +1680,13 @@ class LiveStageVisuals {
 
 // SRP: 歌詞のDOM表示と鑑賞用表示を担当
 class LyricsRenderer {
-  constructor(game) {
+  private game: GameManager
+
+  constructor(game: GameManager) {
     this.game = game;
   }
 
-  displayLyric(text) {
+  displayLyric(text: string | null): HTMLElement | undefined {
     if (text == null) return;
     
     // パフォーマンス対策: 画面上の歌詞が多すぎる場合は新規表示を制限
@@ -1682,7 +1781,7 @@ class LyricsRenderer {
     return bubble;
   }
 
-  displayViewerLyric(text, gameBubble) {
+  displayViewerLyric(text: string, gameBubble: HTMLElement): void {
     if (!this.game.enableViewerLyrics || !this.game.viewerLyricsContainer) return;
     if (this.game.displayedViewerLyrics.has(gameBubble)) return;
 
@@ -1718,11 +1817,13 @@ class LyricsRenderer {
 
 // SRP: リザルト画面の表示とボタン配線を担当
 class ResultsManager {
-  constructor(game) {
+  private game: GameManager
+
+  constructor(game: GameManager) {
     this.game = game;
   }
 
-  showResults() {
+  showResults(): void {
     if (this.game.resultsDisplayed) {
       console.log('すでに結果画面が表示されています');
       return;
@@ -1793,7 +1894,7 @@ class ResultsManager {
     const finalComboDisplay = document.getElementById('final-combo-display');
     const rankDisplay = document.getElementById('rank-display');
 
-    if (finalScoreDisplay) finalScoreDisplay.textContent = Math.round(this.game.score);
+    if (finalScoreDisplay) finalScoreDisplay.textContent = String(Math.round(this.game.score));
     if (finalComboDisplay) finalComboDisplay.textContent = `最大コンボ: ${this.game.maxCombo}`;
     if (rankDisplay) rankDisplay.textContent = `ランク: ${rank}`;
 
@@ -1807,14 +1908,14 @@ class ResultsManager {
     this.setupResultsButtons();
   }
 
-  setupResultsButtons() {
+  setupResultsButtons(): void {
     const backToTitle = document.getElementById('back-to-title');
     const replaySong = document.getElementById('replay-song');
 
-    const addEvents = (element, handler) => {
+    const addEvents = (element: HTMLElement | null, handler: () => void) => {
       if (!element) return;
       element.addEventListener('click', handler);
-      element.addEventListener('touchend', (e) => {
+      element.addEventListener('touchend', (e: Event) => {
         e.preventDefault();
         handler();
       }, { passive: false });
@@ -1843,11 +1944,13 @@ class ResultsManager {
 
 // SRP: UI表示・テキスト更新・インジケーターの責務
 class UIManager {
-  constructor(game) {
+  private game: GameManager
+
+  constructor(game: GameManager) {
     this.game = game;
   }
 
-  updateInstructions() {
+  updateInstructions(): void {
     const instructionsEl = document.getElementById('instructions');
     if (!instructionsEl) return;
 
@@ -1870,7 +1973,7 @@ class UIManager {
     instructionsEl.textContent = text;
   }
 
-  updateHandDetectionIndicator(multiHandLandmarks) {
+  updateHandDetectionIndicator(multiHandLandmarks: Array<Landmark[]> | undefined): void {
     let indicator = document.getElementById('hand-detection-indicator');
     if (!indicator) {
       indicator = document.createElement('div');
@@ -1921,11 +2024,13 @@ class UIManager {
 
 // SRP: 演出（クリック/ヒット）生成の責務
 class EffectsManager {
-  constructor(game) {
+  private game: GameManager
+
+  constructor(game: GameManager) {
     this.game = game;
   }
 
-  createClickEffect(element) {
+  createClickEffect(element: HTMLElement): void {
     const rect = element.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;
@@ -1954,7 +2059,7 @@ class EffectsManager {
     const animate = () => {
       const top = parseFloat(pointDisplay.style.top);
       pointDisplay.style.top = `${top - 1}px`;
-      pointDisplay.style.opacity = parseFloat(pointDisplay.style.opacity || 1) - 0.02;
+      pointDisplay.style.opacity = String(parseFloat(pointDisplay.style.opacity || '1') - 0.02);
       if (parseFloat(pointDisplay.style.opacity) > 0) {
         requestAnimationFrame(animate);
       } else {
@@ -1964,7 +2069,7 @@ class EffectsManager {
     requestAnimationFrame(animate);
   }
 
-  createHitEffect(x, y) {
+  createHitEffect(x: number, y: number): void {
     const ripple = document.createElement('div');
     ripple.className = 'tap-ripple';
     ripple.style.left = `${x - 20}px`;
@@ -1976,16 +2081,18 @@ class EffectsManager {
 
 // SRP: 入力/イベント配線の責務
 class InputManager {
-  constructor(game) {
+  private game: GameManager
+
+  constructor(game: GameManager) {
     this.game = game;
   }
 
-  setupEvents() {
+  setupEvents(): void {
     const gm = this.game;
     let lastTime = 0, lastX = 0, lastY = 0;
     let touched = false;
 
-    const handleMove = (x, y, isTouch) => {
+    const handleMove = (x: number, y: number, isTouch: boolean) => {
       const now = Date.now();
       if (now - lastTime < 16) return;
       lastTime = now;
@@ -2027,7 +2134,7 @@ class InputManager {
       gm.checkLyrics(e.clientX, e.clientY, 35);
     });
 
-    const handleButtonClick = (event) => {
+    const handleButtonClick = (event: Event | null) => {
       if (event) event.preventDefault();
       if (!gm.apiLoaded) return;
       if (gm.isFirstInteraction) {
@@ -2050,7 +2157,7 @@ class InputManager {
     gm.playpause.addEventListener('click', handleButtonClick);
     gm.playpause.addEventListener('touchend', handleButtonClick, { passive: false });
 
-    const handleRestartClick = (event) => {
+    const handleRestartClick = (event: Event | null) => {
       if (event) event.preventDefault();
       if (!gm.apiLoaded) return;
       gm.restartGame();
@@ -2070,7 +2177,7 @@ class InputManager {
 
 // SRP: ビューポート・デバイス関連の責務
 class ViewportManager {
-  updateViewportHeight() {
+  updateViewportHeight(): void {
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
   }

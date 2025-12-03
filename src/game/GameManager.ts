@@ -1,8 +1,5 @@
 import * as THREE from 'three'
 import { Player } from 'textalive-app-api'
-import { Pose, POSE_CONNECTIONS } from '@mediapipe/pose'
-import { SelfieSegmentation } from '@mediapipe/selfie_segmentation'
-import { Camera } from '@mediapipe/camera_utils'
 import { GameLoop } from './GameLoop'
 import { BubblePool } from './BubblePool'
 import { TimerManager } from './TimerManager'
@@ -18,6 +15,20 @@ import type {
   TextAliveVideo,
 } from './types'
 import { calculateRank } from './types'
+
+// グローバル変数として読み込まれたMediaPipeライブラリを参照
+declare global {
+  interface Window {
+    Pose: any
+    SelfieSegmentation: any
+    Camera: any
+    drawConnectors: any
+    drawLandmarks: any
+    POSE_CONNECTIONS: any
+  }
+}
+
+const { Pose, SelfieSegmentation, Camera, drawConnectors, drawLandmarks, POSE_CONNECTIONS } = window as any
 
 const TextAliveApp = { Player }
 const DEFAULT_SONG_ID = 'HmfsoBVch26BmLCm'
@@ -68,7 +79,7 @@ class GameManager {
   // デバイス・モード
   public isMobile: boolean
   public currentMode: PlayMode
-  private pose: Pose | null
+  private pose: any | null
   public enableBodyWarning: boolean
   private bodyDetection!: BodyDetectionManager
   private visuals: LiveStageVisuals | null
@@ -320,9 +331,9 @@ class GameManager {
     const processInterval = 33; // ~30FPS
     let lastProcessTime = 0;
 
-    const selfieSegmentation = new SelfieSegmentation({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
+    const selfieSegmentation = new SelfieSegmentation({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
     selfieSegmentation.setOptions({ modelSelection: 0, selfieMode: true });
-    selfieSegmentation.onResults(results => {
+    selfieSegmentation.onResults((results: any) => {
       segmentationCtx.save();
       segmentationCtx.clearRect(0, 0, segmentationCanvas.width, segmentationCanvas.height);
       segmentationCtx.translate(segmentationCanvas.width, 0);
@@ -335,7 +346,7 @@ class GameManager {
 
     if (this.currentMode === 'body') {
       if (!this.pose) {
-        this.pose = new Pose({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+        this.pose = new Pose({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
         this.pose.setOptions({
           modelComplexity: 0,
           smoothLandmarks: true,
@@ -343,7 +354,7 @@ class GameManager {
           minDetectionConfidence: 0.5,
           minTrackingConfidence: 0.5,
         });
-        this.pose.onResults(results => this.handlePoseResults(results?.poseLandmarks));
+        this.pose.onResults((results: any) => this.handlePoseResults(results?.poseLandmarks));
       }
     } else if (this.pose) {
       this.pose.close();

@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
-  "name": "lyric-stage",
+  "name": "crosste",
   "compatibility_date": "2025-07-18",
   "main": "worker/index.ts",
   // 静的ファイル（docs/）を配信する場合

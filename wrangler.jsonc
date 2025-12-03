@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "lyric-stage",
+  "compatibility_date": "2025-12-03",
+  "main": "worker/index.ts",
+  // 静的ファイル（docs/）を配信する場合
+  "assets": {
+    "directory": "./docs"
+  },
+  // 環境変数（Supabase接続情報など）
+  // Cloudflareダッシュボードまたは wrangler secret で設定してください
+  // "vars": {
+  //   "SUPABASE_URL": "",
+  //   "SUPABASE_ANON_KEY": ""
+  // }
+}

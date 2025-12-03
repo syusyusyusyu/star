@@ -46,6 +46,7 @@ lerna-debug.log*
 .env.production.local
 .env.*.local
 *.local
+.dev.vars
 
 # ============================================
 # Editor directories and files

@@ -12,35 +12,13 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>()
 
-// Content Security Policy and related headers for client-side hardening
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com",
-  "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com",
-  "img-src 'self' data: blob:",
-  "media-src 'self' blob:",
-  "font-src 'self' data:",
-  "connect-src 'self' https://textalive.jp https://piapro.jp https://unpkg.com https://cdn.jsdelivr.net https://*.supabase.co",
-  "frame-ancestors 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  'upgrade-insecure-requests',
-].join('; ')
-
-app.use('*', async (c, next) => {
+// APIルートにのみセキュリティヘッダーを適用
+// 静的ファイルはCloudflare Pagesのassetsで配信され、_headersファイルで設定
+app.use('/api/*', async (c, next) => {
   await next()
-  c.header('Content-Security-Policy', contentSecurityPolicy)
-  c.header(
-    'Permissions-Policy',
-    'camera=(self), microphone=(), geolocation=(), fullscreen=(self), autoplay=(self)'
-  )
-  c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
-  c.header('X-Frame-Options', 'SAMEORIGIN')
+  // Content Security Policy for API responses
   c.header('X-Content-Type-Options', 'nosniff')
-  c.header('Cross-Origin-Opener-Policy', 'same-origin')
-  c.header('Cross-Origin-Resource-Policy', 'same-origin')
-  c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  c.header('X-Frame-Options', 'DENY')
 })
 
 // Middlewares

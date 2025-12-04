@@ -231,6 +231,11 @@ class GameManager {
     this.comboEl = getEl('combo') as HTMLElement
     this.playpause = getEl('play-pause') as HTMLButtonElement
     this.restart = getEl('restart') as HTMLButtonElement
+    
+    // 初期状態では無効化
+    if (this.playpause) this.playpause.disabled = true;
+    if (this.restart) this.restart.disabled = true;
+
     this.loading = getEl('loading')
     this.countdownOverlay = getEl('countdown-overlay') as HTMLElement
     this.countdownText = getEl('countdown-text') as HTMLElement

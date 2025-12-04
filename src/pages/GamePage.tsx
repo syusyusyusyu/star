@@ -181,7 +181,8 @@ function GamePage() {
             <button 
               id="play-pause" 
               aria-label="再生/一時停止"
-              className="group relative flex items-center gap-2 px-5 py-2.5 bg-black/40 hover:bg-miku/20 border border-white/20 hover:border-miku/50 rounded-lg backdrop-blur-sm transition-all duration-300 overflow-hidden"
+              disabled
+              className="group relative flex items-center gap-2 px-5 py-2.5 bg-black/40 hover:bg-miku/20 border border-white/20 hover:border-miku/50 rounded-lg backdrop-blur-sm transition-all duration-300 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-black/40 disabled:hover:border-white/20"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-miku/0 via-miku/10 to-miku/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-miku group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -194,7 +195,8 @@ function GamePage() {
             <button 
               id="restart" 
               aria-label="最初から"
-              className="group relative flex items-center gap-2 px-5 py-2.5 bg-black/40 hover:bg-white/10 border border-white/20 hover:border-white/40 rounded-lg backdrop-blur-sm transition-all duration-300 overflow-hidden"
+              disabled
+              className="group relative flex items-center gap-2 px-5 py-2.5 bg-black/40 hover:bg-white/10 border border-white/20 hover:border-white/40 rounded-lg backdrop-blur-sm transition-all duration-300 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-black/40 disabled:hover:border-white/20"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -1,10 +1,12 @@
-# Cross Stage 
+# Cross Stage
 
 TextAlive の歌詞同期と MediaPipe のカメラ入力を組み合わせ、three.js のライブステージに流れる歌詞バブルへ「触れて」スコアを稼ぐ Web リズムゲームです。学内作品展ですぐ動かせるよう、仕様と手順を具体的にまとめました。
 
-> 2025 年冬アップデート: 独立 GameLoop / BubblePool / TimerManager、three.js ジオメトリ共有、手/歌詞バブルのプール化、MediaPipe cadence 最適化、ランキングモーダル分離、サーバー側ランキングキャッシュ、FPS オーバーレイ（`?debug=fps` または `#fps`）などパフォーマンス改善を多数実装しました。
+> **2025 年冬アップデート**: 独立 GameLoop / BubblePool / TimerManager、three.js ジオメトリ共有、手/歌詞バブルのプール化、MediaPipe cadence 最適化、ランキングモーダル分離、サーバー側ランキングキャッシュ、FPS オーバーレイ（`?debug=fps` または `#fps`）などパフォーマンス改善を多数実装しました。
 
 > **2025 年冬 SRP リファクタリング**: GameManager を単一責任の原則（SRP）に沿って分割し、UI/入力/演出/ボディ検出/歌詞レンダリング/リザルト表示を専任クラスに委譲しました。
+
+> **2025 年 12 月**: Supabase 連携によるスコア保存・ランキング機能、セキュリティ強化（CSP / レート制限 / 入力バリデーション）、RankingModal コンポーネント追加。
 
 ## 作品概要
 - 歌詞同期バブル: TextAlive App API で取得した歌詞をタイミング通りにバブル化し、ヒットでスコア/コンボ加算
@@ -25,13 +27,21 @@ TextAlive の歌詞同期と MediaPipe のカメラ入力を組み合わせ、th
 - 収録曲（TextAlive API トークン同梱）
   - 加賀(ネギシャワーP)「ストリートライト」 (`HmfsoBVch26BmLCm`, https://piapro.jp/t/ULcJ/20250205120202)
   - 雨良 Amala「アリフレーション」 (`rdja5JxMEtcYmyKP`, https://piapro.jp/t/SuQO/20250127235813)
-- サーバー API: `GET /api/health` で疎通確認、`POST /api/echo` はデバッグ用、`/api/ranking` は 30 秒 TTL のインメモリキャッシュを経由
+- サーバー API:
+  - `GET /api/health` : 疎通確認
+  - `POST /api/echo` : デバッグ用
+  - `POST /api/score` : スコア保存（Supabase 連携）
+  - `GET /api/ranking?songId=...&mode=cursor|body` : ランキング取得（30 秒 TTL キャッシュ）
 
 ## 技術スタック
-- フロント: React 18 + TypeScript / Vite、Tailwind CSS（index-styles.css でカスタム演出）
-- ゲームコア: three.js、TextAlive App API、MediaPipe Pose/Hands/Selfie Segmentation、独自 GameManager (`src/game/GameManager.ts`)
-- サーバー: Hono + @hono/node-server（CORS/Logger/Powered-By、静的配信、将来のスコア保存に拡張可）
-- 開発ツール: tsx、concurrently、Docker（dev/prod）、Node.js 20 系
+| カテゴリ | 技術 |
+|---------|------|
+| **フロント** | React 18 + TypeScript / Vite、Tailwind CSS |
+| **ゲームコア** | three.js、TextAlive App API、MediaPipe Pose/Hands/Selfie Segmentation |
+| **サーバー** | Hono + @hono/node-server（CORS/Logger/CSP ヘッダー） |
+| **データベース** | Supabase（PostgreSQL）- スコア/ランキング保存 |
+| **開発ツール** | tsx、concurrently、Docker（dev/prod）、Node.js 20 系 |
+| **セキュリティ** | CSP / レート制限 / 入力バリデーション / パラメータ化クエリ |
 
 ## セットアップ
 ### 必要なもの
@@ -56,8 +66,19 @@ npm start              # dist-server/index.js を起動（デフォルト :3000�
 - `docs/` が存在すればそこから静的配信、なければリポジトリルート配信
 
 ### Docker で動かす場合
-- 開発: Windows は `start-dev.bat`、Mac/Linux/WSL は `./start-dev.sh`（`docker-compose.dev.yml` で 5173/3000 を公開）
-- 本番: Windows は `start-prod.bat`、Mac/Linux/WSL は `./start-prod.sh`（`docker-compose.yml` で 3000 を公開）
+| 環境 | Windows | Mac/Linux/WSL | 構成ファイル | ポート |
+|------|---------|---------------|--------------|--------|
+| 開発 | `start-dev.bat` | `./start-dev.sh` | `docker-compose.dev.yml` | 5173/3000 |
+| 本番 | `start-prod.bat` | `./start-prod.sh` | `docker-compose.yml` | 3000 |
+
+#### Docker コマンド例
+```bash
+# 開発環境（ホットリロード対応）
+docker compose -f docker-compose.dev.yml up --build
+
+# 本番環境（マルチステージビルド）
+docker compose up --build -d
+```
 
 ## 遊び方（展示運用の流れ）
 1) http://localhost:5173 を開く  
@@ -71,11 +92,36 @@ npm start              # dist-server/index.js を起動（デフォルト :3000�
 - FPS 計測が必要な場合は `?debug=fps` もしくは `#fps` を URL に付けてオーバーレイを表示
 
 ## ディレクトリ案内
-- `src/pages/IndexPage.tsx` …… タイトル/モード・選曲 UI
-- `src/pages/GamePage.tsx` …… ゲーム画面の React コンテナ
-- `src/game/GameManager.ts` …… 歌詞同期・判定・入力・演出のコア（下記クラス図参照）
-- `server/index.ts` …… Hono サーバー（静的配信と簡易 API）
-- `docs/` …… ビルド成果物を置くと Hono が優先して配信
+```
+star-5/
+├── src/
+│   ├── pages/
+│   │   ├── IndexPage.tsx      # タイトル/モード・選曲 UI
+│   │   └── GamePage.tsx       # ゲーム画面の React コンテナ
+│   ├── game/
+│   │   ├── GameManager.ts     # 歌詞同期・判定・入力・演出のコア
+│   │   ├── GameLoop.ts        # requestAnimationFrame ループ
+│   │   ├── BubblePool.ts      # 歌詞バブル DOM プール
+│   │   ├── TimerManager.ts    # タイマー一元管理
+│   │   ├── gameLoader.ts      # ゲーム初期化
+│   │   ├── events.ts          # イベント定義
+│   │   └── types.ts           # 型定義
+│   └── components/game/
+│       ├── ModeTabs.tsx       # モード切替タブ
+│       ├── RankingPanel.tsx   # ランキング表示パネル
+│       ├── RankingModal.tsx   # ランキングモーダル
+│       └── Slot.tsx           # スロットコンポーネント
+├── server/
+│   ├── index.ts               # Hono サーバー（静的配信/API）
+│   ├── supabaseClient.ts      # Supabase クライアント
+│   └── routes/
+│       └── score.ts           # スコア/ランキング API
+├── docs/                      # ビルド成果物（Hono が優先配信）
+├── docker-compose.yml         # 本番用 Docker Compose
+├── docker-compose.dev.yml     # 開発用 Docker Compose
+├── Dockerfile                 # 本番用マルチステージビルド
+└── Dockerfile.dev             # 開発用 Dockerfile
+```
 
 ## クラス図（SRP リファクタリング後）
 
@@ -145,33 +191,67 @@ npm start              # dist-server/index.js を起動（デフォルト :3000�
 - ブラウザ全画面（F11）で観客向けに見せると演出が映えます
 
 ## ランキング / Supabase セットアップ
-- Supabase に scores テーブルを作成（`supabase_scores.sql` の SQL をそのまま実行）
-- `.env` に `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を設定（service role はサーバー用・フロントには公開禁止）
-- サーバー API（Hono）
-  - `POST /api/score` : `{ songId, mode: 'cursor'|'body', score, maxCombo, rank }` を保存（成功時 `{ ok: true }`）
-  - `GET /api/ranking?songId=...&mode=cursor|body` : score 降順 Top10 を返却（mode 省略可 / 30 秒キャッシュ）
-- 動作確認例
-  - `curl -X POST http://localhost:3000/api/score -H "Content-Type: application/json" -d '{"songId":"HmfsoBVch26BmLCm","mode":"cursor","score":12345,"maxCombo":99,"rank":"A"}'`
-  - `curl "http://localhost:3000/api/ranking?songId=HmfsoBVch26BmLCm&mode=cursor"`
+
+### 1. Supabase プロジェクト作成
+1. [Supabase](https://supabase.com/) でプロジェクトを作成
+2. `supabase_scores.sql` の SQL を SQL Editor で実行してテーブル作成
+
+### 2. 環境変数設定
+`.env` ファイルを作成：
+```env
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJxxxx...
+```
+> ⚠️ `SUPABASE_SERVICE_ROLE_KEY` はサーバー専用。フロントに公開禁止。
+
+### 3. API 仕様
+| エンドポイント | メソッド | 説明 |
+|---------------|---------|------|
+| `/api/score` | POST | スコア保存 |
+| `/api/ranking` | GET | ランキング取得（Top10） |
+
+#### スコア保存リクエスト
+```bash
+curl -X POST http://localhost:3000/api/score \
+  -H "Content-Type: application/json" \
+  -d '{"songId":"HmfsoBVch26BmLCm","mode":"cursor","score":12345,"maxCombo":99,"rank":"A"}'
+```
+
+#### ランキング取得
+```bash
+curl "http://localhost:3000/api/ranking?songId=HmfsoBVch26BmLCm&mode=cursor"
+```
 
 ## セキュリティ対策
-本プロジェクトでは以下のセキュリティ対策を実装しています：
 
 ### サーバーサイド
-- **レート制限**: IP ベースで 1 分間に 30 リクエストまで（DoS 対策）
-- **入力バリデーション**:
-  - `songId`: 英数字・ハイフン・アンダースコアのみ、最大 64 文字（SQL インジェクション対策）
-  - `score`: 0〜1,000,000 の範囲のみ許可
-  - `maxCombo`: 0〜10,000 の整数のみ許可
-  - `rank`: SS/S/A/B/C/D/F のいずれかのみ許可
-  - `mode`: cursor/body のいずれかのみ許可
-- **パラメータ化クエリ**: Supabase クライアントによる自動エスケープ
+| 対策 | 説明 |
+|------|------|
+| レート制限 | IP ベースで 1 分間に 30 リクエストまで（DoS 対策） |
+| 入力バリデーション | songId/score/maxCombo/rank/mode を厳密に検証 |
+| パラメータ化クエリ | Supabase クライアントによる自動エスケープ |
 
-### HTTP ヘッダー
-- `Content-Security-Policy`: XSS 対策、許可ドメインを限定
-- `X-Frame-Options: SAMEORIGIN`: クリックジャッキング対策
-- `X-Content-Type-Options: nosniff`: MIME スニッフィング対策
-- `Strict-Transport-Security`: HTTPS 強制（本番環境）
-- `Referrer-Policy: strict-origin-when-cross-origin`: リファラー情報の制限
-- `Cross-Origin-Opener-Policy / Cross-Origin-Resource-Policy`: クロスオリジン分離
-- `Permissions-Policy`: カメラ以外の機能を制限
+#### バリデーションルール
+| フィールド | ルール |
+|-----------|--------|
+| `songId` | 英数字・ハイフン・アンダースコアのみ、最大 64 文字 |
+| `score` | 0〜1,000,000 の範囲 |
+| `maxCombo` | 0〜10,000 の整数 |
+| `rank` | SS/S/A/B/C/D/F のいずれか |
+| `mode` | cursor/body のいずれか |
+
+### HTTP セキュリティヘッダー
+| ヘッダー | 目的 |
+|---------|------|
+| `Content-Security-Policy` | XSS 対策、許可ドメインを限定 |
+| `X-Frame-Options: SAMEORIGIN` | クリックジャッキング対策 |
+| `X-Content-Type-Options: nosniff` | MIME スニッフィング対策 |
+| `Strict-Transport-Security` | HTTPS 強制（本番環境） |
+| `Referrer-Policy` | リファラー情報の制限 |
+| `Permissions-Policy` | カメラ以外の機能を制限 |
+
+## ライセンス
+MIT License
+
+## 貢献
+Issue や Pull Request は歓迎します。

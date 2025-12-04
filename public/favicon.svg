@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <!-- 背景: CSS .live-venue-bg を完全再現 -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a0a" />
+      <stop offset="30%" stop-color="#1a0a1a" />
+      <stop offset="60%" stop-color="#0f0520" />
+      <stop offset="100%" stop-color="#000000" />
+    </linearGradient>
+
+    <!-- ライン: CSS .cross-x::before/after の linear-gradient を再現 -->
+    <!-- linear-gradient(90deg, transparent, #39C5BB, transparent) -->
+    <linearGradient id="cross-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#39C5BB" stop-opacity="0" />
+      <stop offset="50%" stop-color="#39C5BB" stop-opacity="1" />
+      <stop offset="100%" stop-color="#39C5BB" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- グロー: CSS box-shadow をSVGフィルターで再現 -->
+    <!-- box-shadow: 0 0 15px rgba(57, 197, 187, 0.8), 0 0 30px rgba(57, 197, 187, 0.4) -->
+    <filter id="css-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <!-- 広いグロー (30px相当) -->
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur-wide" />
+      <feComponentTransfer in="blur-wide" result="glow-wide">
+        <feFuncA type="linear" slope="0.4" /> <!-- opacity 0.4 -->
+      </feComponentTransfer>
+
+      <!-- 狭いグロー (15px相当) -->
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur-tight" />
+      <feComponentTransfer in="blur-tight" result="glow-tight">
+        <feFuncA type="linear" slope="0.8" /> <!-- opacity 0.8 -->
+      </feComponentTransfer>
+
+      <!-- 本体 (CSSの filter: blur(1px) も再現) -->
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.5" result="blur-body" />
+
+      <!-- 合成 -->
+      <feMerge>
+        <feMergeNode in="glow-wide" />
+        <feMergeNode in="glow-tight" />
+        <feMergeNode in="blur-body" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="64" height="64" rx="16" fill="url(#bg-grad)" />
+
+  <!-- クロスロゴ -->
+  <g transform="translate(32, 32)" filter="url(#css-glow)">
+    <!-- CSS: transform: translate(-50%, -50%) rotate(20deg) -->
+    <!-- width: 140% -> 64 * 1.4 = ~90px -->
+    <rect x="-45" y="-3" width="90" height="6" rx="3" fill="url(#cross-grad)" transform="rotate(20)" />
+    
+    <!-- CSS: transform: translate(-50%, -50%) rotate(-20deg) -->
+    <rect x="-45" y="-3" width="90" height="6" rx="3" fill="url(#cross-grad)" transform="rotate(-20)" />
+  </g>
+</svg>

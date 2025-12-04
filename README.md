@@ -39,8 +39,9 @@ TextAlive の歌詞同期と MediaPipe のカメラ入力を組み合わせ、th
 | **フロント** | React 18 + TypeScript / Vite、Tailwind CSS |
 | **ゲームコア** | three.js、TextAlive App API、MediaPipe Pose/Hands/Selfie Segmentation |
 | **サーバー** | Hono + @hono/node-server（CORS/Logger/CSP ヘッダー） |
+| **エッジ** | Cloudflare Workers（Hono）- グローバル配信 |
 | **データベース** | Supabase（PostgreSQL）- スコア/ランキング保存 |
-| **開発ツール** | tsx、concurrently、Docker（dev/prod）、Node.js 20 系 |
+| **開発ツール** | tsx、concurrently、Wrangler、Docker、Node.js 20 系 |
 | **セキュリティ** | CSP / レート制限 / 入力バリデーション / パラメータ化クエリ |
 
 ## セットアップ
@@ -80,6 +81,51 @@ docker compose -f docker-compose.dev.yml up --build
 docker compose up --build -d
 ```
 
+### Cloudflare Workers へデプロイ
+エッジコンピューティングで高速配信したい場合は Cloudflare Workers を使用できます。
+
+#### 前提条件
+- [Cloudflare アカウント](https://dash.cloudflare.com/sign-up)
+- Wrangler CLI（devDependencies に含まれています）
+
+#### 1. Cloudflare にログイン
+```bash
+npx wrangler login
+```
+
+#### 2. 環境変数（シークレット）の設定
+```bash
+# Supabase 接続情報をシークレットとして登録
+npx wrangler secret put SUPABASE_URL
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+```
+
+#### 3. デプロイ
+```bash
+# 本番デプロイ
+npm run deploy
+
+# プレビュー環境へデプロイ
+npm run deploy:preview
+
+# ローカルで Workers をテスト
+npm run cf:dev
+```
+
+#### 構成ファイル
+| ファイル | 説明 |
+|---------|------|
+| `wrangler.jsonc` | Workers 設定（プロジェクト名、静的アセット等） |
+| `worker/index.ts` | Workers 用 Hono エントリーポイント |
+| `worker/routes/score.ts` | スコア/ランキング API |
+| `worker/supabaseClient.ts` | Supabase クライアント（Workers 用） |
+
+#### デプロイ後の URL
+デプロイ完了後、以下の形式で公開されます：
+```
+https://lyric-stage.<your-subdomain>.workers.dev
+```
+
 ## 遊び方（展示運用の流れ）
 1) http://localhost:5173 を開く  
 2) モードを選択（初期はマウスモード / 体感デモはカメラモード推奨）  
@@ -116,7 +162,13 @@ star-5/
 │   ├── supabaseClient.ts      # Supabase クライアント
 │   └── routes/
 │       └── score.ts           # スコア/ランキング API
-├── docs/                      # ビルド成果物（Hono が優先配信）
+├── worker/                    # Cloudflare Workers 用
+│   ├── index.ts               # Workers エントリーポイント
+│   ├── supabaseClient.ts      # Supabase クライアント（Workers 用）
+│   └── routes/
+│       └── score.ts           # スコア/ランキング API
+├── docs/                      # ビルド成果物（Hono/Workers が配信）
+├── wrangler.jsonc             # Cloudflare Workers 設定
 ├── docker-compose.yml         # 本番用 Docker Compose
 ├── docker-compose.dev.yml     # 開発用 Docker Compose
 ├── Dockerfile                 # 本番用マルチステージビルド

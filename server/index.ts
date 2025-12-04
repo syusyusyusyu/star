@@ -76,6 +76,9 @@ const staticRoot = (() => {
 
 app.use('/*', serveStatic({ root: staticRoot }))
 
+// SPA fallback for client-side routing
+app.get('*', serveStatic({ root: staticRoot, path: 'index.html' }))
+
 const port = Number(process.env.PORT) || 3000
 const hostname = process.env.HOST || '0.0.0.0' // Dockerコンテナでも動作するように
 console.log(`[server] Starting Hono on http://${hostname}:${port}`)

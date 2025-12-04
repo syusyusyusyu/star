@@ -869,11 +869,15 @@ class GameManager {
             
             // すべてのボタンのテキストを更新
             if (this.playpause) {
-              this.playpause.textContent = '再生';
+              const span = this.playpause.querySelector('span');
+              if (span) span.textContent = '再生';
+              else this.playpause.textContent = '再生';
               this.playpause.disabled = false;
             }
             if (this.restart) {
-              this.restart.textContent = '最初から';
+              const span = this.restart.querySelector('span');
+              if (span) span.textContent = '最初から';
+              else this.restart.textContent = '最初から';
               this.restart.disabled = false;
             }
             
@@ -888,7 +892,11 @@ class GameManager {
         // 再生開始時
         onPlay: () => {
           this.isPaused = false;
-          this.playpause.textContent = '一時停止';
+          if (this.playpause) {
+            const span = this.playpause.querySelector('span');
+            if (span) span.textContent = '一時停止';
+            else this.playpause.textContent = '一時停止';
+          }
           // 再生開始位置に歌詞インデックスを同期
           try {
             const pos = this.player?.timer?.position || 0;
@@ -901,13 +909,21 @@ class GameManager {
         // 一時停止時
         onPause: () => {
           this.isPaused = true;
-          this.playpause.textContent = '再生';
+          if (this.playpause) {
+            const span = this.playpause.querySelector('span');
+            if (span) span.textContent = '再生';
+            else this.playpause.textContent = '再生';
+          }
           // 観客のランダムテキスト機能は削除
         },
         // 停止時（自動リスタートを廃止し、終了間際ならリザルトを表示）
         onStop: () => {
           this.isPaused = true;
-          this.playpause.textContent = '再生';
+          if (this.playpause) {
+            const span = this.playpause.querySelector('span');
+            if (span) span.textContent = '再生';
+            else this.playpause.textContent = '再生';
+          }
           const duration = this.player?.video?.duration;
           if (!this.resultsDisplayed && duration && this.lastPlayerPosition && duration - this.lastPlayerPosition < 1500) {
             console.log('onStop 終了直前停止を検出 → リザルト表示');
@@ -967,11 +983,15 @@ class GameManager {
       
       // ????????
       if (this.playpause) {
-        this.playpause.textContent = '??';
+        const span = this.playpause.querySelector('span');
+        if (span) span.textContent = '再生';
+        else this.playpause.textContent = '再生';
         this.playpause.disabled = false;
       }
       if (this.restart) {
-        this.restart.textContent = '????';
+        const span = this.restart.querySelector('span');
+        if (span) span.textContent = '最初から';
+        else this.restart.textContent = '最初から';
         this.restart.disabled = false;
       }
       

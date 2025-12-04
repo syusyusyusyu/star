@@ -8,6 +8,8 @@ TextAlive の歌詞同期と MediaPipe のカメラ入力を組み合わせ、th
 
 > **2025 年 12 月**: Supabase 連携によるスコア保存・ランキング機能、セキュリティ強化（CSP / レート制限 / 入力バリデーション）、RankingModal コンポーネント追加。
 
+> **2025 年 12 月 UI/UX 進化**: リザルト画面でのプレイヤー名登録機能、ランキングのモード別・期間別フィルタリング、ゲーム画面 UI のモダン化（Tailwind CSS）、SPA ルーティング対応（リロード時の 404 回避）など、ユーザー体験を大幅に向上させました。
+
 ## 作品概要
 - 歌詞同期バブル: TextAlive App API で取得した歌詞をタイミング通りにバブル化し、ヒットでスコア/コンボ加算
 - 2 つのプレイモード: `マウスモード`（マウス/タップ）と `カメラモード`（MediaPipe Pose + Selfie Segmentation で全身入力）
@@ -30,8 +32,10 @@ TextAlive の歌詞同期と MediaPipe のカメラ入力を組み合わせ、th
 - サーバー API:
   - `GET /api/health` : 疎通確認
   - `POST /api/echo` : デバッグ用
-  - `POST /api/score` : スコア保存（Supabase 連携）
-  - `GET /api/ranking?songId=...&mode=cursor|body` : ランキング取得（30 秒 TTL キャッシュ）
+  - `POST /api/score` : スコア保存（Supabase 連携、プレイヤー名対応）
+  - `GET /api/ranking?songId=...&mode=...&period=...` : ランキング取得（モード/期間フィルタ、30 秒 TTL キャッシュ）
+- その他:
+  - SPA フォールバック: クライアントサイド・ルーティング対応（リロード時の 404 エラー回避）
 
 ## 技術スタック
 | カテゴリ | 技術 |
@@ -246,7 +250,7 @@ star-5/
 
 ### 1. Supabase プロジェクト作成
 1. [Supabase](https://supabase.com/) でプロジェクトを作成
-2. `supabase_scores.sql` の SQL を SQL Editor で実行してテーブル作成
+2. `supabase_scores.sql` の SQL を SQL Editor で実行してテーブル作成（`player_name` カラム含む）
 
 ### 2. 環境変数設定
 `.env` ファイルを作成：
@@ -259,19 +263,23 @@ SUPABASE_SERVICE_ROLE_KEY=eyJxxxx...
 ### 3. API 仕様
 | エンドポイント | メソッド | 説明 |
 |---------------|---------|------|
-| `/api/score` | POST | スコア保存 |
-| `/api/ranking` | GET | ランキング取得（Top10） |
+| `/api/score` | POST | スコア保存（プレイヤー名対応） |
+| `/api/ranking` | GET | ランキング取得（Top10、フィルタ対応） |
 
 #### スコア保存リクエスト
 ```bash
 curl -X POST http://localhost:3000/api/score \
   -H "Content-Type: application/json" \
-  -d '{"songId":"HmfsoBVch26BmLCm","mode":"cursor","score":12345,"maxCombo":99,"rank":"A"}'
+  -d '{"songId":"HmfsoBVch26BmLCm","mode":"cursor","score":12345,"maxCombo":99,"rank":"A","playerName":"Miku"}'
 ```
 
 #### ランキング取得
 ```bash
-curl "http://localhost:3000/api/ranking?songId=HmfsoBVch26BmLCm&mode=cursor"
+# 全期間・全モード
+curl "http://localhost:3000/api/ranking?songId=HmfsoBVch26BmLCm"
+
+# 週間・マウスモード
+curl "http://localhost:3000/api/ranking?songId=HmfsoBVch26BmLCm&mode=cursor&period=weekly"
 ```
 
 ## セキュリティ対策
@@ -291,6 +299,7 @@ curl "http://localhost:3000/api/ranking?songId=HmfsoBVch26BmLCm&mode=cursor"
 | `maxCombo` | 0〜10,000 の整数 |
 | `rank` | SS/S/A/B/C/D/F のいずれか |
 | `mode` | cursor/body のいずれか |
+| `playerName` | 最大 20 文字（未入力時は 'ゲスト'） |
 
 ### HTTP セキュリティヘッダー
 | ヘッダー | 目的 |

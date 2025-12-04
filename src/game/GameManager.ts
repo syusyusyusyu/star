@@ -1993,22 +1993,7 @@ class ResultsManager {
     this.game.maxCombo = Math.max(this.game.maxCombo || 0, this.game.combo);
 
     const rank = calculateRank(this.game.score);
-    const modeForResult = this.game.currentMode === 'body' ? 'body' : 'cursor';
-
-    if (!this.game.resultReported && typeof this.game.onGameEnd === 'function') {
-      this.game.resultReported = true;
-      try {
-        this.game.onGameEnd({
-          songId: this.game.songId || DEFAULT_SONG_ID,
-          mode: modeForResult,
-          score: Math.round(this.game.score),
-          maxCombo: this.game.maxCombo,
-          rank,
-        });
-      } catch (error) {
-        console.error('onGameEnd handler error', error);
-      }
-    }
+    // onGameEnd call removed to delay submission until user interaction
 
     const resultsScreen = document.getElementById('results-screen');
     if (!resultsScreen) {
@@ -2019,10 +2004,21 @@ class ResultsManager {
     const finalScoreDisplay = document.getElementById('final-score-display');
     const finalComboDisplay = document.getElementById('final-combo-display');
     const rankDisplay = document.getElementById('rank-display');
+    const registerScoreBtn = document.getElementById('register-score') as HTMLButtonElement;
+    const nameInput = document.getElementById('player-name-input') as HTMLInputElement;
 
     if (finalScoreDisplay) finalScoreDisplay.textContent = String(Math.round(this.game.score));
     if (finalComboDisplay) finalComboDisplay.textContent = `最大コンボ: ${this.game.maxCombo}`;
     if (rankDisplay) rankDisplay.textContent = `ランク: ${rank}`;
+    
+    // Reset input and button state
+    if (nameInput) nameInput.value = '';
+    if (registerScoreBtn) {
+      registerScoreBtn.textContent = 'ランキングに登録';
+      registerScoreBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      registerScoreBtn.disabled = false;
+    }
+    this.game.resultReported = false; // Reset reported flag
 
     resultsScreen.classList.remove('hidden');
     resultsScreen.style.display = 'flex';
@@ -2037,33 +2033,71 @@ class ResultsManager {
   setupResultsButtons(): void {
     const backToTitle = document.getElementById('back-to-title');
     const replaySong = document.getElementById('replay-song');
+    const registerScore = document.getElementById('register-score');
+    const openRanking = document.getElementById('open-ranking');
+    const nameInput = document.getElementById('player-name-input') as HTMLInputElement;
+
+    const submitScore = () => {
+      if (this.game.resultReported) return;
+      
+      const rank = calculateRank(this.game.score);
+      const modeForResult = this.game.currentMode === 'body' ? 'body' : 'cursor';
+      const playerName = nameInput?.value.trim() || 'ゲスト';
+
+      if (typeof this.game.onGameEnd === 'function') {
+        this.game.resultReported = true;
+        try {
+          this.game.onGameEnd({
+            songId: this.game.songId || 'HmfsoBVch26BmLCm', // Fallback ID if undefined
+            mode: modeForResult,
+            score: Math.round(this.game.score),
+            maxCombo: this.game.maxCombo,
+            rank,
+            playerName,
+          });
+          
+          // UI feedback
+          if (registerScore) {
+            registerScore.textContent = '登録完了';
+            registerScore.classList.add('opacity-50', 'cursor-not-allowed');
+            (registerScore as HTMLButtonElement).disabled = true;
+          }
+        } catch (error) {
+          console.error('onGameEnd handler error', error);
+          this.game.resultReported = false;
+        }
+      }
+    };
 
     const addEvents = (element: HTMLElement | null, handler: () => void) => {
       if (!element) return;
-      element.addEventListener('click', handler);
-      element.addEventListener('touchend', (e: Event) => {
-        e.preventDefault();
+      // Use onclick to prevent duplicate listeners
+      element.onclick = (e) => {
+        // e.preventDefault(); // Allow default for buttons unless needed
         handler();
-      }, { passive: false });
+      };
+      element.ontouchend = (e) => {
+        // e.preventDefault(); // Allow touch
+        handler();
+      };
     };
 
+    addEvents(registerScore, () => {
+      submitScore();
+    });
+
+    addEvents(openRanking, () => {
+      submitScore();
+    });
+
     addEvents(backToTitle, () => {
-      console.log('Back to title clicked');
-      window.location.href = '/';
+      submitScore();
+      location.href = '/';
     });
 
     addEvents(replaySong, () => {
-      console.log('Replay song clicked');
-      const resultsScreen = document.getElementById('results-screen');
-      if (resultsScreen) {
-        resultsScreen.classList.remove('show');
-        setTimeout(() => {
-          resultsScreen.classList.add('hidden');
-          this.game.restartGame();
-        }, 1000);
-      } else {
-        this.game.restartGame();
-      }
+      submitScore();
+      location.reload();
     });
   }
 }

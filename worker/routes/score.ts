@@ -120,12 +120,13 @@ scoreRoute.post('/score', async (c) => {
     return c.json({ ok: false, error: 'Invalid JSON' }, 400)
   }
 
-  const { songId, mode, score, maxCombo, rank } = body as {
+  const { songId, mode, score, maxCombo, rank, playerName } = body as {
     songId?: unknown
     mode?: unknown
     score?: unknown
     maxCombo?: unknown
     rank?: unknown
+    playerName?: unknown
   }
 
   // セキュリティ: 必須フィールドチェック
@@ -158,6 +159,9 @@ scoreRoute.post('/score', async (c) => {
     return c.json({ ok: false, error: `rank must be one of: ${VALID_RANKS.join(', ')}` }, 400)
   }
 
+  // セキュリティ: プレイヤー名検証
+  const pName = typeof playerName === 'string' ? playerName.slice(0, 20) : 'ゲスト'
+
   // Supabase クライアントを環境変数から取得
   const supabase = getSupabase(c.env)
 
@@ -168,6 +172,7 @@ scoreRoute.post('/score', async (c) => {
     score: Math.round(score), // 小数点以下を丸める
     max_combo: maxCombo,
     rank: rank.toUpperCase(),
+    player_name: pName,
   })
 
   if (error) {
@@ -218,7 +223,7 @@ scoreRoute.get('/ranking', async (c) => {
 
   let query = supabase
     .from('scores')
-    .select('score,max_combo,rank,mode,created_at')
+    .select('score,max_combo,rank,created_at,player_name')
     .eq('song_id', songId)
     .order('score', { ascending: false })
     .limit(10)

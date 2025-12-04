@@ -92,6 +92,7 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
             </div>
 
             <ModeTabs value={mode} onChange={onModeChange} />
+
             <button
               onClick={onClose}
               className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition border border-white/5"

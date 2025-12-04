@@ -30,4 +30,5 @@ export type GameResult = {
   score: number
   maxCombo: number
   rank: string
+  playerName?: string
 }

@@ -21,6 +21,7 @@ export interface GameResult {
   score: number
   maxCombo: number
   rank: string
+  playerName?: string
 }
 
 /** 歌詞データ */

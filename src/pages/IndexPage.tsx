@@ -99,7 +99,6 @@ const HelpModal = memo(function HelpModal({
 export default function IndexPage() {
   const navigate = useNavigate()
   const [gameMode, setGameMode] = useState<GameMode>('cursor')
-  const [rankingMode, setRankingMode] = useState<PlayMode>('cursor')
   const [showHelp, setShowHelp] = useState(false)
   const [showRanking, setShowRanking] = useState(false)
   const lastFocusedElementRef = useRef<HTMLElement | null>(null)
@@ -314,9 +313,9 @@ export default function IndexPage() {
       <RankingModal 
         open={showRanking}
         onClose={() => setShowRanking(false)}
-        mode={rankingMode}
-        onModeChange={setRankingMode}
         songId={SONG_ID}
+        mode={gameMode}
+        onModeChange={setGameMode}
       />
 
       <HelpModal show={showHelp} onClose={closeHelp} />

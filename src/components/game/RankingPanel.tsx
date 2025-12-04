@@ -5,8 +5,12 @@ type RankingRow = {
   score: number
   max_combo: number
   rank: string
-  mode: PlayMode
   created_at: string
+  player_name?: string
+  perfect?: number
+  great?: number
+  good?: number
+  miss?: number
 }
 
 type RankingPanelProps = {
@@ -89,9 +93,6 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
           <p className="text-[10px] uppercase tracking-[0.25em] text-gray-400">ランキング</p>
           <h3 className="text-lg font-bold text-white">Top 10</h3>
         </div>
-        <span className="text-[10px] font-semibold text-gray-300 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">
-          {modeLabel}
-        </span>
       </div>
 
       {loading ? (
@@ -102,24 +103,26 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
         <div className="text-gray-300 text-sm flex-1 flex items-center justify-center">まだスコアがありません。</div>
       ) : (
         <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide">
-          <div className="grid grid-cols-[40px,1fr,1fr,60px,70px] text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1 sticky top-0 bg-black/60 backdrop-blur-md py-1 z-10 rounded-t-lg">
+          <div className="grid grid-cols-[30px,1fr,80px,40px,120px] text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1 sticky top-0 bg-black/60 backdrop-blur-md py-1 z-10 rounded-t-lg gap-2 px-2">
             <span>#</span>
+            <span>Player</span>
             <span>Score</span>
-            <span>Combo</span>
             <span>Rank</span>
-            <span>Mode</span>
+            <span className="text-center">Max Combo</span>
           </div>
           <div className="space-y-1">
             {rows.map((row, index) => (
               <div
-                key={`${row.mode}-${row.score}-${row.created_at}-${index}`}
-                className="grid grid-cols-[40px,1fr,1fr,60px,70px] items-center text-xs font-mono text-gray-100 bg-white/5 hover:bg-white/10 transition rounded-lg px-2 py-1.5 border border-white/5"
+                key={`${row.score}-${row.created_at}-${index}`}
+                className="grid grid-cols-[30px,1fr,80px,40px,120px] items-center text-xs font-mono text-gray-100 bg-white/5 hover:bg-white/10 transition rounded-lg px-2 py-1.5 border border-white/5 gap-2"
               >
-                <span className="text-miku font-bold">{index + 1}</span>
-                <span className="tabular-nums">{row.score.toLocaleString()}</span>
-                <span className="tabular-nums">{row.max_combo.toLocaleString()}</span>
-                <span className="font-bold text-white">{row.rank}</span>
-                <span className="text-[10px] text-gray-300">{row.mode === 'cursor' ? 'マウス' : 'カメラ'}</span>
+                <span className={`font-bold ${index < 3 ? 'text-miku' : 'text-gray-500'}`}>{index + 1}</span>
+                <span className="truncate text-white font-semibold">{row.player_name || 'Guest'}</span>
+                <span className="tabular-nums text-miku">{row.score.toLocaleString()}</span>
+                <span className={`font-bold ${row.rank === 'SS' ? 'text-yellow-400' : row.rank === 'S' ? 'text-yellow-200' : 'text-white'}`}>{row.rank}</span>
+                <div className="text-center text-[10px] text-gray-400 tabular-nums">
+                  {row.max_combo.toLocaleString()}
+                </div>
               </div>
             ))}
           </div>

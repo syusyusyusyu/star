@@ -192,11 +192,28 @@ function GamePage() {
                 <div id="final-combo-display">最大コンボ 0</div>
                 <div id="rank-display">ランク: S</div>
               </div>
+              
+              <div className="flex flex-col items-center gap-2 mt-6 w-full max-w-xs mx-auto z-50 relative">
+                <input 
+                  id="player-name-input" 
+                  type="text" 
+                  placeholder="名前を入力 (省略可)" 
+                  maxLength={20}
+                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400 focus:outline-none focus:border-miku text-center"
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+                <button 
+                  id="register-score"
+                  className="w-full px-4 py-2 bg-miku/20 hover:bg-miku/40 border border-miku/50 rounded text-miku font-bold transition-colors"
+                >
+                  ランキングに登録
+                </button>
+              </div>
             </div>
             <div className="results-buttons">
               <button id="back-to-title">タイトルへ戻る</button>
               <button id="replay-song">もう一度プレイ</button>
-              <button onClick={handleOpenRanking}>ランキング</button>
+              <button id="open-ranking" onClick={handleOpenRanking}>ランキング</button>
             </div>
           </div>
         </div>

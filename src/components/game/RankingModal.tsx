@@ -13,6 +13,7 @@ type RankingModalProps = {
 
 const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeChange, songId }: RankingModalProps) {
   const [period, setPeriod] = useState<'all' | 'weekly' | 'daily'>('all')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   if (!open) return null
 
@@ -39,16 +40,56 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
           </div>
 
           <div className="flex items-center gap-6">
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value as 'all' | 'weekly' | 'daily')}
-              className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-miku focus:ring-1 focus:ring-miku transition-colors cursor-pointer hover:bg-white/5 [&>option]:bg-[#0a0a0a] [&>option]:text-gray-300"
-              style={{ colorScheme: 'dark' }}
-            >
-              <option value="all">全期間</option>
-              <option value="weekly">週間</option>
-              <option value="daily">24時間</option>
-            </select>
+            <div className="relative">
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors min-w-[110px] justify-between"
+              >
+                <span>
+                  {period === 'all' && '全期間'}
+                  {period === 'weekly' && '週間'}
+                  {period === 'daily' && '24時間'}
+                </span>
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className={`h-4 w-4 text-gray-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setIsDropdownOpen(false)} 
+                  />
+                  <div className="absolute top-full right-0 mt-2 w-32 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl overflow-hidden z-20 flex flex-col py-1 animate-fade-in">
+                    {[
+                      { value: 'all', label: '全期間' },
+                      { value: 'weekly', label: '週間' },
+                      { value: 'daily', label: '24時間' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setPeriod(option.value as any)
+                          setIsDropdownOpen(false)
+                        }}
+                        className={`px-4 py-2 text-left text-sm transition-colors hover:bg-white/5 ${
+                          period === option.value ? 'text-miku bg-miku/10' : 'text-gray-300'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
 
             <ModeTabs value={mode} onChange={onModeChange} />
             <button

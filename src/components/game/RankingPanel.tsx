@@ -92,11 +92,11 @@ const RankingPanel = ({ songId, mode, className = "" }: RankingPanelProps) => {
       </div>
 
       {loading ? (
-        <div className="text-gray-300 text-sm flex-1">ローディング中...</div>
+        <div className="text-gray-300 text-sm flex-1 flex items-center justify-center">ローディング中...</div>
       ) : error ? (
-        <div className="text-red-300 text-sm flex-1">エラー: {error}</div>
+        <div className="text-red-300 text-sm flex-1 flex items-center justify-center">エラー: {error}</div>
       ) : rows.length === 0 ? (
-        <div className="text-gray-300 text-sm flex-1">まだスコアがありません。</div>
+        <div className="text-gray-300 text-sm flex-1 flex items-center justify-center">まだスコアがありません。</div>
       ) : (
         <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide">
           <div className="grid grid-cols-[40px,1fr,1fr,60px,70px] text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1 sticky top-0 bg-black/60 backdrop-blur-md py-1 z-10 rounded-t-lg">

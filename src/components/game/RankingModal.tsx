@@ -50,7 +50,7 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-gradient-to-b from-[#0a0a0a] to-[#111]">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-gradient-to-b from-[#0a0a0a] to-[#111] min-h-[500px]">
           <RankingPanel
             songId={songId}
             mode={mode}

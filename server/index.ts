@@ -64,6 +64,7 @@ app.route('/api', scoreRoute)
 
 // Serve from ./docs if exists, otherwise from project root
 import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 
 const staticRoot = (() => {
   const docsPath = path.resolve(__dirname, '..', 'docs')
@@ -77,7 +78,14 @@ const staticRoot = (() => {
 app.use('/*', serveStatic({ root: staticRoot }))
 
 // SPA fallback for client-side routing
-app.get('*', serveStatic({ root: staticRoot, path: 'index.html' }))
+app.get('*', async (c) => {
+  try {
+    const indexHtml = await readFile(path.join(staticRoot, 'index.html'), 'utf-8')
+    return c.html(indexHtml)
+  } catch (e) {
+    return c.text('Not Found', 404)
+  }
+})
 
 const port = Number(process.env.PORT) || 3000
 const hostname = process.env.HOST || '0.0.0.0' // Dockerコンテナでも動作するように

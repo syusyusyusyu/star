@@ -9,10 +9,44 @@ import "../styles.css"
 
 const SONG_ID = "HmfsoBVch26BmLCm"
 
+// 終了確認モーダル
+const ConfirmModal = ({ open, onClose, onConfirm }: { open: boolean; onClose: () => void; onConfirm: () => void }) => {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-8 max-w-md w-full shadow-[0_0_30px_rgba(57,197,187,0.2)]">
+        <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
+          <span className="w-1 h-8 bg-miku block"></span>
+          確認
+        </h3>
+        <p className="text-gray-300 mb-8 leading-relaxed">
+          ゲームを終了してタイトル画面に戻りますか？<br/>
+          <span className="text-sm text-gray-500">※プレイ中のスコアは保存されません</span>
+        </p>
+        <div className="flex justify-end gap-4">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 rounded-lg border border-white/20 text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            続ける
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-6 py-2 rounded-lg bg-miku/20 border border-miku/50 text-miku hover:bg-miku/30 hover:shadow-[0_0_15px_rgba(57,197,187,0.4)] transition-all font-bold"
+          >
+            終了する
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function GamePage() {
   const { songData, accentColor } = useMemo(() => loadSongConfig(), [])
   const [rankingMode, setRankingMode] = useState<PlayMode>("cursor")
   const [showRanking, setShowRanking] = useState(false)
+  const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const lastSubmittedKeyRef = useRef<string | null>(null)
   const managerRef = useRef<GameManager | null>(null)
@@ -50,6 +84,34 @@ function GamePage() {
 
   const handleCloseRanking = useCallback(() => setShowRanking(false), [])
   const handleOpenRanking = useCallback(() => setShowRanking(true), [])
+
+  const handleExitConfirm = useCallback(() => {
+    window.location.href = '/'
+  }, [])
+
+  useEffect(() => {
+    // ブラウザバック対策
+    window.history.pushState(null, '', window.location.href)
+    
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href)
+      setShowExitConfirm(true)
+    }
+
+    // リロード対策
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
 
   useEffect(() => {
     const bodyClass = "game-body"
@@ -189,7 +251,7 @@ function GamePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-sm font-bold text-white group-hover:text-white tracking-wider drop-shadow-md">再生 / 一時停止</span>
+              <span className="text-sm font-bold text-white group-hover:text-white tracking-wider drop-shadow-md">再生</span>
             </button>
 
             <button 
@@ -248,6 +310,12 @@ function GamePage() {
           songId={SONG_ID}
           mode={rankingMode}
           onModeChange={setRankingMode}
+        />
+
+        <ConfirmModal
+          open={showExitConfirm}
+          onClose={() => setShowExitConfirm(false)}
+          onConfirm={handleExitConfirm}
         />
       </div>
     </>

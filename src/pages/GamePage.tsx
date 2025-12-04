@@ -182,14 +182,14 @@ function GamePage() {
               id="play-pause" 
               aria-label="再生/一時停止"
               disabled
-              className="group relative flex items-center gap-2 px-5 py-2.5 bg-black/40 hover:bg-miku/20 border border-white/20 hover:border-miku/50 rounded-lg backdrop-blur-sm transition-all duration-300 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-black/40 disabled:hover:border-white/20"
+              className="group relative flex items-center gap-2 px-5 py-2.5 bg-black/40 hover:bg-miku/20 border border-white/20 hover:border-miku/50 rounded-lg backdrop-blur-sm transition-all duration-300 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-black/40 disabled:hover:border-white/20 text-white"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-miku/0 via-miku/10 to-miku/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-miku group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-sm font-bold text-gray-200 group-hover:text-white tracking-wider">再生 / 一時停止</span>
+              <span className="text-sm font-bold text-white group-hover:text-white tracking-wider drop-shadow-md">再生 / 一時停止</span>
             </button>
 
             <button 

@@ -43,6 +43,7 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
               value={period}
               onChange={(e) => setPeriod(e.target.value as 'all' | 'weekly' | 'daily')}
               className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-miku focus:ring-1 focus:ring-miku transition-colors cursor-pointer hover:bg-white/5 [&>option]:bg-[#0a0a0a] [&>option]:text-gray-300"
+              style={{ colorScheme: 'dark' }}
             >
               <option value="all">全期間</option>
               <option value="weekly">週間</option>

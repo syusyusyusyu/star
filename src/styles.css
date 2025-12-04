@@ -187,41 +187,7 @@ html {
 }
 
 /* コントロール */
-#controls {
-    position: absolute;
-    bottom: calc(20px + var(--safe-area-bottom));
-    right: 20px;
-    z-index: 1100;
-    display: flex;
-    gap: 10px;
-}
-
-#controls button {
-    background: transparent;
-    border: 1px solid rgba(57, 197, 187, 0.5);
-    color: #fff;
-    padding: 10px 24px;
-    border-radius: 0;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    transition: all 0.3s;
-    box-shadow: none;
-    position: relative;
-    overflow: hidden;
-    text-transform: uppercase;
-}
-
-#controls button:hover {
-    background: rgba(57, 197, 187, 0.1);
-    border-color: #39C5BB;
-}
-
-#controls button:active {
-    background: #39C5BB;
-    color: #000;
-}
+/* #controls 関連のスタイルは Tailwind CSS に移行しました */
 
 #instructions {
     position: absolute;

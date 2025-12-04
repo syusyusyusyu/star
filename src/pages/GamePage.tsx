@@ -177,9 +177,31 @@ function GamePage() {
           </div>
 
           <div id="instructions">歌詞にマウスを当ててポイントを獲得しよう！</div>
-          <div id="controls">
-            <button id="play-pause" aria-label="再生/一時停止">再生</button>
-            <button id="restart" aria-label="最初から">最初から</button>
+          <div id="controls" className="absolute bottom-[calc(20px+env(safe-area-inset-bottom))] right-5 z-[1100] flex gap-3">
+            <button 
+              id="play-pause" 
+              aria-label="再生/一時停止"
+              className="group relative flex items-center gap-2 px-5 py-2.5 bg-black/40 hover:bg-miku/20 border border-white/20 hover:border-miku/50 rounded-lg backdrop-blur-sm transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-miku/0 via-miku/10 to-miku/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-miku group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-bold text-gray-200 group-hover:text-white tracking-wider">再生 / 一時停止</span>
+            </button>
+
+            <button 
+              id="restart" 
+              aria-label="最初から"
+              className="group relative flex items-center gap-2 px-5 py-2.5 bg-black/40 hover:bg-white/10 border border-white/20 hover:border-white/40 rounded-lg backdrop-blur-sm transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="text-sm font-bold text-gray-200 group-hover:text-white tracking-wider">最初から</span>
+            </button>
           </div>
         </div>
 

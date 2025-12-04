@@ -12,6 +12,7 @@ type RankingRow = {
 type RankingPanelProps = {
   songId: string
   mode?: PlayMode
+  period?: 'all' | 'weekly' | 'daily'
   className?: string
 }
 
@@ -19,7 +20,7 @@ type RankingPanelProps = {
 const rankingCache = new Map<string, { data: RankingRow[]; timestamp: number }>()
 const CACHE_TTL = 30000 // 30秒キャッシュ
 
-const RankingPanel = ({ songId, mode, className = "" }: RankingPanelProps) => {
+const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingPanelProps) => {
   const [rows, setRows] = useState<RankingRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +31,7 @@ const RankingPanel = ({ songId, mode, className = "" }: RankingPanelProps) => {
     return mode === 'cursor' ? 'マウスモード' : 'カメラモード'
   }, [mode])
 
-  const cacheKey = useMemo(() => `${songId}-${mode ?? 'all'}`, [songId, mode])
+  const cacheKey = useMemo(() => `${songId}-${mode ?? 'all'}-${period}`, [songId, mode, period])
 
   const fetchRanking = useCallback(async (signal: AbortSignal) => {
     // キャッシュをチェック
@@ -46,6 +47,8 @@ const RankingPanel = ({ songId, mode, className = "" }: RankingPanelProps) => {
     try {
       const params = new URLSearchParams({ songId })
       if (mode) params.append('mode', mode)
+      if (period && period !== 'all') params.append('period', period)
+      
       const res = await fetch(`/api/ranking?${params.toString()}`, { signal })
       if (!res.ok) {
         const payload = await res.json().catch(() => null)

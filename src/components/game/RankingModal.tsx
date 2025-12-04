@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import ModeTabs from './ModeTabs'
 import RankingPanel from './RankingPanel'
 import type { PlayMode } from '../../types/game'
@@ -12,6 +12,8 @@ type RankingModalProps = {
 }
 
 const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeChange, songId }: RankingModalProps) {
+  const [period, setPeriod] = useState<'all' | 'weekly' | 'daily'>('all')
+
   if (!open) return null
 
   return (
@@ -37,6 +39,16 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
           </div>
 
           <div className="flex items-center gap-6">
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as 'all' | 'weekly' | 'daily')}
+              className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-miku focus:ring-1 focus:ring-miku transition-colors cursor-pointer hover:bg-white/5 [&>option]:bg-[#0a0a0a] [&>option]:text-gray-300"
+            >
+              <option value="all">全期間</option>
+              <option value="weekly">週間</option>
+              <option value="daily">24時間</option>
+            </select>
+
             <ModeTabs value={mode} onChange={onModeChange} />
             <button
               onClick={onClose}
@@ -54,6 +66,7 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
           <RankingPanel
             songId={songId}
             mode={mode}
+            period={period}
             className="!bg-transparent !border-none !shadow-none p-0 h-full"
           />
         </div>

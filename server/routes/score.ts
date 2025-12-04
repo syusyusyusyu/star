@@ -75,10 +75,10 @@ type RankingCacheEntry = { timestamp: number; data: unknown }
 const CACHE_TTL_MS = 30_000
 const rankingCache = new Map<CacheKey, RankingCacheEntry>()
 
-const buildCacheKey = (songId: string, mode?: PlayMode | null) => `${songId}:${mode ?? 'all'}`
+const buildCacheKey = (songId: string, mode?: PlayMode | null, period?: string | null) => `${songId}:${mode ?? 'all'}:${period ?? 'all'}`
 
-const getCachedRanking = (songId: string, mode?: PlayMode | null) => {
-  const key = buildCacheKey(songId, mode ?? null)
+const getCachedRanking = (songId: string, mode?: PlayMode | null, period?: string | null) => {
+  const key = buildCacheKey(songId, mode ?? null, period ?? null)
   const entry = rankingCache.get(key)
   if (!entry) return null
   if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
@@ -88,16 +88,23 @@ const getCachedRanking = (songId: string, mode?: PlayMode | null) => {
   return entry.data
 }
 
-const setCachedRanking = (songId: string, mode: PlayMode | null, data: unknown) => {
-  rankingCache.set(buildCacheKey(songId, mode), {
+const setCachedRanking = (songId: string, mode: PlayMode | null, period: string | null, data: unknown) => {
+  rankingCache.set(buildCacheKey(songId, mode, period), {
     timestamp: Date.now(),
     data,
   })
 }
 
 const invalidateRankingCache = (songId: string, mode: PlayMode) => {
-  rankingCache.delete(buildCacheKey(songId, null))
-  rankingCache.delete(buildCacheKey(songId, mode))
+  const periods = ['all', 'weekly', 'daily']
+  // 特定のモードと全モードの両方のキャッシュをクリア
+  const modes = [mode, null] 
+
+  periods.forEach(p => {
+    modes.forEach(m => {
+      rankingCache.delete(buildCacheKey(songId, m, p))
+    })
+  })
 }
 
 export const scoreRoute = new Hono()
@@ -180,6 +187,7 @@ scoreRoute.get('/ranking', async (c) => {
 
   const songId = c.req.query('songId')
   const modeParam = c.req.query('mode')
+  const period = c.req.query('period')
 
   if (!songId) {
     return c.json({ ok: false, error: 'songId is required' }, 400)
@@ -194,7 +202,11 @@ scoreRoute.get('/ranking', async (c) => {
     return c.json({ ok: false, error: 'mode must be cursor or body' }, 400)
   }
 
-  const cached = getCachedRanking(songId, modeParam as PlayMode | null)
+  if (period && !['weekly', 'daily', 'all'].includes(period)) {
+    return c.json({ ok: false, error: 'Invalid period' }, 400)
+  }
+
+  const cached = getCachedRanking(songId, modeParam as PlayMode | null, period ?? null)
   if (cached) {
     return c.json({ ok: true, data: cached, cached: true })
   }
@@ -210,6 +222,16 @@ scoreRoute.get('/ranking', async (c) => {
     query = query.eq('mode', modeParam)
   }
 
+  if (period === 'weekly') {
+    const date = new Date()
+    date.setDate(date.getDate() - 7)
+    query = query.gt('created_at', date.toISOString())
+  } else if (period === 'daily') {
+    const date = new Date()
+    date.setDate(date.getDate() - 1)
+    query = query.gt('created_at', date.toISOString())
+  }
+
   const { data, error } = await query
 
   if (error) {
@@ -217,7 +239,7 @@ scoreRoute.get('/ranking', async (c) => {
     return c.json({ ok: false, error: 'Failed to fetch ranking' }, 500)
   }
 
-  setCachedRanking(songId, (modeParam as PlayMode | null) ?? null, data)
+  setCachedRanking(songId, (modeParam as PlayMode | null) ?? null, period ?? null, data)
 
   return c.json({ ok: true, data, cached: false })
 })

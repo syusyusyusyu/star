@@ -68,10 +68,38 @@ TextAlive の歌詞同期技術と MediaPipe の身体認識技術を融合。
 | **Game Core** | **TextAlive App API** | 歌詞同期・楽曲再生制御 |
 | | **MediaPipe** | Pose / Selfie Segmentation (身体認識) |
 | | **Canvas API** | 高速な描画処理 |
-| **Backend** | **Hono** | 超高速な Web フレームワーク (Node.js adapter) |
+| **Backend** | **Hono + Workers** | Hono on Cloudflare Workers + Supabase(PostgreSQL) / 型安全クエリ / 匿名セッション / Admin リセット API |
 | **Database** | **Supabase** | PostgreSQL ベースの BaaS (スコア保存) |
 | **Infra** | **Docker** | 開発・本番環境のコンテナ化 |
 | | **Cloudflare Workers** | エッジデプロイ対応 (構成ファイルあり) |
+
+---
+
+## 🏗️ Backend Architecture (Hono + Supabase + Workers)
+
+本プロジェクトのバックエンドは、**MVP (Minimum Viable Product)** として「大会で語れるレベル」の品質と「実装しきれる範囲」のバランスを重視して設計されています。
+
+*   **Single Table Design**: `scores` テーブル 1 枚のみで構成し、複雑なリレーションを排除。
+*   **Middleware Chain**:
+    *   `requestId`: 全ログ・レスポンスに追跡 ID を付与。
+    *   `session`: `cs_session` クッキーによる匿名セッション管理（ログイン不要でスコア紐付け）。
+    *   `admin`: 管理者用トークンによる認証。
+*   **API Endpoints**:
+    *   `POST /api/v1/scores`: スコア登録（バリデーション、簡易チート対策、Origin チェック）。
+    *   `GET /api/v1/scores`: ランキング取得（モード別、楽曲別）。
+    *   `DELETE /admin/scores`: 管理者用全スコア削除（デモ/リセット用）。
+
+## 👩‍💻 For Engineers
+
+技術的な見どころ・こだわりポイント：
+
+*   **型安全な Supabase クエリ**: Supabase CLI から生成された（または定義された）`Database` 型を使用し、クエリビルダの戻り値まで完全に型推論を効かせています。
+*   **Zod による堅牢なバリデーション**: リクエストの入力値検証に `zod` と `@hono/zod-validator` を採用し、不正なデータを入り口で弾いています。
+*   **匿名セッション設計**: ユーザー登録のハードルを下げるため、クッキーベースの匿名セッション (`cs_session`) を採用。将来的なユーザー登録への移行も考慮した設計です。
+*   **簡易チート対策**:
+    *   **Origin チェック**: フロントエンドからの正規のリクエストのみを受け付けます。
+    *   **Suspicious Flag**: 異常なハイスコア（例: 1,000,000点超え）は `is_suspicious` フラグを立てて保存し、ランキングからは除外します（データは分析用に保持）。
+*   **共通レスポンス & JSON ログ**: すべての API レスポンスとサーバーログに `requestId` を含め、トラブルシューティングを容易にしています。
 
 ---
 

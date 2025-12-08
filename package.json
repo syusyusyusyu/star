@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.11.3",
+    "@hono/zod-validator": "^0.7.5",
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/hands": "^0.4.1675469240",
     "@mediapipe/pose": "^0.5.1675469404",
@@ -30,7 +31,8 @@
     "react-helmet-async": "^2.0.5",
     "react-router-dom": "^7.9.6",
     "textalive-app-api": "^0.4.0",
-    "three": "^0.181.2"
+    "three": "^0.181.2",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",

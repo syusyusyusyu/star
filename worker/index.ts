@@ -1,44 +1,67 @@
 // Cloudflare Workers用 Honoサーバー
 import { Hono } from 'hono'
 import { poweredBy } from 'hono/powered-by'
-import { logger } from 'hono/logger'
 import { cors } from 'hono/cors'
+import { requestId } from './middleware/requestId'
+import { session } from './middleware/session'
+import { Env } from './types'
 import scoreRoute from './routes/score'
+import adminRoute from './routes/admin'
 
-type Bindings = {
-  SUPABASE_URL: string
-  SUPABASE_SERVICE_ROLE_KEY: string
-}
+const app = new Hono<Env>()
 
-const app = new Hono<{ Bindings: Bindings }>()
+// Global Middlewares
+app.use('*', poweredBy())
+app.use('*', requestId())
+app.use('*', session())
 
-// APIルートにのみセキュリティヘッダーを適用
-// 静的ファイルはCloudflare Pagesのassetsで配信され、_headersファイルで設定
-app.use('/api/*', async (c, next) => {
+// Custom Logger (JSON format)
+app.use('*', async (c, next) => {
+  const start = Date.now()
   await next()
-  // Content Security Policy for API responses
-  c.header('X-Content-Type-Options', 'nosniff')
-  c.header('X-Frame-Options', 'DENY')
+  const ms = Date.now() - start
+  console.log(JSON.stringify({
+    level: 'info',
+    time: new Date().toISOString(),
+    method: c.req.method,
+    path: c.req.path,
+    status: c.res.status,
+    duration: `${ms}ms`,
+    requestId: c.get('requestId'),
+    sessionId: c.get('sessionId'),
+  }))
 })
 
-// Middlewares
-app.use('*', poweredBy())
-app.use('*', logger())
 app.use('*', cors())
 
-// Health check
-app.get('/api/health', (c) => c.json({ status: 'ok' }))
-
-// Example API: echo
-app.post('/api/echo', async (c) => {
-  const data = await c.req.json().catch(() => ({}))
-  return c.json({ ok: true, received: data })
+// Error Handling
+app.onError((err, c) => {
+  console.error(JSON.stringify({
+    level: 'error',
+    message: err.message,
+    stack: err.stack,
+    requestId: c.get('requestId')
+  }))
+  return c.json({
+    error: {
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'An unexpected error occurred'
+    },
+    meta: {
+      requestId: c.get('requestId')
+    }
+  }, 500)
 })
 
-// Score API routes
-app.route('/api', scoreRoute)
+// Health check
+app.get('/api/v1/health', (c) => c.json({
+  data: { status: 'ok' },
+  meta: { requestId: c.get('requestId') }
+}))
 
-// 静的ファイルはwrangler.jsoncの assets設定で配信される
-// Workersでは静的アセットは別途 assets ディレクトリで配信
+// Routes
+app.route('/api/v1/scores', scoreRoute)
+app.route('/admin', adminRoute)
 
 export default app
+

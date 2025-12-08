@@ -1,53 +1,136 @@
 import { Hono } from 'hono'
-import { getSupabase, Env } from '../supabaseClient'
+import { z } from 'zod'
+import { zValidator } from '@hono/zod-validator'
+import { getSupabase } from '../supabaseClient'
+import { Env } from '../types'
 
-type PlayMode = 'cursor' | 'body'
+const app = new Hono<Env>()
 
-// ─────────────────────────────────────────────
-// セキュリティ: 入力検証ヘルパー
-// ─────────────────────────────────────────────
-const isPlayMode = (mode: unknown): mode is PlayMode =>
-  mode === 'cursor' || mode === 'body'
+// Schema Definitions
+const scoreSchema = z.object({
+  playerName: z.string().min(1).max(20).transform(val => val.replace(/[\x00-\x1F\x7F]/g, '')), // Basic sanitization
+  songId: z.string().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/),
+  mode: z.enum(['cursor', 'body']).default('cursor'),
+  score: z.number().int().min(0),
+  maxCombo: z.number().int().min(0),
+  rank: z.string().min(1).max(5),
+  accuracy: z.number().min(0).max(100).optional(),
+})
 
-/** スコアの許容範囲（0〜1,000,000 点） */
-const MIN_SCORE = 0
-const MAX_SCORE = 1_000_000
+const querySchema = z.object({
+  songId: z.string().min(1),
+  mode: z.enum(['cursor', 'body']).optional().default('cursor'),
+  limit: z.string().transform(v => parseInt(v)).pipe(z.number().min(1).max(50)).default('20'),
+})
 
-/** コンボの許容範囲（0〜10,000） */
-const MAX_COMBO = 10_000
+// POST /api/v1/scores
+app.post('/', zValidator('json', scoreSchema), async (c) => {
+  const body = c.req.valid('json')
+  const sessionId = c.get('sessionId')
+  const requestId = c.get('requestId')
 
-/** ランクの許容値 */
-const VALID_RANKS = ['SS', 'S', 'A', 'B', 'C', 'D', 'F']
-
-/** songId の形式（英数字とハイフン、最大64文字） */
-const SONG_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/
-
-const isValidScore = (score: number): boolean =>
-  Number.isFinite(score) && score >= MIN_SCORE && score <= MAX_SCORE
-
-const isValidCombo = (combo: number): boolean =>
-  Number.isInteger(combo) && combo >= 0 && combo <= MAX_COMBO
-
-const isValidRank = (rank: unknown): rank is string =>
-  typeof rank === 'string' && VALID_RANKS.includes(rank.toUpperCase())
-
-const isValidSongId = (songId: unknown): songId is string =>
-  typeof songId === 'string' && SONG_ID_PATTERN.test(songId)
-
-// ─────────────────────────────────────────────
-// セキュリティ: レート制限（Cloudflare Workers用）
-// 注意: Workers環境では複数インスタンスで実行されるため、
-// 本格的なレート制限にはKVやDurable Objectsを使用すべき
-// ─────────────────────────────────────────────
-type RateLimitEntry = { count: number; resetAt: number }
-const rateLimitMap = new Map<string, RateLimitEntry>()
-const RATE_LIMIT_WINDOW_MS = 60_000 // 1分間
-const RATE_LIMIT_MAX_REQUESTS = 30  // 1分間に30リクエストまで
-
-const checkRateLimit = (ip: string): boolean => {
-  const now = Date.now()
-  const entry = rateLimitMap.get(ip)
+  // Origin Check
+  const origin = c.req.header('Origin') || c.req.header('Referer')
+  const allowedOrigin = c.env.FRONTEND_ORIGIN
+  // Allow localhost for dev
+  const isLocalhost = origin?.includes('localhost') || origin?.includes('127.0.0.1')
   
+  if (allowedOrigin && !isLocalhost) {
+     if (origin && !origin.includes(allowedOrigin)) {
+         return c.json({ error: { code: 'FORBIDDEN', message: 'Invalid Origin' }, meta: { requestId } }, 403)
+     }
+  }
+
+  // Cheat Detection
+  let isSuspicious = false
+  if (body.score > 1000000) isSuspicious = true
+  
+  const supabase = getSupabase(c.env)
+
+  const { data, error } = await supabase
+    .from('scores')
+    .insert({
+      session_id: sessionId,
+      song_id: body.songId,
+      mode: body.mode,
+      score: body.score,
+      max_combo: body.maxCombo,
+      rank: body.rank,
+      accuracy: body.accuracy,
+      player_name: body.playerName,
+      is_suspicious: isSuspicious
+    })
+    .select('id, score, rank, player_name, created_at')
+    .single()
+
+  if (error) {
+    console.error('Supabase insert error:', error)
+    return c.json({
+      error: { code: 'DB_ERROR', message: 'Failed to save score' },
+      meta: { requestId }
+    }, 500)
+  }
+
+  // Log success
+  console.log(JSON.stringify({
+    level: 'info',
+    message: 'Score created',
+    requestId,
+    songId: body.songId,
+    score: body.score,
+    isSuspicious
+  }))
+
+  return c.json({
+    data,
+    meta: { requestId }
+  })
+})
+
+// GET /api/v1/scores
+app.get('/', zValidator('query', querySchema), async (c) => {
+  const { songId, mode, limit } = c.req.valid('query')
+  const requestId = c.get('requestId')
+  const supabase = getSupabase(c.env)
+
+  const { data, error, count } = await supabase
+    .from('scores')
+    .select('player_name, score, rank, mode, created_at, accuracy', { count: 'exact' })
+    .eq('song_id', songId)
+    .eq('mode', mode)
+    .eq('is_suspicious', false)
+    .order('score', { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    console.error('Supabase select error:', error)
+    return c.json({
+      error: { code: 'DB_ERROR', message: 'Failed to fetch scores' },
+      meta: { requestId }
+    }, 500)
+  }
+
+  const mappedData = data?.map(d => ({
+    playerName: d.player_name,
+    score: d.score,
+    rank: d.rank,
+    mode: d.mode,
+    accuracy: d.accuracy,
+    createdAt: d.created_at
+  }))
+
+  return c.json({
+    data: mappedData,
+    meta: {
+      count: mappedData?.length,
+      total: count,
+      requestId
+    }
+  })
+})
+
+export default app
+
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
     return true

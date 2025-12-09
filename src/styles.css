@@ -857,8 +857,9 @@ html {
         left: 50%;
         right: auto;
         transform: translateX(-50%);
-        bottom: calc(12px + env(safe-area-inset-bottom));
+        bottom: calc(32px + var(--safe-area-bottom));
         gap: 8px;
+        z-index: 2000;
     }
     #song-info {
         top: 8px;

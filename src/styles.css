@@ -94,7 +94,12 @@ html {
     --hold-progress: 0%;
     --progress-visible: 0;
     --progress-color: var(--primary-color);
+    --progress-track: rgba(57, 197, 187, 0.25);
+    --progress-thickness: 12px;
+    --progress-gap: 2px;
     overflow: visible;
+    border: 2px solid rgba(57, 197, 187, 0.35);
+    box-shadow: 0 0 20px rgba(57, 197, 187, 0.35), inset 0 0 12px rgba(0, 0, 0, 0.3);
 }
 
 .lyric-bubble:hover {
@@ -107,17 +112,42 @@ html {
 .lyric-bubble::after {
     content: '';
     position: absolute;
-    inset: -6px;
+    inset: calc(-1 * var(--progress-thickness));
     border-radius: inherit;
     background: conic-gradient(var(--progress-color) var(--hold-progress), transparent 0);
-    mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 4px));
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 4px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - var(--progress-thickness)), #000 calc(100% - var(--progress-thickness) + var(--progress-gap)), #000 100%);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--progress-thickness)), #000 calc(100% - var(--progress-thickness) + var(--progress-gap)), #000 100%);
     opacity: var(--progress-visible);
     pointer-events: none;
-    transition: opacity 0.15s ease, filter 0.2s ease;
-    filter: drop-shadow(0 0 8px rgba(57, 197, 187, 0.35));
+    transition: opacity 0.2s ease, filter 0.25s ease;
+    filter: drop-shadow(0 0 12px rgba(57, 197, 187, 0.55));
 }
 
+.lyric-bubble::before {
+    content: '';
+    position: absolute;
+    inset: calc(-1 * (var(--progress-thickness) + 4px));
+    border-radius: inherit;
+    background: conic-gradient(var(--progress-track) 0deg 360deg);
+    mask: radial-gradient(farthest-side, transparent calc(100% - var(--progress-thickness)), #000 calc(100% - var(--progress-thickness) + var(--progress-gap)), #000 100%);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--progress-thickness)), #000 calc(100% - var(--progress-thickness) + var(--progress-gap)), #000 100%);
+    opacity: 0.8;
+    filter: blur(4px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.3s ease;
+    transform: scale(1);
+}
+
+.lyric-bubble.holding {
+    box-shadow: 0 0 28px rgba(57, 197, 187, 0.55), inset 0 0 16px rgba(0, 0, 0, 0.35);
+    transform: scale(1.08);
+    border-color: rgba(57, 197, 187, 0.65);
+}
+
+.lyric-bubble.holding::before {
+    opacity: 1;
+    transform: scale(1.05);
+}
 /* スコア表示 - Crossover Theme */
 #score-container {
     position: absolute;

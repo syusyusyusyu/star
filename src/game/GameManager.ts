@@ -631,6 +631,27 @@ class GameManager {
     this.timers.clearTimer(TIMER_KEYS.ResultBackup);
   }
 
+  getSafeBubbleXPercent(): number {
+    const maxTries = 8;
+    const minGapPx = 140; // 横方向の最小距離
+    const rangeMin = 12;
+    const rangeMax = 88;
+
+    for (let i = 0; i < maxTries; i++) {
+      const candidate = rangeMin + Math.random() * (rangeMax - rangeMin);
+      const candidatePx = (candidate / 100) * window.innerWidth;
+      let safe = true;
+      for (const [, bounds] of this.bubbleBounds) {
+        if (Math.abs(candidatePx - bounds.x) < minGapPx + bounds.radius) {
+          safe = false;
+          break;
+        }
+      }
+      if (safe) return candidate;
+    }
+    return rangeMin + Math.random() * (rangeMax - rangeMin);
+  }
+
   /**
    * ゲームのイベントハンドラを設定
    * マウス、タッチ、ボタンのイベントを処理
@@ -1452,6 +1473,9 @@ class GameManager {
     bubble.style.setProperty('--hold-progress', '100%');
     bubble.style.setProperty('--progress-visible', '1');
     bubble.style.animationPlayState = 'running';
+    bubble.classList.remove('holding');
+    bubble.style.zIndex = bubble.dataset.prevZ || '';
+    delete bubble.dataset.prevZ;
     this.clickLyric(bubble);
     this.markLyricSyncCleared();
     if (this.autoHoldTarget === bubble) this.autoHoldTarget = null;
@@ -1613,6 +1637,10 @@ class GameManager {
     if (bubble.style.pointerEvents === 'none') return;
     const state = this.holdStates.get(bubble);
     if (!state || state.isComplete) return;
+    if (!bubble.dataset.prevZ) {
+      bubble.dataset.prevZ = bubble.style.zIndex || '';
+    }
+    bubble.style.zIndex = '2000';
     if (source === 'pointer') {
       this.activePointerHold = bubble;
       state.pointerHolding = true;
@@ -1621,6 +1649,7 @@ class GameManager {
     }
     bubble.style.animationPlayState = 'paused';
     bubble.style.setProperty('--progress-visible', '1');
+    bubble.classList.add('holding');
   }
 
   stopBubbleHold(bubble: HTMLElement, source: HoldSource): void {
@@ -1639,6 +1668,9 @@ class GameManager {
       bubble.style.setProperty('--hold-progress', '0%');
       bubble.style.animationPlayState = 'running';
       bubble.style.setProperty('--progress-visible', '0');
+      bubble.classList.remove('holding');
+      bubble.style.zIndex = bubble.dataset.prevZ || '';
+      delete bubble.dataset.prevZ;
     }
   }
 
@@ -2209,7 +2241,7 @@ class LyricsRenderer {
 
   private placeBubble(bubble: HTMLElement, lyric: LyricData): void {
     const screenWidth = window.innerWidth;
-    const xPercent = screenWidth <= 768 ? 12 + Math.random() * 76 : 10 + Math.random() * 80;
+    const xPercent = this.game.getSafeBubbleXPercent();
     const isLong = (lyric.text || '').length > 12;
     const fontSize = screenWidth <= 480 ? '18px' : screenWidth <= 768 ? (isLong ? '22px' : '26px') : (isLong ? '28px' : '32px');
     bubble.style.position = 'absolute';

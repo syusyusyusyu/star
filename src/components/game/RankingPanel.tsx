@@ -40,6 +40,9 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
   const cacheKey = useMemo(() => `${songId}-${mode ?? 'all'}-${period}`, [songId, mode, period])
 
   const fetchRanking = useCallback(async (signal: AbortSignal) => {
+    // サーバー側が未デプロイの場合に備え、モバイルはcursorにフォールバックして問い合わせる
+    const queryMode = mode === 'mobile' ? 'cursor' : mode
+
     // キャッシュをチェック
     const cached = rankingCache.get(cacheKey)
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -52,7 +55,7 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
     setError(null)
     try {
       const params = new URLSearchParams({ songId })
-      if (mode) params.append('mode', mode)
+      if (queryMode) params.append('mode', queryMode)
       if (period && period !== 'all') params.append('period', period)
       
       const res = await fetch(`/api/ranking?${params.toString()}`, { signal })

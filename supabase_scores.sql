@@ -17,7 +17,7 @@ drop table if exists public.scores;
 
 create table public.scores (
   id uuid primary key default gen_random_uuid(),
-  session_id text not null,      -- 匿名セッションID (Cookie)
+  session_id text not null default gen_random_uuid(),      -- 匿名セッションID (Cookie)
   song_id text not null,
   mode text not null default 'cursor' check (mode in ('cursor', 'body', 'mobile', 'hand')),
   score integer not null,

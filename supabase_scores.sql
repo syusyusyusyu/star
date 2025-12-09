@@ -15,14 +15,16 @@ end $$;
 -- 既存のscoresテーブルがあれば削除
 drop table if exists public.scores;
 
--- scoresテーブルを作成
 create table public.scores (
   id uuid primary key default gen_random_uuid(),
+  session_id text not null,      -- 匿名セッションID (Cookie)
   song_id text not null,
-  mode text not null default 'cursor' check (mode in ('cursor', 'body', 'mobile')),
+  mode text not null default 'cursor' check (mode in ('cursor', 'body', 'mobile', 'hand')),
   score integer not null,
   max_combo integer not null,
   rank text not null,
+  accuracy numeric(5,2),
+  is_suspicious boolean default false,
   player_name text,
   created_at timestamptz default now()
 );

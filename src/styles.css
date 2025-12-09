@@ -481,6 +481,10 @@ html {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.5s ease;
+    padding: 32px;
+    padding-bottom: calc(32px + var(--safe-area-bottom));
+    box-sizing: border-box;
+    overflow-y: auto;
 }
 
 #results-screen:not(.hidden) {
@@ -503,6 +507,7 @@ html {
     animation: resultsFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     clip-path: polygon(40px 0, 100% 0, 100% calc(100% - 40px), calc(100% - 40px) 100%, 0 100%, 0 40px);
+    gap: 32px;
 }
 
 /* 装飾的なライン */
@@ -536,6 +541,8 @@ html {
     width: 100%;
     justify-content: center;
     margin-bottom: 40px;
+    gap: 32px;
+    align-items: center;
 }
 
 .results-score-section {
@@ -578,6 +585,7 @@ html {
     justify-content: center;
     gap: 20px;
     width: 100%;
+    flex-wrap: wrap;
 }
 
 .results-buttons button {
@@ -591,7 +599,8 @@ html {
     font-weight: 600;
     letter-spacing: 0.1em;
     transition: all 0.3s ease;
-    min-width: 200px;
+    min-width: 180px;
+    flex: 1 1 200px;
     text-transform: uppercase;
     position: relative;
     overflow: hidden;
@@ -895,10 +904,54 @@ html {
         left: 50%;
         transform: translateX(-50%);
     }
+    #results-screen {
+        padding: 16px 12px calc(16px + var(--safe-area-bottom));
+        align-items: flex-start;
+    }
     #results-screen .results-container {
-        width: 95%;
-        max-width: 420px;
-        padding: 16px;
+        width: 100%;
+        max-width: 560px;
+        padding: 20px 18px;
+        border-radius: 16px;
+        clip-path: none;
+        gap: 20px;
+    }
+    #results-screen .results-container h2 {
+        font-size: clamp(20px, 5vw, 24px);
+        letter-spacing: 0.12em;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+    }
+    #results-screen .results-content {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 18px;
+        margin-bottom: 12px;
+    }
+    #results-screen .results-score-section {
+        padding: 0;
+    }
+    #final-score-display {
+        font-size: clamp(36px, 10vw, 56px);
+    }
+    #final-combo-display {
+        font-size: clamp(14px, 4vw, 18px);
+        margin-bottom: 12px;
+    }
+    #rank-display {
+        font-size: clamp(26px, 8vw, 36px);
+        margin-top: 8px;
+    }
+    #results-screen .results-buttons {
+        flex-direction: column;
+        gap: 12px;
+    }
+    #results-screen .results-buttons button {
+        width: 100%;
+        min-width: 0;
+        padding: 12px;
+        font-size: 0.95rem;
+        letter-spacing: 0.08em;
     }
     .ranking-grid {
         grid-template-columns: 26px 1fr 70px;

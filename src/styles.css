@@ -508,8 +508,8 @@ html {
     position: relative;
     clip-path: polygon(32px 0, 100% 0, 100% calc(100% - 32px), calc(100% - 32px) 100%, 0 100%, 0 32px);
     gap: clamp(16px, 4vw, 32px);
-    max-height: 88vh;
-    overflow: hidden;
+    max-height: 90vh;
+    overflow: auto;
 }
 
 /* 装飾的なライン */
@@ -596,14 +596,14 @@ html {
     color: #fff;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 0;
-    padding: 15px 40px;
+    padding: 12px 20px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.06em;
     transition: all 0.3s ease;
-    min-width: 180px;
-    flex: 1 1 200px;
+    min-width: 140px;
+    flex: 0 1 160px;
     text-transform: uppercase;
     position: relative;
     overflow: hidden;
@@ -918,7 +918,8 @@ html {
         border-radius: 14px;
         clip-path: none;
         gap: 16px;
-        max-height: none;
+        max-height: 90vh;
+        overflow: auto;
     }
     #results-screen .results-container h2 {
         font-size: clamp(20px, 5vw, 24px);

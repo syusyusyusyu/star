@@ -43,6 +43,17 @@ const TIMER_KEYS = {
   FullBodyLost: 'full-body-lost',
 } as const
 
+type HoldSource = 'pointer' | 'auto'
+
+interface HoldState {
+  progress: number
+  duration: number
+  pointerHolding: boolean
+  autoHolding: boolean
+  isComplete: boolean
+  text: string
+}
+
 /**
  * ボイスアイドル・ミュージックゲーム - 内部処理のみ最適化版
  * 
@@ -89,6 +100,11 @@ class GameManager {
   private bubbleBounds: Map<HTMLElement, { x: number; y: number; radius: number }>
   private lastBoundsUpdate = 0
   private timers: TimerManager
+  private holdStates: Map<HTMLElement, HoldState>
+  private activePointerHold: HTMLElement | null
+  private autoHoldTarget: HTMLElement | null
+  private lyricSyncText: HTMLElement | null
+  private lyricSyncTimer: number | null
   
   // ハンド検出
   private hands: { send(options: { image: HTMLVideoElement }): Promise<void> } | null
@@ -138,6 +154,8 @@ class GameManager {
   private lastPlayerPosition = 0
   private songStartTime = 0
   public lastScoreTime = 0
+  private lastLyricSpawnAt = 0
+  private minResultTimestamp = 0
 
   /**
    * ゲームマネージャーの初期化
@@ -164,6 +182,7 @@ class GameManager {
     this.mouseTrail = [];
     // _maxTrailLength はプロパティ宣言時に初期化済み
     this.lastMousePos = { x: 0, y: 0 };
+    this.minResultTimestamp = 0;
     this.apiLoaded = false; // TextAlive APIがロード完了したかを追跡
     this._operationInProgress = false; // 操作のロック状態を追跡（連打防止）
     this.resultsDisplayed = false; // リザルト画面表示フラグを初期化（重要：リザルト画面重複表示防止）
@@ -209,6 +228,11 @@ class GameManager {
   this.bubblePool = new BubblePool(48, 160);
   this.bubbleBounds = new Map();
   this.timers = new TimerManager();
+  this.holdStates = new Map();
+  this.activePointerHold = null;
+  this.autoHoldTarget = null;
+  this.lyricSyncText = null;
+  this.lyricSyncTimer = null;
   this.showFpsCounter = this.shouldEnableFpsCounter();
   this.fpsOverlay = null;
   this.fpsSamples = [];
@@ -239,6 +263,7 @@ class GameManager {
     this.loading = getEl('loading')
     this.countdownOverlay = getEl('countdown-overlay') as HTMLElement
     this.countdownText = getEl('countdown-text') as HTMLElement
+    this.lyricSyncText = getEl('lyric-sync-text')
     // SRP: ボディ検出に関する状態更新を専任マネージャーに委譲
     this.bodyDetection = new BodyDetectionManager({ game: this, timers: this.timers })
     
@@ -415,6 +440,7 @@ class GameManager {
     const position = this.getPlaybackPosition();
     if (position == null) return;
     this.updateLyrics(position);
+    this.updateHoldStates(delta);
     this.refreshBubbleBounds(elapsed);
   }
 
@@ -450,6 +476,7 @@ class GameManager {
     // 操作が進行中なら何もしない（連打防止）
     if (this._operationInProgress) return;
     this._operationInProgress = true;
+    this.minResultTimestamp = Date.now() + 4000; // 再生開始からしばらくはリザルトを出さない
 
     if (this.currentMode === 'body' && !this.bodyDetection.isReady()) {
       console.log("playMusic: body mode and detection is not ready. Showing adjustment message.");
@@ -622,21 +649,76 @@ class GameManager {
     this.createAudiencePenlights();
     this.lyricsData = [];
     
-    // フォールバック用の歌詞データ - フレーズごとに区切る
-    const fallbackPhrases = [
-      { text: "マジカル", startTime: 1000 },
-      { text: "ミライ", startTime: 4000 },
-      { text: "初音ミク", startTime: 6500 }
+    // フォールバック用の歌詞データ - 1行ごとに区切る（提供歌詞を使用）
+    const fallbackLines = [
+      "So tell us ストリートライト",
+      "揺らめく都市の magic",
+      "街明かりが渦巻く　躓く my mind",
+      "再起動 the other night",
+      "(Don’t you know？)",
+      "Ah 強引に goin' on",
+      "好きも得意も　もう全部奏でたいんだ",
+      "(Yeah do it！)",
+      "めくるめく　この雑踏をかき分けていく",
+      "光差す道を目指して",
+      "空回る今だって僕らの祈り　毎秒更新",
+      "不安感だって攫っていく未来に ride on",
+      "Yeah！",
+      "終わりなんてない",
+      "この手掴めば　また始まるんだ",
+      "グシャグシャのまま描いた“アイ”",
+      "It's all right！",
+      "灯した歌は　君に届く",
+      "躊躇いはない",
+      "そう、一人じゃないから",
+      "(鼓動、心、不可能を超えてゆけ)",
+      "曖昧な夢さえも抱いて",
+      "(踊る、震える、重なる想いだけ)",
+      "あふれるストーリーに乗せて",
+      "立ち尽くす街角",
+      "どれほど間違っても",
+      "この灯火は何度だって輝く",
+      "(宿す against gravity)",
+      "ここからはノンストップ",
+      "宵闇の中でも消えない星を繋いでいたい",
+      "止め処なく bluff, bluff",
+      "言葉の飾り　毎秒更新",
+      "揺らぐ主役　舞台は未知の最前線",
+      "Yeah！",
+      "もう正解なんてない",
+      "奏でた今日が　僕らの道だ",
+      "ずっと手放したくないんだ“アイ”",
+      "いつだって願いを歌えば　君に会える",
+      "最高のステージ",
+      "夢はもう譲れないんじゃない？",
+      "零れたメモリを誘って",
+      "Twilight to tell us",
+      "Starlight to tell us",
+      "終わりなんてない",
+      "この手掴めば　また始まるんだ",
+      "グシャグシャのまま描いた \"アイ\"",
+      "It's all right！",
+      "灯した歌は　君に届く",
+      "躊躇いはない",
+      "そう、一人じゃないから",
+      "(鼓動、心、不可能を超えてゆけ)",
+      "曖昧な夢さえも抱いて",
+      "(踊る、震える、重なる想いだけ)",
+      "あふれるストーリーに乗せて",
+      "咲かせた未来のその先へ",
     ];
     this.fallbackLyricsData = [];
 
-    // フレーズごとに歌詞データを生成（熟語単位のバブルにまとめる）
-    const fallbackIdiomDuration = 400;
-    fallbackPhrases.forEach(phrase => {
-      const normalized = (phrase.text || '').normalize('NFC');
-      const duration = Math.max(normalized.length * fallbackIdiomDuration, fallbackIdiomDuration);
+    // 1行ごとに歌詞データを生成（行長ベースで表示時間を調整）
+    let currentTime = 1000;
+    const minLineDuration = 2000;
+    const perCharMs = 280;
+    const gapMs = 400;
+    fallbackLines.forEach(line => {
+      const normalized = (line || '').normalize('NFC');
+      const duration = Math.max(normalized.length * perCharMs, minLineDuration);
       this.fallbackLyricsData.push({
-        time: phrase.startTime,
+        time: currentTime,
         text: normalized,
         displayDuration: duration,
         originalChars: [{
@@ -644,6 +726,7 @@ class GameManager {
           timeOffset: 0
         }]
       });
+      currentTime += duration + gapMs;
     });
     
     // コンボをリセットするタイマー（30秒間何も取らなかったらコンボリセット）
@@ -653,6 +736,7 @@ class GameManager {
         this.comboEl.textContent = `コンボ: 0`;
       }
     }, 1000);
+    this.lastLyricSpawnAt = 0;
   }
 
   createAudiencePenlights(): void {
@@ -1016,6 +1100,9 @@ class GameManager {
       
       while (phrase) {
         let word = phrase.firstWord;
+        const wordsData: Array<{ text: string; start: number; end: number }> = [];
+        let phraseStart = Number.POSITIVE_INFINITY;
+        let phraseEnd = 0;
         while (word) {
           const text = (word.text ?? '').toString().normalize('NFC').trim();
           const startTime = typeof word.startTime === 'number' ? word.startTime : 0;
@@ -1023,14 +1110,45 @@ class GameManager {
 
           // TextAlive では曲頭前のアップビートに負のタイムスタンプが入ることがあるためスキップ
           if (startTime >= 0 && text) {
-            this.lyricsData.push({
-              time: startTime,
-              endTime: Math.max(endTime, startTime + 10), // 表示幅が0にならないよう最低10ms確保
-              text: text,
-              displayDuration: Math.max(endTime - startTime, 10),
-            });
+            wordsData.push({ text, start: startTime, end: Math.max(endTime, startTime + 10) });
+            phraseStart = Math.min(phraseStart, startTime);
+            phraseEnd = Math.max(phraseEnd, Math.max(endTime, startTime + 10));
           }
           word = word.next;
+        }
+
+        if (wordsData.length && Number.isFinite(phraseStart)) {
+          // 適度な長さでチャンク分割（例: 「So tell us ストリートライト」規模）
+          const MAX_CHARS_PER_BUBBLE = 20;
+          let chunk: typeof wordsData = [];
+          const flushChunk = () => {
+            if (!chunk.length) return;
+            const chunkStart = chunk[0].start;
+            const chunkEnd = chunk[chunk.length - 1].end;
+            const chunkText = chunk.map(w => w.text).join(' ').replace(/\s+/g, ' ').trim();
+            const chunkLength = chunkText.length;
+            const baseDuration = chunkEnd - chunkStart;
+            const paddedDuration = baseDuration + 1000; // ゆとりを追加
+            const duration = Math.max(paddedDuration, chunkLength * 400, 2200);
+
+            this.lyricsData.push({
+              time: chunkStart,
+              endTime: chunkStart + duration,
+              text: chunkText,
+              displayDuration: duration,
+              originalChars: chunk.map(w => ({ text: w.text, timeOffset: w.start - chunkStart })),
+            });
+            chunk = [];
+          };
+
+          for (const w of wordsData) {
+            const tentativeText = [...chunk, w].map(t => t.text).join(' ');
+            if (chunk.length > 0 && tentativeText.length > MAX_CHARS_PER_BUBBLE) {
+              flushChunk();
+            }
+            chunk.push(w);
+          }
+          flushChunk();
         }
         phrase = phrase.next;
       }
@@ -1084,6 +1202,11 @@ class GameManager {
     // 一時停止中、初回インタラクション前、またはボディモードのカウントダウン中は歌詞を表示しない
     if (this.isPaused || this.isFirstInteraction || this.bodyDetection.isCountdownActive()) return;
 
+    // 大きくジャンプした場合はインデックスを同期して一括表示を防ぐ
+    if (Math.abs(position - this._lastLyricsPosition) > 1200) {
+      this.syncLyricIndexToPosition(position);
+    }
+
     // 再生位置が巻き戻った場合は歌詞インデックスを再同期
     if (this._lastLyricsPosition != null && position < this._lastLyricsPosition - 1000) {
       this.syncLyricIndexToPosition(position);
@@ -1097,7 +1220,7 @@ class GameManager {
     
     // パフォーマンス対策: 1フレームあたりの処理数を制限（フリーズ防止）
     let processedCount = 0;
-    const maxProcessPerFrame = 5; // 1フレームで最大5個まで処理（さらに削減）
+    const maxProcessPerFrame = 1; // 1フレームで最大1個だけ処理し、過剰表示を防ぐ
     
     // 歌詞が時間順である前提（TextAliveの特性）
     while (this._lyricScanIndex < len && processedCount < maxProcessPerFrame) {
@@ -1118,7 +1241,12 @@ class GameManager {
       // 現在時刻から-200ms～+200msの範囲の歌詞のみ表示
       // ※範囲を広げすぎると曲終盤で大量表示される
       if (l.time >= position - 200 && l.time <= position + 200) {
-        this.displayLyric(l.text);
+        // 直前のスポーンから一定時間空けてバースト表示を防ぐ
+        const now = performance.now();
+        if (now - this.lastLyricSpawnAt < 350) break;
+
+        this.displayLyric(l);
+        this.lastLyricSpawnAt = now;
         this.displayedLyrics.add(lyricKey);
         
         // 一定時間後に表示済みフラグを削除（メモリリーク防止）
@@ -1164,6 +1292,8 @@ class GameManager {
     this._lyricScanIndex = 0;
     this.fallbackStartTime = performance.now();
     this.playbackPosition = 0;
+    this.lastLyricSpawnAt = 0;
+    this.minResultTimestamp = Date.now() + 4000;
   }
 
   /**
@@ -1172,8 +1302,48 @@ class GameManager {
    * 
    * @param {string} text - 表示する文字
    */
-  displayLyric(text: string): HTMLElement | undefined {
-  return this.lyricsRenderer.displayLyric(text);
+  displayLyric(lyric: LyricData): HTMLElement | undefined {
+  return this.lyricsRenderer.displayLyric(lyric);
+  }
+
+  prepareBubbleForLyric(bubble: HTMLElement, lyric: LyricData): void {
+    const duration = Math.max(lyric.displayDuration || 0, 800);
+    // ホールド完了までの時間は2秒前後に収める
+    const holdDuration = Math.min(Math.max(duration, 1800), 2200);
+    this.holdStates.set(bubble, {
+      progress: 0,
+      duration: holdDuration,
+      pointerHolding: false,
+      autoHolding: false,
+      isComplete: false,
+      text: String(lyric.text || '').normalize('NFC'),
+    });
+    bubble.style.setProperty('--hold-progress', '0%');
+    bubble.style.setProperty('--progress-visible', '0');
+    bubble.style.animationPlayState = 'running';
+    this.updateLyricSyncDisplay(lyric.text || '');
+  }
+
+  private updateLyricSyncDisplay(text: string): void {
+    if (!this.lyricSyncText) return;
+    this.lyricSyncText.textContent = text;
+    this.lyricSyncText.classList.remove('cleared');
+    this.lyricSyncText.style.opacity = '1';
+    if (this.lyricSyncTimer != null) {
+      clearTimeout(this.lyricSyncTimer);
+    }
+    this.lyricSyncTimer = window.setTimeout(() => {
+      if (this.lyricSyncText) {
+        this.lyricSyncText.classList.remove('cleared');
+        this.lyricSyncText.textContent = '';
+      }
+      this.lyricSyncTimer = null;
+    }, 8000);
+  }
+
+  private markLyricSyncCleared(): void {
+    if (!this.lyricSyncText) return;
+    this.lyricSyncText.classList.add('cleared');
   }
 
   releaseBubble(element: HTMLElement): void {
@@ -1181,6 +1351,9 @@ class GameManager {
     this.displayedViewerLyrics.delete(element);
     this.bubblePool.release(element);
     this.bubbleBounds.delete(element);
+    this.holdStates.delete(element);
+    if (this.activePointerHold === element) this.activePointerHold = null;
+    if (this.autoHoldTarget === element) this.autoHoldTarget = null;
   }
 
   clearActiveBubbles(): void {
@@ -1188,6 +1361,9 @@ class GameManager {
     actives.forEach(bubble => this.releaseBubble(bubble));
     this.activeLyricBubbles.clear();
     this.bubbleBounds.clear();
+    this.holdStates.clear();
+    this.activePointerHold = null;
+    this.autoHoldTarget = null;
   }
 
   updateBubbleBounds(element: HTMLElement): void {
@@ -1205,6 +1381,39 @@ class GameManager {
     if (elapsed - this.lastBoundsUpdate < 32) return;
     this.lastBoundsUpdate = elapsed;
     this.activeLyricBubbles.forEach(bubble => this.updateBubbleBounds(bubble));
+  }
+
+  private updateHoldStates(delta: number): void {
+    if (this.isPaused || this.isFirstInteraction || this.bodyDetection.isCountdownActive()) return;
+    this.holdStates.forEach((state, bubble) => {
+      if (state.isComplete) return;
+      if (state.pointerHolding || state.autoHolding) {
+        const progress = Math.min(1, state.progress + delta / state.duration);
+        state.progress = progress;
+        bubble.style.setProperty('--hold-progress', `${(progress * 100).toFixed(1)}%`);
+        bubble.style.setProperty('--progress-visible', '1');
+        bubble.style.animationPlayState = 'paused';
+        if (progress >= 1) {
+          this.completeBubbleHold(bubble, state);
+        }
+      }
+    });
+  }
+
+  private completeBubbleHold(bubble: HTMLElement, state?: HoldState): void {
+    const holdState = state ?? this.holdStates.get(bubble);
+    if (!holdState || holdState.isComplete) return;
+    holdState.isComplete = true;
+    holdState.pointerHolding = false;
+    holdState.autoHolding = false;
+    bubble.style.setProperty('--hold-progress', '100%');
+    bubble.style.setProperty('--progress-visible', '1');
+    bubble.style.animationPlayState = 'running';
+    this.clickLyric(bubble);
+    this.markLyricSyncCleared();
+    if (this.autoHoldTarget === bubble) this.autoHoldTarget = null;
+    if (this.activePointerHold === bubble) this.activePointerHold = null;
+    this.holdStates.delete(bubble);
   }
 
   private shouldEnableFpsCounter(): boolean {
@@ -1320,20 +1529,35 @@ class GameManager {
    */
   checkLyrics(x: number, y: number, radius: number): void {
     if (this.isFirstInteraction) return;
-    // radiusSquared は以前使っていたが現在は未使用
-    // 生成時に追跡している集合を使用
+    let closest: { el: HTMLElement; dist2: number } | null = null;
     for (const el of this.activeLyricBubbles) {
-      if (el.style.pointerEvents === 'none') continue; // 既にクリック済みの場合はスキップ
+      if (el.style.pointerEvents === 'none') continue; // 既に処理済みの場合はスキップ
       const bounds = this.bubbleBounds.get(el);
       if (!bounds) continue;
       const dx = x - bounds.x;
       const dy = y - bounds.y;
-      const hit = dx * dx + dy * dy <= (radius + bounds.radius) ** 2;
+      const dist2 = dx * dx + dy * dy;
+      const hit = dist2 <= (radius + bounds.radius) ** 2;
       if (hit) {
-        this.clickLyric(el);
-        this.createHitEffect(bounds.x, bounds.y);
+        if (!closest || dist2 < closest.dist2) {
+          closest = { el, dist2 };
+        }
       }
     }
+
+    if (!closest) {
+      if (this.autoHoldTarget) {
+        this.stopBubbleHold(this.autoHoldTarget, 'auto');
+        this.autoHoldTarget = null;
+      }
+      return;
+    }
+
+    if (this.autoHoldTarget && this.autoHoldTarget !== closest.el) {
+      this.stopBubbleHold(this.autoHoldTarget, 'auto');
+    }
+    this.autoHoldTarget = closest.el;
+    this.startBubbleHold(closest.el, 'auto');
   }
 
 
@@ -1342,6 +1566,45 @@ class GameManager {
    * 歌詞をクリック/タッチした時の処理
    * スコア加算と視覚効果を処理
    */
+  startBubbleHold(bubble: HTMLElement, source: HoldSource): void {
+    if (bubble.style.pointerEvents === 'none') return;
+    const state = this.holdStates.get(bubble);
+    if (!state || state.isComplete) return;
+    if (source === 'pointer') {
+      this.activePointerHold = bubble;
+      state.pointerHolding = true;
+    } else {
+      state.autoHolding = true;
+    }
+    bubble.style.animationPlayState = 'paused';
+    bubble.style.setProperty('--progress-visible', '1');
+  }
+
+  stopBubbleHold(bubble: HTMLElement, source: HoldSource): void {
+    const state = this.holdStates.get(bubble);
+    if (!state) return;
+    if (source === 'pointer') {
+      state.pointerHolding = false;
+      if (this.activePointerHold === bubble) this.activePointerHold = null;
+    } else {
+      state.autoHolding = false;
+      if (this.autoHoldTarget === bubble) this.autoHoldTarget = null;
+    }
+
+    if (!state.pointerHolding && !state.autoHolding && !state.isComplete) {
+      state.progress = 0;
+      bubble.style.setProperty('--hold-progress', '0%');
+      bubble.style.animationPlayState = 'running';
+      bubble.style.setProperty('--progress-visible', '0');
+    }
+  }
+
+  stopActivePointerHold(): void {
+    if (this.activePointerHold) {
+      this.stopBubbleHold(this.activePointerHold, 'pointer');
+    }
+  }
+
   clickLyric(element: HTMLElement): void {
     if (element.style.pointerEvents === 'none') return;
     
@@ -1366,10 +1629,15 @@ class GameManager {
     // 表示を更新
     this.scoreEl.textContent = String(Math.round(this.score));
     this.comboEl.textContent = `コンボ: ${this.combo}`;
+    this.markLyricSyncCleared();
     
     // 視覚効果
     element.style.color = '#FF69B4'; // ピンク色に変更
     this.createClickEffect(element);
+    const hitBounds = this.bubbleBounds.get(element);
+    if (hitBounds) {
+      this.createHitEffect(hitBounds.x, hitBounds.y);
+    }
     element.style.pointerEvents = 'none'; // 再クリック防止
     
     // フェードアウト
@@ -1413,6 +1681,10 @@ class GameManager {
    * スコアとランクを表示し、演出を実行
    */
   showResults() {
+  if (Date.now() < this.minResultTimestamp) {
+    console.log('リザルト表示を抑制（早すぎるため）');
+    return;
+  }
   return this.resultsManager.showResults();
   }
   
@@ -1449,6 +1721,14 @@ class GameManager {
     }
       this.clearActiveBubbles();
     this.displayedViewerLyrics.clear();
+    if (this.lyricSyncTimer != null) {
+      clearTimeout(this.lyricSyncTimer);
+      this.lyricSyncTimer = null;
+    }
+    if (this.lyricSyncText) {
+      this.lyricSyncText.textContent = '';
+      this.lyricSyncText.classList.remove('cleared');
+    }
 
     if (this.fpsOverlay?.parentElement) {
       this.fpsOverlay.parentElement.removeChild(this.fpsOverlay);
@@ -1835,7 +2115,6 @@ class BodyDetectionManager {
 // SRP: 歌詞のDOM表示と鑑賞用表示を担当
 class LyricsRenderer {
   private readonly game: GameManager
-  private readonly slotIds = ['slot-top-left', 'slot-top-right', 'slot-bottom-left', 'slot-bottom-right']
   private readonly maxLyricsOnScreen = 50
 
   constructor(game: GameManager) {
@@ -1845,20 +2124,24 @@ class LyricsRenderer {
   private bindBubbleEvents(bubble: HTMLElement): void {
     if (bubble.dataset.bound === 'true') return;
     bubble.dataset.bound = 'true';
-    bubble.addEventListener('mouseenter', this.handleBubbleHover);
-    bubble.addEventListener('touchstart', this.handleBubbleTouch, { passive: false });
+    bubble.addEventListener('mouseenter', this.handleBubbleHoldStart);
+    bubble.addEventListener('touchstart', this.handleBubbleHoldStart, { passive: false });
+    bubble.addEventListener('mouseleave', this.handleBubbleHoldEnd);
+    bubble.addEventListener('mouseout', this.handleBubbleHoldEnd);
+    bubble.addEventListener('touchend', this.handleBubbleHoldEnd);
+    bubble.addEventListener('touchcancel', this.handleBubbleHoldEnd);
     bubble.addEventListener('animationend', this.handleBubbleAnimationEnd);
   }
 
-  private handleBubbleHover = (event: Event): void => {
+  private handleBubbleHoldStart = (event: Event): void => {
+    if (event.type === 'touchstart') event.preventDefault();
     const bubble = event.currentTarget as HTMLElement;
-    this.game.clickLyric(bubble);
+    this.game.startBubbleHold(bubble, 'pointer');
   }
 
-  private handleBubbleTouch = (event: TouchEvent): void => {
-    event.preventDefault();
+  private handleBubbleHoldEnd = (event: Event): void => {
     const bubble = event.currentTarget as HTMLElement;
-    this.game.clickLyric(bubble);
+    this.game.stopBubbleHold(bubble, 'pointer');
   }
 
   private handleBubbleAnimationEnd = (event: AnimationEvent): void => {
@@ -1876,40 +2159,20 @@ class LyricsRenderer {
     bubble.style.pointerEvents = 'auto';
     bubble.style.opacity = '1';
     bubble.style.display = '';
+    bubble.style.animationPlayState = 'running';
+    bubble.style.setProperty('--hold-progress', '0%');
+    bubble.style.setProperty('--progress-visible', '0');
   }
 
-  private prepareForSlot(bubble: HTMLElement, slotElement: HTMLElement): void {
-    slotElement.appendChild(bubble);
-    bubble.style.position = 'absolute';
-    const randomX = 20 + Math.random() * 60;
-    bubble.style.left = `${randomX}%`;
-    bubble.style.bottom = '-50px';
-    bubble.style.transform = 'translateX(-50%)';
-    bubble.style.color = '#39C5BB';
-    bubble.style.fontSize = '28px';
-    bubble.style.animation = 'none';
-    void bubble.offsetWidth; // reflow to restart animation
-    bubble.style.animation = 'slotFloat var(--lyric-speed) linear forwards';
-  }
-
-  private prepareFallbackPosition(bubble: HTMLElement): void {
+  private placeBubble(bubble: HTMLElement, lyric: LyricData): void {
     const screenWidth = window.innerWidth;
-    const isSmallScreen = screenWidth <= 768;
-    let x: number;
-    let y: number;
-    let fontSize: string;
-    if (isSmallScreen) {
-      x = screenWidth * 0.15 + Math.random() * (screenWidth * 0.7);
-      y = window.innerHeight * 0.3 + Math.random() * (window.innerHeight * 0.55);
-      fontSize = screenWidth <= 480 ? '18px' : '22px';
-    } else {
-      x = 100 + Math.random() * (screenWidth - 300);
-      y = window.innerHeight - 300 - Math.random() * 100;
-      fontSize = '48px';
-    }
+    const xPercent = screenWidth <= 768 ? 12 + Math.random() * 76 : 10 + Math.random() * 80;
+    const isLong = (lyric.text || '').length > 12;
+    const fontSize = screenWidth <= 480 ? '18px' : screenWidth <= 768 ? (isLong ? '22px' : '26px') : (isLong ? '28px' : '32px');
     bubble.style.position = 'absolute';
-    bubble.style.left = `${x}px`;
-    bubble.style.top = `${y}px`;
+    bubble.style.left = `${xPercent}%`;
+    bubble.style.bottom = '-60px';
+    bubble.style.transform = 'translateX(-50%)';
     bubble.style.color = '#39C5BB';
     bubble.style.fontSize = fontSize;
     this.game.gamecontainer.appendChild(bubble);
@@ -1918,8 +2181,8 @@ class LyricsRenderer {
     bubble.style.animation = 'slotFloat var(--lyric-speed) linear forwards';
   }
 
-  displayLyric(text: string | null): HTMLElement | undefined {
-    if (text == null) return;
+  displayLyric(lyric: LyricData | null): HTMLElement | undefined {
+    if (lyric == null || lyric.text == null) return;
 
     if (this.game.activeLyricBubbles.size >= this.maxLyricsOnScreen) {
       const iterator = this.game.activeLyricBubbles.values().next();
@@ -1928,18 +2191,13 @@ class LyricsRenderer {
       }
     }
 
-    const norm = String(text).normalize('NFC');
+    const norm = String(lyric.text).normalize('NFC');
     const bubble = this.game.bubblePool.acquire();
     this.resetBubbleStyles(bubble);
     bubble.textContent = norm;
     this.bindBubbleEvents(bubble);
-
-    const slotElement = this.pickRandomSlot();
-    if (slotElement) {
-      this.prepareForSlot(bubble, slotElement);
-    } else {
-      this.prepareFallbackPosition(bubble);
-    }
+    this.placeBubble(bubble, lyric);
+    this.game.prepareBubbleForLyric(bubble, lyric);
 
     this.game.activeLyricBubbles.add(bubble);
     this.game.updateBubbleBounds(bubble);
@@ -1949,11 +2207,6 @@ class LyricsRenderer {
     }
 
     return bubble;
-  }
-
-  private pickRandomSlot(): HTMLElement | null {
-    const slotId = this.slotIds[Math.floor(Math.random() * this.slotIds.length)];
-    return document.getElementById(slotId);
   }
 
   displayViewerLyric(text: string, gameBubble: HTMLElement): void {
@@ -2141,17 +2394,17 @@ class UIManager {
 
     let text = '';
     if (this.game.isMobile) {
-      text = '歌詞の文字をタップしてポイントを獲得しよう！';
+      text = '歌詞フレーズを長押ししてゲージを満タンにしよう！';
     } else {
       switch (this.game.currentMode) {
         case 'cursor':
-          text = '歌詞の文字にマウスを当ててポイントを獲得しよう！';
+          text = '歌詞フレーズを長押しして円形ゲージを100%にしよう！';
           break;
         case 'hand':
-          text = 'カメラに手を映して歌詞に触れてポイントを獲得しよう！';
+          text = 'カメラに手を映してフレーズの上でホールドしよう！';
           break;
         case 'body':
-          text = 'カメラに全身を映して歌詞に触れてポイントを獲得しよう！';
+          text = 'カメラに全身を映してフレーズをホールドしよう！';
           break;
       }
     }
@@ -2315,10 +2568,10 @@ class InputManager {
       setTimeout(() => { touched = false; }, 300);
     }, { passive: true });
 
-    gm.gamecontainer.addEventListener('click', e => {
-      if (gm.currentMode !== 'cursor') return;
-      gm.checkLyrics(e.clientX, e.clientY, 35);
-    });
+    const stopPointerHold = () => gm.stopActivePointerHold();
+    document.addEventListener('mouseup', stopPointerHold);
+    document.addEventListener('touchend', stopPointerHold);
+    document.addEventListener('touchcancel', stopPointerHold);
 
     const handleButtonClick = (event: Event | null) => {
       if (event) event.preventDefault();

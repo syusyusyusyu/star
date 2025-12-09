@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Helmet } from "react-helmet-async"
 import GameManager from "../game/GameManager"
 import { initLiveParticles, loadSongConfig } from "../game/gameLoader"
-import { Slot } from "../components/game/Slot"
 import RankingModal from "../components/game/RankingModal"
 import { type GameResult, type PlayMode } from "../types/game"
 import "../styles.css"
@@ -168,12 +167,6 @@ function GamePage() {
         <video id="camera-video" className="hidden" />
         <canvas id="segmentation-canvas" className="fixed top-0 left-0 w-full h-full z-[1]" />
 
-        {/* Slots for bubbles */}
-        <Slot id="slot-top-left" position="top-left" />
-        <Slot id="slot-top-right" position="top-right" />
-        <Slot id="slot-bottom-left" position="bottom-left" />
-        <Slot id="slot-bottom-right" position="bottom-right" />
-
         <div
           id="countdown-overlay"
           className="fixed top-0 left-0 w-full h-full flex justify-center items-center bg-black bg-opacity-70 z-[1000] hidden"
@@ -238,7 +231,7 @@ function GamePage() {
             <div id="combo">コンボ: 0</div>
           </div>
 
-          <div id="instructions">歌詞にマウスを当ててポイントを獲得しよう！</div>
+          <div id="instructions">歌詞フレーズを長押ししてゲージを満たそう！</div>
           <div id="controls" className="absolute bottom-[calc(20px+env(safe-area-inset-bottom))] right-5 z-[1100] flex gap-3">
             <button 
               id="play-pause" 
@@ -267,6 +260,7 @@ function GamePage() {
               <span className="text-sm font-bold text-gray-200 group-hover:text-white tracking-wider">最初から</span>
             </button>
           </div>
+
         </div>
 
         <div id="results-screen" className="hidden">

@@ -2,18 +2,8 @@
 -- pgcrypto拡張機能を作成（UUID生成用）
 create extension if not exists "pgcrypto";
 
--- scores以外のすべてのテーブルを削除
-do $$
-declare
-  r record;
-begin
-  for r in (select tablename from pg_tables where schemaname = 'public' and tablename != 'scores') loop
-    execute 'drop table if exists public.' || quote_ident(r.tablename) || ' cascade';
-  end loop;
-end $$;
-
 -- 既存のscoresテーブルがあれば削除
-drop table if exists public.scores;
+drop table if exists public.scores cascade;
 
 create table public.scores (
   id uuid primary key default gen_random_uuid(),

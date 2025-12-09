@@ -19,7 +19,7 @@ drop table if exists public.scores;
 create table public.scores (
   id uuid primary key default gen_random_uuid(),
   song_id text not null,
-  mode text not null default 'cursor',
+  mode text not null default 'cursor' check (mode in ('cursor', 'body', 'mobile')),
   score integer not null,
   max_combo integer not null,
   rank text not null,

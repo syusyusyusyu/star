@@ -10,7 +10,7 @@ export type GameEventMap = {
   'game:resume': void
   'game:end': GameResult
   'lyrics:hit': { text: string; x: number; y: number }
-  'mode:change': { mode: 'cursor' | 'body' }
+  'mode:change': { mode: 'cursor' | 'body' | 'mobile' }
 }
 
 type EventCallback<T> = T extends void ? () => void : (data: T) => void

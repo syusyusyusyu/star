@@ -42,13 +42,47 @@ const ConfirmModal = ({ open, onClose, onConfirm }: { open: boolean; onClose: ()
 }
 
 function GamePage() {
+  const normalizeMode = (mode: string | null | undefined): PlayMode | null =>
+    mode === 'cursor' || mode === 'body' || mode === 'mobile' || mode === 'hand' ? mode : null
+  const getInitialMode = useCallback((): PlayMode => {
+    if (typeof window === 'undefined') return 'cursor'
+    const params = new URLSearchParams(window.location.search)
+    const urlMode = normalizeMode(params.get('mode'))
+    const storedMode = normalizeMode(localStorage.getItem('gameMode'))
+    const prefersTouch =
+      window.matchMedia('(max-width: 820px)').matches ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0
+
+    if (prefersTouch && urlMode === 'body') return 'mobile'
+    if (!prefersTouch && urlMode === 'mobile') return 'cursor'
+    if (urlMode) return urlMode
+    if (prefersTouch && storedMode === 'body') return 'mobile'
+    if (!prefersTouch && storedMode === 'mobile') return 'cursor'
+    if (storedMode) return storedMode
+    return prefersTouch ? 'mobile' : 'cursor'
+  }, [])
   const { songData, accentColor } = useMemo(() => loadSongConfig(), [])
-  const [rankingMode, setRankingMode] = useState<PlayMode>("cursor")
+  const [rankingMode, setRankingMode] = useState<PlayMode>(getInitialMode)
   const [showRanking, setShowRanking] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const lastSubmittedKeyRef = useRef<string | null>(null)
   const managerRef = useRef<GameManager | null>(null)
+  const prefersTouch = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    return (
+      window.matchMedia('(max-width: 820px)').matches ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0
+    )
+  }, [])
+
+  useEffect(() => {
+    if (!prefersTouch && rankingMode === 'mobile') {
+      setRankingMode('cursor')
+    }
+  }, [prefersTouch, rankingMode])
 
   const submitScore = useCallback(async (gameResult: GameResult) => {
     const key = `${gameResult.songId}-${gameResult.mode}-${gameResult.score}-${gameResult.maxCombo}-${gameResult.rank}`
@@ -124,8 +158,7 @@ function GamePage() {
 
     initLiveParticles(document.getElementById("game-particles"))
 
-    const params = new URLSearchParams(window.location.search)
-    const initialMode: PlayMode = params.get("mode") === "body" ? "body" : "cursor"
+    const initialMode: PlayMode = getInitialMode()
 
     const handleBeforeUnload = () => managerRef.current?.cleanup?.()
 
@@ -152,7 +185,7 @@ function GamePage() {
       document.body.classList.remove(bodyClass)
       lastSubmittedKeyRef.current = null
     }
-  }, [accentColor, handleGameEnd, songData.title])
+  }, [accentColor, getInitialMode, handleGameEnd, songData.title])
 
   return (
     <>

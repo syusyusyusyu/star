@@ -190,18 +190,27 @@ class GameManager {
     // モバイルデバイス検出
     this.isMobile = this.detectMobileDevice();
     if (this.isMobile) {
-      console.log('モバイルデバイスが検出されました。Cursorモード限定で動作します。');
+      console.log('モバイルデバイスを検出。カメラを無効化し、モバイル最適化モードを優先します。');
     }
     
     // URLパラメータまたはlocalStorageからモードを読み込む（モバイルの場合はcursor限定）
     const urlParams = new URLSearchParams(window.location.search);
     const urlMode = urlParams.get('mode');
     const storedMode = localStorage.getItem('gameMode');
-    const requestedMode = config.mode || urlMode || storedMode || 'cursor';
-    this.currentMode = this.isMobile ? 'cursor' : (requestedMode as PlayMode); // モバイルではcursor固定
-    
-    if (this.isMobile && requestedMode !== 'cursor') {
-      console.log(`モバイルデバイスのため、要求されたモード'${requestedMode}'からCursorモードに変更されました。`);
+    const normalizeMode = (mode: string | null | undefined): PlayMode | null => {
+      if (mode === 'cursor' || mode === 'body' || mode === 'mobile' || mode === 'hand') return mode;
+      return null;
+    };
+    const requestedMode = normalizeMode(config.mode) ?? normalizeMode(urlMode) ?? normalizeMode(storedMode);
+    const prefersMobileMode = this.isMobile;
+
+    if (prefersMobileMode) {
+      this.currentMode = requestedMode === 'body' ? 'mobile' : (requestedMode ?? 'mobile');
+      if (requestedMode === 'body') {
+        console.log(`モバイルデバイスのため、要求されたモード'${requestedMode}'からモバイルモードに変更しました。`);
+      }
+    } else {
+      this.currentMode = requestedMode === 'mobile' ? 'cursor' : (requestedMode ?? 'cursor');
     }
     console.log(`ゲームモード: ${this.currentMode} (URL: ${urlMode}, localStorage: ${storedMode})`);
     this.pose = null; // MediaPipe Poseインスタンス
@@ -2394,7 +2403,11 @@ class ResultsManager {
       if (this.game.resultReported) return;
       
       const rank = calculateRank(this.game.score);
-      const modeForResult = this.game.currentMode === 'body' ? 'body' : 'cursor';
+      const modeForResult = this.game.currentMode === 'body'
+        ? 'body'
+        : this.game.currentMode === 'mobile'
+          ? 'mobile'
+          : 'cursor';
       const playerName = nameInput?.value.trim() || 'ゲスト';
 
       if (typeof this.game.onGameEnd === 'function') {
@@ -2468,7 +2481,8 @@ class UIManager {
     if (!instructionsEl) return;
 
     let text = '';
-    if (this.game.isMobile) {
+    const mobileModeActive = this.game.isMobile || this.game.currentMode === 'mobile';
+    if (mobileModeActive) {
       text = '歌詞フレーズを長押ししてゲージを満タンにしよう！';
     } else {
       switch (this.game.currentMode) {
@@ -2480,6 +2494,9 @@ class UIManager {
           break;
         case 'body':
           text = 'カメラに全身を映してフレーズをホールドしよう！';
+          break;
+        case 'mobile':
+          text = '歌詞フレーズを長押ししてゲージを満タンにしよう！';
           break;
       }
     }
@@ -2614,7 +2631,8 @@ class InputManager {
       if (Math.sqrt(dx*dx + dy*dy) >= 3) {
         lastX = x; lastY = y;
         gm.lastMousePos = { x, y };
-        if (gm.currentMode !== 'cursor') {
+        const isPointerMode = gm.currentMode === 'cursor' || gm.currentMode === 'mobile';
+        if (!isPointerMode) {
           gm.checkLyrics(x, y, isTouch ? 45 : 35);
         }
       }
@@ -2626,7 +2644,7 @@ class InputManager {
 
     gm.gamecontainer.addEventListener('touchstart', e => {
       touched = true;
-      if (e.touches && e.touches[0] && gm.currentMode === 'cursor') {
+      if (e.touches && e.touches[0] && (gm.currentMode === 'cursor' || gm.currentMode === 'mobile')) {
         lastX = e.touches[0].clientX;
         lastY = e.touches[0].clientY;
       }

@@ -1,13 +1,13 @@
 import { Hono } from 'hono'
 import { supabase } from '../supabaseClient'
 
-type PlayMode = 'cursor' | 'body'
+type PlayMode = 'cursor' | 'body' | 'mobile'
 
 // ─────────────────────────────────────────────
 // セキュリティ: 入力検証ヘルパー
 // ─────────────────────────────────────────────
 const isPlayMode = (mode: unknown): mode is PlayMode =>
-  mode === 'cursor' || mode === 'body'
+  mode === 'cursor' || mode === 'body' || mode === 'mobile'
 
 /** スコアの許容範囲（0〜1,000,000 点） */
 const MIN_SCORE = 0
@@ -142,7 +142,7 @@ scoreRoute.post('/score', async (c) => {
 
   // セキュリティ: mode 検証
   if (!isPlayMode(mode)) {
-    return c.json({ ok: false, error: 'mode must be cursor or body' }, 400)
+    return c.json({ ok: false, error: 'mode must be cursor, body or mobile' }, 400)
   }
 
   // セキュリティ: score 型と範囲検証
@@ -204,7 +204,7 @@ scoreRoute.get('/ranking', async (c) => {
   }
 
   if (modeParam && !isPlayMode(modeParam)) {
-    return c.json({ ok: false, error: 'mode must be cursor or body' }, 400)
+    return c.json({ ok: false, error: 'mode must be cursor, body or mobile' }, 400)
   }
 
   if (period && !['weekly', 'daily', 'all'].includes(period)) {

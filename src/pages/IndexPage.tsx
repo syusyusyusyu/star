@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, memo, useCallback } from 'react'
+import { useEffect, useState, useRef, memo, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { songsData, type GameMode, type PlayMode, type Song } from '../types/game'
 import RankingModal from '../components/game/RankingModal'
@@ -98,10 +98,44 @@ const HelpModal = memo(function HelpModal({
 
 export default function IndexPage() {
   const navigate = useNavigate()
-  const [gameMode, setGameMode] = useState<GameMode>('cursor')
+  const detectPreferredMode = () => {
+    if (typeof window === 'undefined') return 'cursor' as GameMode
+    const normalize = (mode: string | null): PlayMode | null =>
+      mode === 'cursor' || mode === 'body' || mode === 'mobile' ? mode : null
+    const stored = normalize(localStorage.getItem('gameMode'))
+    const prefersTouch =
+      window.matchMedia('(max-width: 820px)').matches ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0
+
+    if (prefersTouch) {
+      if (stored === 'cursor' || stored === 'mobile') return stored
+      return 'mobile'
+    }
+
+    return stored ?? 'cursor'
+  }
+  const [gameMode, setGameMode] = useState<GameMode>(detectPreferredMode)
   const [showHelp, setShowHelp] = useState(false)
   const [showRanking, setShowRanking] = useState(false)
   const lastFocusedElementRef = useRef<HTMLElement | null>(null)
+  const isMobile = typeof window !== 'undefined'
+    ? (window.matchMedia('(max-width: 820px)').matches ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0)
+    : false
+  const availableModes = useMemo(
+    () => (['cursor', 'body', 'mobile'] as const).filter((m) =>
+      isMobile ? m === 'mobile' : m !== 'mobile'
+    ),
+    [isMobile]
+  )
+
+  useEffect(() => {
+    if (!availableModes.includes(gameMode as any)) {
+      setGameMode(isMobile ? 'mobile' : 'cursor')
+    }
+  }, [availableModes, gameMode, isMobile])
 
   const handleSongSelect = useCallback((song: Song) => {
     localStorage.setItem('selectedSong', JSON.stringify({
@@ -243,7 +277,7 @@ export default function IndexPage() {
                 {/* Mode Selection */}
                 <div className="flex flex-col gap-4">
                     <h2 className="text-sm font-bold text-gray-400 tracking-wider mb-2">モード選択</h2>
-                    {(['cursor', 'body'] as const).map((mode) => (
+                    {availableModes.map((mode) => (
                         <button
                             key={mode}
                             onClick={() => setGameMode(mode)}
@@ -257,10 +291,14 @@ export default function IndexPage() {
                             <div className="relative z-10 flex justify-between items-center">
                                 <div>
                                     <h3 className={`text-xl font-bold ${gameMode === mode ? 'text-white' : 'text-gray-300'}`}>
-                                        {mode === 'cursor' ? 'マウスモード' : 'カメラモード'}
+                                        {mode === 'cursor' ? 'マウスモード' : mode === 'mobile' ? 'モバイルモード' : 'カメラモード'}
                                     </h3>
                                     <p className="text-xs text-gray-400 mt-1">
-                                        {mode === 'cursor' ? 'マウスで歌詞をキャッチ！' : '全身を使って歌詞をキャッチ！'}
+                                        {mode === 'cursor'
+                                          ? 'マウスで歌詞をキャッチ！'
+                                          : mode === 'mobile'
+                                            ? 'タッチで歌詞をキャッチ！画面に合わせて最適化'
+                                            : '全身を使って歌詞をキャッチ！'}
                                     </p>
                                 </div>
                                 {gameMode === mode && <div className="text-2xl text-miku">●</div>}

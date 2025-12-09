@@ -73,7 +73,7 @@ html {
 .lyric-bubble {
     position: absolute;
     color: var(--text-color);
-    font-size: 24px;
+    font-size: 22px;
     font-weight: bold;
     text-shadow: 0 0 10px rgba(57, 197, 187, 0.8);
     user-select: none;
@@ -84,13 +84,17 @@ html {
     padding: 8px 15px;
     min-width: 40px;
     min-height: 40px;
+    max-width: min(80vw, 420px);
+    text-align: center;
     display: flex;
     align-items: center;
     justify-content: center;
     will-change: transform, opacity;
     contain: layout paint style;
     transform: translateZ(0);
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: keep-all;
     --hold-progress: 0%;
     --progress-visible: 0;
     --progress-color: var(--primary-color);
@@ -186,31 +190,43 @@ html {
 
 #song-info {
     position: absolute;
-    top: 30px;
-    left: 40px;
-    z-index: 50;
+    top: 24px;
+    left: 28px;
+    z-index: 80;
     color: white;
     font-family: 'Segoe UI', sans-serif;
     background: rgba(15, 20, 25, 0.6);
-    backdrop-filter: blur(8px);
-    padding: 15px 25px;
+    backdrop-filter: blur(2px);
+    padding: 12px 18px;
     border-left: 4px solid #39C5BB;
     clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 100%, 0 100%);
+    max-width: min(72vw, 520px);
+    max-width: calc(100vw - 260px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 #song-title {
-    font-size: 20px;
+    font-size: clamp(16px, 3vw, 20px);
     font-weight: 700;
     letter-spacing: 0.05em;
     margin-bottom: 2px;
     text-shadow: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #song-artist {
-    font-size: 14px;
+    font-size: clamp(12px, 2.6vw, 14px);
     color: #aaa;
     font-weight: 400;
     letter-spacing: 0.05em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #loading {
@@ -799,4 +815,90 @@ html {
 
 .bg-gradient-radial {
     background: radial-gradient(circle, var(--tw-gradient-stops));
+}
+
+/* Ranking / Game responsive tweaks */
+.ranking-grid {
+    grid-template-columns: 30px 1fr 80px 40px 120px;
+}
+
+@media (max-width: 768px) {
+    #game-root {
+        min-height: calc(var(--vh, 1vh) * 100);
+    }
+    #game-container {
+        padding-top: 12px;
+        padding-bottom: calc(18px + var(--safe-area-bottom));
+    }
+    #score-container {
+        top: 12px;
+        left: 12px;
+        gap: 2px;
+    }
+    #score {
+        font-size: clamp(28px, 8vw, 42px);
+    }
+    #combo {
+        font-size: clamp(12px, 3.5vw, 16px);
+    }
+    #controls {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        bottom: calc(12px + env(safe-area-inset-bottom));
+        gap: 8px;
+    }
+    #song-info {
+        top: 8px;
+        left: 8px;
+        right: auto;
+        padding: 10px 12px;
+        max-width: calc(100vw - 170px);
+        clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 100%, 0 100%);
+        backdrop-filter: blur(1px);
+        background: rgba(10, 14, 18, 0.75);
+        align-items: flex-start;
+        text-align: left;
+    }
+    #song-title {
+        font-size: clamp(14px, 4vw, 18px);
+    }
+    #song-artist {
+        font-size: clamp(11px, 3.5vw, 13px);
+    }
+    .lyric-bubble {
+        font-size: clamp(14px, 4.5vw, 18px);
+        padding: 6px 12px;
+        max-width: 88vw;
+    }
+    #controls button {
+        padding: 10px 12px;
+        min-width: 120px;
+    }
+    #instructions {
+        max-width: 92vw;
+        font-size: clamp(12px, 3.4vw, 16px);
+        padding: 6px 10px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    #results-screen .results-container {
+        width: 95%;
+        max-width: 420px;
+        padding: 16px;
+    }
+    .ranking-grid {
+        grid-template-columns: 26px 1fr 70px;
+        gap: 6px;
+    }
+    .ranking-grid .ranking-combo-header {
+        grid-column: span 3;
+        text-align: right;
+    }
+    .ranking-grid .ranking-combo {
+        grid-column: span 3;
+        text-align: right;
+        font-size: 11px;
+        opacity: 0.8;
+    }
 }

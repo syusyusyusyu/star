@@ -1096,13 +1096,71 @@ class GameManager {
     try {
       this.lyricsData = [];
       this._lyricScanIndex = 0;
+      const scriptedLines = [
+        "So tell us ストリートライト",
+        "揺らめく都市の magic",
+        "街明かりが渦巻く　躓く my mind",
+        "再起動 the other night",
+        "(Don’t you know？)",
+        "Ah 強引に goin' on",
+        "好きも得意も　もう全部奏でたいんだ",
+        "(Yeah do it！)",
+        "めくるめく　この雑踏をかき分けていく",
+        "光差す道を目指して",
+        "空回る今だって僕らの祈り　毎秒更新",
+        "不安感だって攫っていく未来に ride on",
+        "Yeah！",
+        "終わりなんてない",
+        "この手掴めば　また始まるんだ",
+        "グシャグシャのまま描いた“アイ”",
+        "It's all right！",
+        "灯した歌は　君に届く",
+        "躊躇いはない",
+        "そう、一人じゃないから",
+        "(鼓動、心、不可能を超えてゆけ)",
+        "曖昧な夢さえも抱いて",
+        "(踊る、震える、重なる想いだけ)",
+        "あふれるストーリーに乗せて",
+        "立ち尽くす街角",
+        "どれほど間違っても",
+        "この灯火は何度だって輝く",
+        "(宿す against gravity)",
+        "ここからはノンストップ",
+        "宵闇の中でも消えない星を繋いでいたい",
+        "止め処なく bluff, bluff",
+        "言葉の飾り　毎秒更新",
+        "揺らぐ主役　舞台は未知の最前線",
+        "Yeah！",
+        "もう正解なんてない",
+        "奏でた今日が　僕らの道だ",
+        "ずっと手放したくないんだ“アイ”",
+        "いつだって願いを歌えば　君に会える",
+        "最高のステージ",
+        "夢はもう譲れないんじゃない？",
+        "零れたメモリを誘って",
+        "Twilight to tell us",
+        "Starlight to tell us",
+        "終わりなんてない",
+        "この手掴めば　また始まるんだ",
+        "グシャグシャのまま描いた \"アイ\"",
+        "It's all right！",
+        "灯した歌は　君に届く",
+        "躊躇いはない",
+        "そう、一人じゃないから",
+        "(鼓動、心、不可能を超えてゆけ)",
+        "曖昧な夢さえも抱いて",
+        "(踊る、震える、重なる想いだけ)",
+        "あふれるストーリーに乗せて",
+        "咲かせた未来のその先へ",
+      ];
+
+      const phraseTimings: Array<{ start: number; end: number }> = [];
       let phrase = video.firstPhrase;
-      
       while (phrase) {
         let word = phrase.firstWord;
-        const wordsData: Array<{ text: string; start: number; end: number }> = [];
         let phraseStart = Number.POSITIVE_INFINITY;
         let phraseEnd = 0;
+        let hasWord = false;
         while (word) {
           const text = (word.text ?? '').toString().normalize('NFC').trim();
           const startTime = typeof word.startTime === 'number' ? word.startTime : 0;
@@ -1110,47 +1168,32 @@ class GameManager {
 
           // TextAlive では曲頭前のアップビートに負のタイムスタンプが入ることがあるためスキップ
           if (startTime >= 0 && text) {
-            wordsData.push({ text, start: startTime, end: Math.max(endTime, startTime + 10) });
+            hasWord = true;
             phraseStart = Math.min(phraseStart, startTime);
             phraseEnd = Math.max(phraseEnd, Math.max(endTime, startTime + 10));
           }
           word = word.next;
         }
-
-        if (wordsData.length && Number.isFinite(phraseStart)) {
-          // 適度な長さでチャンク分割（例: 「So tell us ストリートライト」規模）
-          const MAX_CHARS_PER_BUBBLE = 20;
-          let chunk: typeof wordsData = [];
-          const flushChunk = () => {
-            if (!chunk.length) return;
-            const chunkStart = chunk[0].start;
-            const chunkEnd = chunk[chunk.length - 1].end;
-            const chunkText = chunk.map(w => w.text).join(' ').replace(/\s+/g, ' ').trim();
-            const chunkLength = chunkText.length;
-            const baseDuration = chunkEnd - chunkStart;
-            const paddedDuration = baseDuration + 1000; // ゆとりを追加
-            const duration = Math.max(paddedDuration, chunkLength * 400, 2200);
-
-            this.lyricsData.push({
-              time: chunkStart,
-              endTime: chunkStart + duration,
-              text: chunkText,
-              displayDuration: duration,
-              originalChars: chunk.map(w => ({ text: w.text, timeOffset: w.start - chunkStart })),
-            });
-            chunk = [];
-          };
-
-          for (const w of wordsData) {
-            const tentativeText = [...chunk, w].map(t => t.text).join(' ');
-            if (chunk.length > 0 && tentativeText.length > MAX_CHARS_PER_BUBBLE) {
-              flushChunk();
-            }
-            chunk.push(w);
-          }
-          flushChunk();
+        if (hasWord && Number.isFinite(phraseStart)) {
+          phraseTimings.push({ start: phraseStart, end: phraseEnd });
         }
         phrase = phrase.next;
+      }
+
+      const count = Math.min(scriptedLines.length, phraseTimings.length);
+      for (let i = 0; i < count; i++) {
+        const text = scriptedLines[i].normalize('NFC');
+        const timing = phraseTimings[i];
+        const baseDuration = timing.end - timing.start;
+        const paddedDuration = baseDuration + 1000; // ゆとりを追加
+        const duration = Math.max(paddedDuration, text.length * 400, 2200);
+        this.lyricsData.push({
+          time: timing.start,
+          endTime: timing.start + duration,
+          text,
+          displayDuration: duration,
+          originalChars: [{ text, timeOffset: 0 }],
+        });
       }
 
       // 重複する歌詞（同じ時間、同じテキスト）を除外して、表示されるバブル数と分母を一致させる

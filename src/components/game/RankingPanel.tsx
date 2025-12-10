@@ -30,19 +30,18 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
   const [error, setError] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
+  const queryMode = useMemo(() => (mode === 'mobile' ? undefined : mode), [mode])
+
   const modeLabel = useMemo(() => {
     if (!mode) return '全モード'
     if (mode === 'cursor') return 'マウスモード'
-    if (mode === 'mobile') return 'モバイルモード'
+    if (mode === 'mobile') return 'モバイル（カーソル共通）'
     return 'カメラモード'
   }, [mode])
 
-  const cacheKey = useMemo(() => `${songId}-${mode ?? 'all'}-${period}`, [songId, mode, period])
+  const cacheKey = useMemo(() => `${songId}-${queryMode ?? 'all'}-${period}`, [songId, queryMode, period])
 
   const fetchRanking = useCallback(async (signal: AbortSignal) => {
-    // サーバー側が未デプロイの場合に備え、モバイルはcursorにフォールバックして問い合わせる
-    const queryMode = mode === 'mobile' ? 'cursor' : mode
-
     // キャッシュをチェック
     const cached = rankingCache.get(cacheKey)
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {

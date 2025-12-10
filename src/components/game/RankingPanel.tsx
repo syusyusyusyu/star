@@ -30,7 +30,7 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
   const [error, setError] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  const queryMode = useMemo(() => (mode === 'mobile' ? undefined : mode), [mode])
+  const queryMode = useMemo(() => (mode === 'mobile' ? 'cursor' : mode), [mode])
 
   const modeLabel = useMemo(() => {
     if (!mode) return '全モード'

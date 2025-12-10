@@ -73,11 +73,24 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
       try {
         data = await performFetch(queryMode ?? undefined)
       } catch (err) {
-        if (queryMode) {
-          // フォールバック: mode無しで再取得（サーバーがmobile等を未対応の場合）
+        // フォールバック: mode無しで再取得（サーバーがmobile等を未対応の場合）
+        try {
           data = await performFetch(undefined)
-        } else {
-          throw err
+        } catch {
+          // 最終フォールバック: 旧API /api/ranking 形式に合わせて取得
+          const params = new URLSearchParams({ songId })
+          if (mode) params.append('mode', mode === 'mobile' ? 'cursor' : mode)
+          if (period && period !== 'all') params.append('period', period)
+          const res = await fetch(`/api/ranking?${params.toString()}`, { signal })
+          if (!res.ok) {
+            const payload = await res.json().catch(() => null)
+            throw new Error(payload?.error ?? res.statusText ?? 'Failed to fetch ranking')
+          }
+          const payload = (await res.json()) as { ok: boolean; data?: RankingRow[]; error?: string }
+          if (!payload.ok) {
+            throw new Error(payload.error || 'Failed to fetch ranking')
+          }
+          data = payload.data || []
         }
       }
 

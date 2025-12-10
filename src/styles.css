@@ -860,10 +860,10 @@ html {
         gap: 2px;
     }
     #score {
-        font-size: clamp(24px, 7vw, 38px);
+        font-size: clamp(22px, 6.2vw, 34px);
     }
     #combo {
-        font-size: clamp(11px, 3vw, 15px);
+        font-size: clamp(10px, 2.8vw, 14px);
     }
     #controls {
         left: 50%;
@@ -886,10 +886,10 @@ html {
         text-align: left;
     }
     #song-title {
-        font-size: clamp(14px, 4vw, 18px);
+        font-size: clamp(11px, 3.2vw, 15px);
     }
     #song-artist {
-        font-size: clamp(11px, 3.5vw, 13px);
+        font-size: clamp(9px, 2.8vw, 11px);
     }
     .lyric-bubble {
         font-size: clamp(14px, 4.5vw, 18px);

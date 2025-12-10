@@ -30,12 +30,12 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
   const [error, setError] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  const queryMode = useMemo(() => (mode === 'mobile' ? 'cursor' : mode), [mode])
+  const queryMode = useMemo(() => mode, [mode])
 
   const modeLabel = useMemo(() => {
     if (!mode) return '全モード'
     if (mode === 'cursor') return 'マウスモード'
-    if (mode === 'mobile') return 'モバイル（カーソル共通）'
+    if (mode === 'mobile') return 'モバイルモード'
     return 'カメラモード'
   }, [mode])
 
@@ -79,7 +79,7 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
         } catch {
           // 最終フォールバック: 旧API /api/ranking 形式に合わせて取得
           const params = new URLSearchParams({ songId })
-          if (mode) params.append('mode', mode === 'mobile' ? 'cursor' : mode)
+          if (mode) params.append('mode', mode)
           if (period && period !== 'all') params.append('period', period)
           const res = await fetch(`/api/ranking?${params.toString()}`, { signal })
           if (!res.ok) {

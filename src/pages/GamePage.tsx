@@ -91,7 +91,7 @@ function GamePage() {
 
     setIsSubmitting(true)
     try {
-      const res = await fetch("/api/score", {
+      const res = await fetch("/api/v1/scores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(gameResult),

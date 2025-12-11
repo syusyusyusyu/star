@@ -371,7 +371,7 @@ class GameManager {
     let lastProcessTime = 0;
 
     const selfieSegmentation = new SelfieSegmentation({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
-    selfieSegmentation.setOptions({ modelSelection: 0, selfieMode: true });
+    selfieSegmentation.setOptions({ modelSelection: 0, selfieMode: false });
     selfieSegmentation.onResults((results: any) => {
       segmentationCtx.save();
       segmentationCtx.clearRect(0, 0, segmentationCanvas.width, segmentationCanvas.height);

@@ -98,6 +98,7 @@ class GameManager {
   private playbackPosition: number
   private fallbackStartTime: number
   private bubbleBounds: Map<HTMLElement, { x: number; y: number; radius: number }>
+  private currentBodyHolds: Set<HTMLElement> = new Set()
   private lastBoundsUpdate = 0
   private timers: TimerManager
   private holdStates: Map<HTMLElement, HoldState>
@@ -1581,14 +1582,50 @@ class GameManager {
     if (this.currentMode === 'body') {
       this.bodyDetection.evaluateLandmarks(flippedLandmarks);
     }
-    const rightHand = flippedLandmarks[16];
-    if (rightHand) {
-      this.checkLyrics(rightHand.x * window.innerWidth, rightHand.y * window.innerHeight, 80);
+
+    // 手足の判定点 (右手、左手、右足、左足)
+    // 15: left wrist, 16: right wrist, 27: left ankle, 28: right ankle
+    const checkPoints = [15, 16, 27, 28]
+      .map(index => flippedLandmarks[index])
+      .filter(p => p && p.visibility && p.visibility > 0.5);
+
+    const newBodyHolds = new Set<HTMLElement>();
+    const hitRadius = 80; // 判定半径
+
+    for (const point of checkPoints) {
+      const px = point.x * window.innerWidth;
+      const py = point.y * window.innerHeight;
+
+      for (const el of this.activeLyricBubbles) {
+        if (el.style.pointerEvents === 'none') continue;
+        const bounds = this.bubbleBounds.get(el);
+        if (!bounds) continue;
+
+        const dx = px - bounds.x;
+        const dy = py - bounds.y;
+        const dist2 = dx * dx + dy * dy;
+        
+        if (dist2 <= (hitRadius + bounds.radius) ** 2) {
+          newBodyHolds.add(el);
+        }
+      }
     }
-    const leftHand = flippedLandmarks[15];
-    if (leftHand) {
-      this.checkLyrics(leftHand.x * window.innerWidth, leftHand.y * window.innerHeight, 80);
+
+    // 新しくホールドされたもの
+    for (const el of newBodyHolds) {
+      if (!this.currentBodyHolds.has(el)) {
+        this.startBubbleHold(el, 'auto');
+      }
     }
+
+    // ホールドが外れたもの
+    for (const el of this.currentBodyHolds) {
+      if (!newBodyHolds.has(el)) {
+        this.stopBubbleHold(el, 'auto');
+      }
+    }
+
+    this.currentBodyHolds = newBodyHolds;
   }
 
   /**
@@ -1623,17 +1660,17 @@ class GameManager {
 
     if (!closest) {
       if (this.autoHoldTarget) {
-        this.stopBubbleHold(this.autoHoldTarget, 'auto');
+        this.stopBubbleHold(this.autoHoldTarget, 'pointer');
         this.autoHoldTarget = null;
       }
       return;
     }
 
     if (this.autoHoldTarget && this.autoHoldTarget !== closest.el) {
-      this.stopBubbleHold(this.autoHoldTarget, 'auto');
+      this.stopBubbleHold(this.autoHoldTarget, 'pointer');
     }
     this.autoHoldTarget = closest.el;
-    this.startBubbleHold(closest.el, 'auto');
+    this.startBubbleHold(closest.el, 'pointer');
   }
 
 

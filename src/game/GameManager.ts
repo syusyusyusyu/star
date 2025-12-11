@@ -2660,6 +2660,21 @@ class InputManager {
     let lastTime = 0, lastX = 0, lastY = 0;
     let touched = false;
 
+    // デバッグ用コマンド入力
+    let keyBuffer = '';
+    const secretCode = 'hhrg';
+    document.addEventListener('keydown', (e) => {
+      keyBuffer += e.key.toLowerCase();
+      if (keyBuffer.length > secretCode.length) {
+        keyBuffer = keyBuffer.slice(-secretCode.length);
+      }
+      if (keyBuffer === secretCode) {
+        console.log('Debug command detected: Force Results');
+        gm.showResults();
+        keyBuffer = '';
+      }
+    });
+
     const handleMove = (x: number, y: number, isTouch: boolean) => {
       const now = Date.now();
       if (now - lastTime < 16) return;

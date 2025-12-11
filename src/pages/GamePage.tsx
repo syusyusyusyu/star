@@ -326,7 +326,6 @@ function GamePage() {
             <div className="results-buttons">
               <button id="back-to-title">タイトルへ戻る</button>
               <button id="replay-song">もう一度プレイ</button>
-              <button id="open-ranking" onClick={handleOpenRanking}>ランキング</button>
             </div>
           </div>
         </div>

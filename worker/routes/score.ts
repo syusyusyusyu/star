@@ -99,8 +99,6 @@ app.get('/ranking', zValidator('query', querySchema), async (c) => {
     .select('player_name, score, rank, mode, created_at, accuracy', { count: 'exact' })
     .eq('song_id', songId)
     .eq('is_suspicious', false)
-    .order('score', { ascending: false })
-    .limit(limit)
 
   if (mode) {
     query = query.eq('mode', mode)
@@ -116,113 +114,12 @@ app.get('/ranking', zValidator('query', querySchema), async (c) => {
     query = query.gt('created_at', date.toISOString())
   }
 
-  const { data, error, count } = await query
-
-  if (error) {
-    console.error('Supabase select error:', error)
-    return c.json({
-      error: { code: 'DB_ERROR', message: 'Failed to fetch scores' },
-      meta: { requestId }
-    }, 500)
-  }
-
-  const mappedData = data?.map(d => ({
-    playerName: d.player_name,
-    score: d.score,
-    rank: d.rank,
-    mode: d.mode,
-    accuracy: d.accuracy,
-    createdAt: d.created_at
-  }))
-
-  return c.json({
-    data: mappedData,
-    meta: {
-      count: mappedData?.length,
-      total: count,
-      requestId
-    }
-  })
-})
-
-// POST /api/score
-app.post('/score', zValidator('json', scoreSchema), async (c) => {
-  const body = c.req.valid('json')
-  const sessionId = c.get('sessionId')
-  const requestId = c.get('requestId')
-
-  // Origin Check
-  const origin = c.req.header('Origin') || c.req.header('Referer')
-  const allowedOrigin = c.env.FRONTEND_ORIGIN
-  // Allow localhost for dev
-  const isLocalhost = origin?.includes('localhost') || origin?.includes('127.0.0.1')
-  
-  if (allowedOrigin && !isLocalhost) {
-     if (origin && !origin.includes(allowedOrigin)) {
-         return c.json({ error: { code: 'FORBIDDEN', message: 'Invalid Origin' }, meta: { requestId } }, 403)
-     }
-  }
-
-  // Cheat Detection
-  let isSuspicious = false
-  if (body.score > 1000000) isSuspicious = true
-  
-  const supabase = getSupabase(c.env)
-
-  const { data, error } = await supabase
-    .from('scores')
-    .insert({
-      session_id: sessionId,
-      song_id: body.songId,
-      mode: body.mode,
-      score: body.score,
-      max_combo: body.maxCombo,
-      rank: body.rank,
-      accuracy: body.accuracy,
-      player_name: body.playerName,
-      is_suspicious: isSuspicious
-    })
-    .select('id, score, rank, player_name, created_at')
-    .single()
-
-  if (error) {
-    console.error('Supabase insert error:', error)
-    return c.json({
-      error: { code: 'DB_ERROR', message: 'Failed to save score' },
-      meta: { requestId }
-    }, 500)
-  }
-
-  // Log success
-  console.log(JSON.stringify({
-    level: 'info',
-    message: 'Score created',
-    requestId,
-    songId: body.songId,
-    score: body.score,
-    isSuspicious
-  }))
-
-  return c.json({
-    data,
-    meta: { requestId }
-  })
-})
-
-// GET /api/ranking
-app.get('/ranking', zValidator('query', querySchema), async (c) => {
-  const { songId, mode, limit } = c.req.valid('query')
-  const requestId = c.get('requestId')
-  const supabase = getSupabase(c.env)
-
-  const { data, error, count } = await supabase
-    .from('scores')
-    .select('player_name, score, rank, mode, created_at, accuracy', { count: 'exact' })
-    .eq('song_id', songId)
-    .eq('mode', mode)
-    .eq('is_suspicious', false)
+  // Apply ordering and limit after filters
+  query = query
     .order('score', { ascending: false })
     .limit(limit)
+
+  const { data, error, count } = await query
 
   if (error) {
     console.error('Supabase select error:', error)

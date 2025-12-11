@@ -1590,7 +1590,7 @@ class GameManager {
       .filter(p => p && p.visibility && p.visibility > 0.5);
 
     const newBodyHolds = new Set<HTMLElement>();
-    const hitRadius = 80; // 判定半径
+    const hitRadius = 40; // 判定半径
 
     for (const point of checkPoints) {
       const px = point.x * window.innerWidth;

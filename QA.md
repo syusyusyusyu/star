@@ -48,7 +48,7 @@ A. ローカル環境を揃えるための開発用（docker-compose.dev.yml）�
 
 ## フロントエンド実装
 Q. ランキング取得フローは？
-A. `/api/v1/scores` → 30秒クライアントキャッシュ。mode失敗→modeなし再トライ→旧`/api/ranking`にフォールバック（src/components/game/RankingPanel.tsx）。
+A. `/api/ranking` → 30秒クライアントキャッシュ。mode失敗→modeなし再トライ→旧`/api/ranking`にフォールバック（src/components/game/RankingPanel.tsx）。
 
 Q. ゲーム開始までの導線は？
 A. URL/LocalStorage/端末特性で初期モード決定→GameManager初期化。popstate/beforeunloadで誤離脱ガード（src/pages/GamePage.tsx）。
@@ -61,7 +61,7 @@ A. モバイルで歌詞縮小・折返し、HUD位置調整。ネオン×ガラ
 
 ## バックエンド/API
 Q. 提供APIは？
-A. `/api/v1/scores`（Workers）。POST:スコア登録、GET:ランキング取得。ヘルスチェック`/api/v1/health`。旧`/api/ranking`も残置。
+A. `/api/score` (POST), `/api/ranking` (GET)（Workers）。ヘルスチェック`/api/health`。
 
 Q. スコア登録のバリデーションは？
 A. Zodで厳格チェック。playerName1-20、songId英数/`-_`<=64、mode enum、score/maxCombo>=0 int、rank1-5、accuracy0-100。100万超は`is_suspicious=true`で除外。

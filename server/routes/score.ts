@@ -113,12 +113,12 @@ scoreRoute.post('/score', async (c) => {
   // セキュリティ: レート制限チェック
   const clientIp = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   if (!checkRateLimit(clientIp)) {
-    return c.json({ ok: false, error: 'Too many requests. Please try again later.' }, 429)
+    return c.json({ error: { message: 'Too many requests. Please try again later.' } }, 429)
   }
 
   const body = await c.req.json().catch(() => null)
   if (!body) {
-    return c.json({ ok: false, error: 'Invalid JSON' }, 400)
+    return c.json({ error: { message: 'Invalid JSON' } }, 400)
   }
 
   const { songId, mode, score, maxCombo, rank, playerName } = body as {
@@ -132,32 +132,32 @@ scoreRoute.post('/score', async (c) => {
 
   // セキュリティ: 必須フィールドチェック
   if (songId === undefined || mode === undefined || score === undefined || maxCombo === undefined || rank === undefined) {
-    return c.json({ ok: false, error: 'songId, mode, score, maxCombo and rank are required' }, 400)
+    return c.json({ error: { message: 'songId, mode, score, maxCombo and rank are required' } }, 400)
   }
 
   // セキュリティ: songId 形式検証（SQLインジェクション対策）
   if (!isValidSongId(songId)) {
-    return c.json({ ok: false, error: 'Invalid songId format' }, 400)
+    return c.json({ error: { message: 'Invalid songId format' } }, 400)
   }
 
   // セキュリティ: mode 検証
   if (!isPlayMode(mode)) {
-    return c.json({ ok: false, error: 'mode must be cursor, body or mobile' }, 400)
+    return c.json({ error: { message: 'mode must be cursor, body or mobile' } }, 400)
   }
 
-  // セキュリティ: score 型と範囲検証
+  // セキュリティ: スコア型と範囲検証
   if (typeof score !== 'number' || !isValidScore(score)) {
-    return c.json({ ok: false, error: `score must be a number between ${MIN_SCORE} and ${MAX_SCORE}` }, 400)
+    return c.json({ error: { message: `score must be a number between ${MIN_SCORE} and ${MAX_SCORE}` } }, 400)
   }
 
   // セキュリティ: maxCombo 型と範囲検証
   if (typeof maxCombo !== 'number' || !isValidCombo(maxCombo)) {
-    return c.json({ ok: false, error: `maxCombo must be an integer between 0 and ${MAX_COMBO}` }, 400)
+    return c.json({ error: { message: `maxCombo must be an integer between 0 and ${MAX_COMBO}` } }, 400)
   }
 
   // セキュリティ: rank 検証
   if (!isValidRank(rank)) {
-    return c.json({ ok: false, error: `rank must be one of: ${VALID_RANKS.join(', ')}` }, 400)
+    return c.json({ error: { message: `rank must be one of: ${VALID_RANKS.join(', ')}` } }, 400)
   }
 
   // セキュリティ: プレイヤー名検証
@@ -175,19 +175,19 @@ scoreRoute.post('/score', async (c) => {
 
   if (error) {
     console.error('[score] insert error', error)
-    return c.json({ ok: false, error: 'Failed to save score' }, 500)
+    return c.json({ error: { message: 'Failed to save score' } }, 500)
   }
 
   invalidateRankingCache(songId, mode)
 
-  return c.json({ ok: true })
+  return c.json({ data: { success: true } })
 })
 
 scoreRoute.get('/ranking', async (c) => {
   // セキュリティ: レート制限チェック
   const clientIp = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   if (!checkRateLimit(clientIp)) {
-    return c.json({ ok: false, error: 'Too many requests. Please try again later.' }, 429)
+    return c.json({ error: { message: 'Too many requests. Please try again later.' } }, 429)
   }
 
   const songId = c.req.query('songId')
@@ -195,25 +195,25 @@ scoreRoute.get('/ranking', async (c) => {
   const period = c.req.query('period')
 
   if (!songId) {
-    return c.json({ ok: false, error: 'songId is required' }, 400)
+    return c.json({ error: { message: 'songId is required' } }, 400)
   }
 
   // セキュリティ: songId 形式検証（SQLインジェクション対策）
   if (!isValidSongId(songId)) {
-    return c.json({ ok: false, error: 'Invalid songId format' }, 400)
+    return c.json({ error: { message: 'Invalid songId format' } }, 400)
   }
 
   if (modeParam && !isPlayMode(modeParam)) {
-    return c.json({ ok: false, error: 'mode must be cursor, body or mobile' }, 400)
+    return c.json({ error: { message: 'mode must be cursor, body or mobile' } }, 400)
   }
 
   if (period && !['weekly', 'daily', 'all'].includes(period)) {
-    return c.json({ ok: false, error: 'Invalid period' }, 400)
+    return c.json({ error: { message: 'Invalid period' } }, 400)
   }
 
   const cached = getCachedRanking(songId, modeParam as PlayMode | null, period ?? null)
   if (cached) {
-    return c.json({ ok: true, data: cached, cached: true })
+    return c.json({ data: cached, meta: { cached: true } })
   }
 
   let query = supabase
@@ -241,12 +241,12 @@ scoreRoute.get('/ranking', async (c) => {
 
   if (error) {
     console.error('[score] ranking error', error)
-    return c.json({ ok: false, error: 'Failed to fetch ranking' }, 500)
+    return c.json({ error: { message: 'Failed to fetch ranking' } }, 500)
   }
 
   setCachedRanking(songId, (modeParam as PlayMode | null) ?? null, period ?? null, data)
 
-  return c.json({ ok: true, data, cached: false })
+  return c.json({ data, meta: { cached: false } })
 })
 
 export default scoreRoute

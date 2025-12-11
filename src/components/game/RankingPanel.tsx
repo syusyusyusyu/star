@@ -24,6 +24,10 @@ type RankingPanelProps = {
 const rankingCache = new Map<string, { data: RankingRow[]; timestamp: number }>()
 const CACHE_TTL = 30000 // 30秒キャッシュ
 
+export const clearRankingCache = () => {
+  rankingCache.clear()
+}
+
 const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingPanelProps) => {
   const [rows, setRows] = useState<RankingRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -60,12 +64,10 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
       const res = await fetch(`/api/ranking?${params.toString()}`, { signal })
       if (!res.ok) {
         const payload = await res.json().catch(() => null)
-        throw new Error(payload?.error ?? res.statusText ?? 'Failed to fetch ranking')
+        throw new Error(payload?.error?.message ?? res.statusText ?? 'Failed to fetch ranking')
       }
-      const payload = (await res.json()) as { ok: boolean; data?: RankingRow[]; error?: string }
-      if (!payload.ok) {
-        throw new Error(payload.error || 'Failed to fetch ranking')
-      }
+      const payload = (await res.json()) as { data?: RankingRow[]; error?: { message: string } }
+      
       const data = payload.data || []
 
       rankingCache.set(cacheKey, { data, timestamp: Date.now() })

@@ -45,7 +45,7 @@ app.onError((err, c) => {
   return c.json({
     error: {
       code: 'INTERNAL_SERVER_ERROR',
-      message: 'An unexpected error occurred'
+      message: err.message || 'An unexpected error occurred'
     },
     meta: {
       requestId: c.get('requestId')

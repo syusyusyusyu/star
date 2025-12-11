@@ -134,10 +134,10 @@ create index scores_song_mode_idx on public.scores (song_id, mode, score desc);
 
 ## 🔌 API 仕様 (API Specification)
 
-ベース URL: `https://<worker-domain>/api/v1`
+ベース URL: `https://cross-stage.c2375.workers.dev/api`
 
 ### 1. スコア登録
-**POST** `/scores`
+**POST** `/score`
 
 *   **Headers**: `Content-Type: application/json`
 *   **Body**:
@@ -155,7 +155,7 @@ create index scores_song_mode_idx on public.scores (song_id, mode, score desc);
 *   **Response**: 登録されたスコアデータ
 
 ### 2. ランキング取得
-**GET** `/scores`
+**GET** `/ranking`
 
 *   **Query**:
     *   `songId` (必須): 楽曲ID

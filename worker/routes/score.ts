@@ -96,7 +96,7 @@ app.get('/ranking', zValidator('query', querySchema), async (c) => {
 
   let query = supabase
     .from('scores')
-    .select('player_name, score, rank, mode, created_at, accuracy', { count: 'exact' })
+    .select('player_name, score, rank, mode, created_at, accuracy, max_combo', { count: 'exact' })
     .eq('song_id', songId)
     .eq('is_suspicious', false)
 
@@ -130,12 +130,13 @@ app.get('/ranking', zValidator('query', querySchema), async (c) => {
   }
 
   const mappedData = data?.map(d => ({
-    playerName: d.player_name,
+    player_name: d.player_name,
     score: d.score,
     rank: d.rank,
     mode: d.mode,
     accuracy: d.accuracy,
-    createdAt: d.created_at
+    created_at: d.created_at,
+    max_combo: d.max_combo
   }))
 
   return c.json({

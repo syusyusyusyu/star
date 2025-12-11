@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async"
 import GameManager from "../game/GameManager"
 import { initLiveParticles, loadSongConfig } from "../game/gameLoader"
 import RankingModal from "../components/game/RankingModal"
+import { clearRankingCache } from "../components/game/RankingPanel"
 import { type GameResult, type PlayMode } from "../types/game"
 import "../styles.css"
 
@@ -96,9 +97,13 @@ function GamePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(gameResult),
       })
-      const payload = await res.json().catch(() => null)
-      if (!res.ok || (payload && payload.ok === false)) {
-        console.error("Score submit failed", payload?.error ?? res.statusText)
+      
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        console.error("Score submit failed", payload?.error?.message ?? res.statusText)
+      } else {
+        // スコア送信成功時にランキングキャッシュをクリア
+        clearRankingCache()
       }
     } catch (error) {
       console.error("Score submit error", error)

@@ -402,63 +402,8 @@ html {
     filter: drop-shadow(0 0 20px rgba(57, 197, 187, 0.8));
 }
 
-.results-buttons {
-    display: flex;
-    gap: 20px;
-}
+/* .results-buttons styles removed to use Tailwind classes in GamePage.tsx */
 
-.results-buttons button {
-    background: linear-gradient(135deg, rgba(57, 197, 187, 0.9), rgba(57, 197, 187, 0.7));
-    border: 2px solid rgba(57, 197, 187, 0.5);
-    color: white;
-    padding: 14px 36px;
-    border-radius: 30px;
-    cursor: pointer;
-    font-size: 18px;
-    font-weight: 600;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 15px rgba(57, 197, 187, 0.4);
-    appearance: none;
-    -webkit-appearance: none;
-    -webkit-tap-highlight-color: transparent;
-    position: relative;
-    overflow: hidden;
-}
-
-.results-buttons button::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-}
-
-.results-buttons button:hover::before {
-    width: 300px;
-    height: 300px;
-}
-
-.results-buttons button:hover {
-    background: linear-gradient(135deg, rgba(57, 197, 187, 1), rgba(57, 197, 187, 0.9));
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 6px 25px rgba(57, 197, 187, 0.6);
-    border-color: rgba(255, 255, 255, 0.8);
-}
-
-.results-buttons button:active {
-    transform: translateY(0) scale(0.98);
-    box-shadow: 0 2px 10px rgba(57, 197, 187, 0.4);
-}
-
-.results-buttons button:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.8);
-    outline-offset: 3px;
-}
 
 .hidden {
     display: none;
@@ -583,48 +528,7 @@ html {
     text-shadow: 0 0 20px rgba(57, 197, 187, 0.3);
 }
 
-.results-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    width: 100%;
-    flex-wrap: wrap;
-}
-
-.results-buttons button {
-    background: transparent;
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    padding: 12px 20px;
-    cursor: pointer;
-    font-size: 0.95rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    transition: all 0.3s ease;
-    min-width: 140px;
-    flex: 0 1 160px;
-    text-transform: uppercase;
-    position: relative;
-    overflow: hidden;
-}
-
-.results-buttons button:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: #fff;
-    transform: translateY(-2px);
-}
-
-.results-buttons button#replay-song {
-    background: rgba(57, 197, 187, 0.1);
-    border-color: #39C5BB;
-    color: #39C5BB;
-}
-
-.results-buttons button#replay-song:hover {
-    background: #39C5BB;
-    color: #000;
-}
+/* .results-buttons styles removed to use Tailwind classes in GamePage.tsx */
 
 /* レスポンシブ対応を削除 - デスクトップのみ対応 */
 

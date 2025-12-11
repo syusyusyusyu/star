@@ -1583,9 +1583,9 @@ class GameManager {
       this.bodyDetection.evaluateLandmarks(flippedLandmarks);
     }
 
-    // 手足の判定点 (右手、左手、右足、左足)
-    // 15: left wrist, 16: right wrist, 27: left ankle, 28: right ankle
-    const checkPoints = [15, 16, 27, 28]
+    // 手の判定点 (右手、左手)
+    // 15: left wrist, 16: right wrist
+    const checkPoints = [15, 16]
       .map(index => flippedLandmarks[index])
       .filter(p => p && p.visibility && p.visibility > 0.5);
 

@@ -23,8 +23,8 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
 })
 
-// POST /api/v1/scores
-app.post('/', zValidator('json', scoreSchema), async (c) => {
+// POST /api/score
+app.post('/score', zValidator('json', scoreSchema), async (c) => {
   const body = c.req.valid('json')
   const sessionId = c.get('sessionId')
   const requestId = c.get('requestId')
@@ -87,8 +87,8 @@ app.post('/', zValidator('json', scoreSchema), async (c) => {
   })
 })
 
-// GET /api/v1/scores
-app.get('/', zValidator('query', querySchema), async (c) => {
+// GET /api/ranking
+app.get('/ranking', zValidator('query', querySchema), async (c) => {
   const { songId, mode, limit } = c.req.valid('query')
   const requestId = c.get('requestId')
   const supabase = getSupabase(c.env)

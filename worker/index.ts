@@ -54,13 +54,13 @@ app.onError((err, c) => {
 })
 
 // Health check
-app.get('/api/v1/health', (c) => c.json({
+app.get('/api/health', (c) => c.json({
   data: { status: 'ok' },
   meta: { requestId: c.get('requestId') }
 }))
 
 // Routes
-app.route('/api/v1/scores', scoreRoute)
+app.route('/api', scoreRoute)
 app.route('/admin', adminRoute)
 
 export default app

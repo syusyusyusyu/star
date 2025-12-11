@@ -53,46 +53,20 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
     setLoading(true)
     setError(null)
     try {
-      const performFetch = async (modeParam?: string | null) => {
-        const params = new URLSearchParams({ songId })
-        if (modeParam) params.append('mode', modeParam)
-        if (period && period !== 'all') params.append('period', period)
-        const res = await fetch(`/api/v1/scores?${params.toString()}`, { signal })
-        if (!res.ok) {
-          const payload = await res.json().catch(() => null)
-          throw new Error(payload?.error ?? res.statusText ?? 'Failed to fetch ranking')
-        }
-        const payload = (await res.json()) as { ok: boolean; data?: RankingRow[]; error?: string }
-        if (!payload.ok) {
-          throw new Error(payload.error || 'Failed to fetch ranking')
-        }
-        return payload.data || []
+      const params = new URLSearchParams({ songId })
+      if (queryMode) params.append('mode', queryMode)
+      if (period && period !== 'all') params.append('period', period)
+      
+      const res = await fetch(`/api/ranking?${params.toString()}`, { signal })
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        throw new Error(payload?.error ?? res.statusText ?? 'Failed to fetch ranking')
       }
-
-      let data: RankingRow[] = []
-      try {
-        data = await performFetch(queryMode ?? undefined)
-      } catch (err) {
-        // フォールバック: mode無しで再取得（サーバーがmobile等を未対応の場合）
-        try {
-          data = await performFetch(undefined)
-        } catch {
-          // 最終フォールバック: 旧API /api/ranking 形式に合わせて取得
-          const params = new URLSearchParams({ songId })
-          if (mode) params.append('mode', mode)
-          if (period && period !== 'all') params.append('period', period)
-          const res = await fetch(`/api/ranking?${params.toString()}`, { signal })
-          if (!res.ok) {
-            const payload = await res.json().catch(() => null)
-            throw new Error(payload?.error ?? res.statusText ?? 'Failed to fetch ranking')
-          }
-          const payload = (await res.json()) as { ok: boolean; data?: RankingRow[]; error?: string }
-          if (!payload.ok) {
-            throw new Error(payload.error || 'Failed to fetch ranking')
-          }
-          data = payload.data || []
-        }
+      const payload = (await res.json()) as { ok: boolean; data?: RankingRow[]; error?: string }
+      if (!payload.ok) {
+        throw new Error(payload.error || 'Failed to fetch ranking')
       }
+      const data = payload.data || []
 
       rankingCache.set(cacheKey, { data, timestamp: Date.now() })
       setRows(data)

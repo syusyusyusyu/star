@@ -203,13 +203,6 @@ function GamePage() {
       setShowExitConfirm(true)
     }
 
-    // リロード対策
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isNavigatingRef.current) return
-      e.preventDefault()
-      e.returnValue = ''
-    }
-
     // カスタム確認モーダルイベント
     const handleShowConfirm = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -237,14 +230,12 @@ function GamePage() {
     };
 
     window.addEventListener('popstate', handlePopState)
-    window.addEventListener('beforeunload', handleBeforeUnload)
     window.addEventListener('show-confirm-modal', handleShowConfirm)
     window.addEventListener('game-navigate', handleGameNavigate)
     window.addEventListener('game-reload', handleGameReload)
 
     return () => {
       window.removeEventListener('popstate', handlePopState)
-      window.removeEventListener('beforeunload', handleBeforeUnload)
       window.removeEventListener('show-confirm-modal', handleShowConfirm)
       window.removeEventListener('game-navigate', handleGameNavigate)
       window.removeEventListener('game-reload', handleGameReload)

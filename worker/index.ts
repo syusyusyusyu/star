@@ -19,11 +19,26 @@ app.use('*', session())
 // Security Headers
 app.use('*', async (c, next) => {
   await next()
-  c.header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://img.shields.io; connect-src 'self' https://api.songle.jp https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;")
+  // HSTS: 2 years, include subdomains, preload
+  c.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+  
+  // CSP: Restrict sources significantly
+  // Note: 'unsafe-eval' is required for some libraries (like MediaPipe/TensorFlow.js)
+  // 'unsafe-inline' is kept for compatibility but should be removed if possible with nonces
+  c.header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://img.shields.io; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.songle.jp https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;")
+  
   c.header('X-Content-Type-Options', 'nosniff')
   c.header('X-Frame-Options', 'DENY')
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
-  c.header('Permissions-Policy', 'camera=*, microphone=(), geolocation=(), payment=()')
+  
+  // Permissions Policy: Restrict sensitive features
+  c.header('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), screen-wake-lock=(self), accelerometer=(), gyroscope=(), magnetometer=()')
+  
+  // Isolation Policies
+  c.header('Cross-Origin-Opener-Policy', 'same-origin')
+  c.header('Cross-Origin-Resource-Policy', 'same-origin')
+  // COEP might break external resources (images/scripts) without CORP headers, so we use 'credentialless' or omit if too breaking.
+  // For now, we omit COEP to avoid breaking external image loading (like Songle or Shields.io) unless we are sure they support it.
 })
 
 // Custom Logger (JSON format)
@@ -43,7 +58,19 @@ app.use('*', async (c, next) => {
   }))
 })
 
-app.use('*', cors())
+app.use('*', cors({
+  origin: (origin) => {
+    // Allow localhost for development and production domains
+    // In a real SC-compliant environment, this should be a strict whitelist
+    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.endsWith('.pages.dev') || origin.endsWith('.workers.dev')) {
+      return origin
+    }
+    return undefined
+  },
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'x-score-token'],
+  credentials: true,
+}))
 
 // Error Handling
 app.onError((err, c) => {

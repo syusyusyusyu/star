@@ -10,7 +10,7 @@ export const session = () => {
       setCookie(c, 'cs_session', sessionId, {
         httpOnly: true,
         secure: true,
-        sameSite: 'Lax',
+        sameSite: 'Strict',
         path: '/',
         maxAge: 60 * 60 * 24 * 365, // 1 year
       })

@@ -54,8 +54,11 @@ Q. カメラと背景合成は？
 A. Pose/SelfieSegmentationで人物を抜いてcanvas合成。全身未検出なら警告→カウントダウン開始。
 
 Q. UI/UXの配慮は？
-A. モバイルで歌詞縮小・折返し、HUD位置調整。ネオン×ガラスの見た目。戻る操作は確認モーダルで止める。
-A. モバイルランキングは3カラム（# Player Score）に簡略化し、Rank/Comboは名前の下に配置して視認性確保。
+A. モバイルで歌詞縮小・折返し、HUD位置調整。ネオン×ガラスの見た目。
+A. **徹底したSPA遷移**: ブラウザバックやリロードもフックし、独自の確認モーダルで統一。白画面やネイティブ警告を出さない。
+
+Q. デバッグ機能はある？
+A. キーボードで `hhrg` と打つと強制的にリザルト画面へ遷移（展示デモ用）。
 
 ## バックエンド/API
 Q. 提供APIは？
@@ -71,7 +74,7 @@ Q. 管理APIは？
 A. `/admin/scores` DELETE。`confirm=true`で条件付き削除、`confirm=ALL`で全削除。`x-admin-token` 必須。
 
 Q. 保存データは？
-A. Supabase `scores`。匿名セッションはhttpOnly/SameSite=Lax/Secureの`cs_session`(1年)で紐付け。個人情報は任意のplayer_nameのみ。
+A. Supabase `scores`。匿名セッションはhttpOnly/SameSite=Strict/Secureの`cs_session`(1年)で紐付け。個人情報は任意のplayer_nameのみ。
 
 ## データベース
 Q. スキーマ概要は？
@@ -92,6 +95,13 @@ A.
 4. **レート制限**: IPごとに投稿頻度を制限。
 5. **Originチェック**: `FRONTEND_ORIGIN`以外からのリクエストを拒否。
 6. **異常値検知**: 100万点超えは自動でランキング除外。
+
+Q. Webセキュリティ対策は？
+A. 情報処理安全確保支援士レベルの対策を実施。
+- **HSTS**: HTTPS強制（max-age=2年, preload）。
+- **CSP**: 厳格なContent-Security-PolicyでXSS防止。
+- **Permissions-Policy**: カメラ以外の不要なAPI（マイク/位置情報/決済等）を全ブロック。
+- **COOP/CORP**: Cross-Origin-Opener-Policy等でサイドチャネル攻撃対策。
 
 Q. Durable Objectの役割は？
 A. `RateLimiter`クラスで、IPごとのレート制限カウンタと、Nonce（使い捨てトークン）の消費状態を強整合性で管理。

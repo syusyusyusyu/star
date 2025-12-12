@@ -4,7 +4,7 @@
 TextAlive App API の歌詞タイミングと MediaPipe Pose の全身/手の検知を組み合わせ、流れてくる歌詞バブルを「長押し（ホールド）」してスコアを稼ぎます。
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
 ![Hono](https://img.shields.io/badge/Hono-Workers-E36002?logo=hono&logoColor=white)
@@ -31,6 +31,12 @@ TextAlive App API の歌詞タイミングと MediaPipe Pose の全身/手の検
 - **モード別ランキング**
   - Supabase `scores` テーブルへ保存し、`all / weekly / daily` の期間別で表示。
   - Workers 側で冪等キーを生成し重複投稿を抑止。
+- **高度なセキュリティ**
+  - HSTS / CSP / Permissions-Policy などの厳格なセキュリティヘッダ。
+  - Cloudflare Turnstile と HMAC 署名による堅牢なスコア保護。
+- **シームレスな UX**
+  - ブラウザバックやリロード操作をフックし、独自の確認モーダルで誤操作を防止。
+  - SPA 遷移を徹底し、ローディング画面のちらつきを排除。
 
 ---
 

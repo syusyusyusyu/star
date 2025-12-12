@@ -43,9 +43,6 @@ A. API=Cloudflare Workers、静的=docs/配信（Workers/Pagesどちらも可）
 Q. なんでSupabase？
 A. Postgresベースでセットアップが速い。anon keyで手軽、SQL/RLS拡張性も確保。
 
-Q. なんでDockerもある？
-A. ローカル環境を揃えるための開発用（docker-compose.dev.yml）。本番はWorkersで動かす想定。
-
 ## フロントエンド実装
 Q. ランキング取得フローは？
 A. `/api/ranking` → 30秒クライアントキャッシュ。mode失敗→modeなし再トライ→旧`/api/ranking`にフォールバック（src/components/game/RankingPanel.tsx）。

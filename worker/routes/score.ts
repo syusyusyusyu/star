@@ -15,6 +15,7 @@ const scoreSchema = z.object({
   maxCombo: z.number().int().min(0),
   rank: z.string().min(1).max(5),
   accuracy: z.number().min(0).max(100).optional(),
+  turnstileToken: z.string().optional(),
 })
 
 const querySchema = z.object({
@@ -40,6 +41,79 @@ app.post('/score', zValidator('json', scoreSchema), async (c) => {
      if (origin && !origin.includes(allowedOrigin)) {
          return c.json({ error: { code: 'FORBIDDEN', message: 'Invalid Origin' }, meta: { requestId } }, 403)
      }
+  }
+
+  // Rate Limiting (IP based)
+  const ip = c.req.header('CF-Connecting-IP') || 'unknown'
+  const rateLimiterId = c.env.RATE_LIMITER.idFromName('global')
+  const rateLimiter = c.env.RATE_LIMITER.get(rateLimiterId)
+  
+  const limitRes = await rateLimiter.fetch(`http://do/limit?key=${ip}&limit=10&window=60`)
+  if (limitRes.status === 429) {
+    return c.json({ error: { code: 'RATE_LIMIT', message: 'Too many requests' }, meta: { requestId } }, 429)
+  }
+
+  // Token Verification (HMAC & Nonce)
+  const token = c.req.header('x-score-token')
+  if (c.env.SCORE_SIGNING_SECRET && token) {
+    const [nonce, timestamp, signature] = token.split('.')
+    if (!nonce || !timestamp || !signature) {
+       return c.json({ error: { code: 'INVALID_TOKEN', message: 'Invalid token format' }, meta: { requestId } }, 403)
+    }
+
+    // Check expiration (5 minutes)
+    if (Date.now() - parseInt(timestamp) > 5 * 60 * 1000) {
+       return c.json({ error: { code: 'TOKEN_EXPIRED', message: 'Token expired' }, meta: { requestId } }, 403)
+    }
+
+    // Verify Signature
+    const secret = c.env.SCORE_SIGNING_SECRET
+    const data = `${nonce}:${timestamp}`
+    const encoder = new TextEncoder()
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    )
+    const expectedSignature = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(data)
+    )
+    const expectedHex = Array.from(new Uint8Array(expectedSignature)).map(b => b.toString(16).padStart(2, '0')).join('')
+    
+    if (signature !== expectedHex) {
+       return c.json({ error: { code: 'INVALID_SIGNATURE', message: 'Invalid token signature' }, meta: { requestId } }, 403)
+    }
+
+    // Check Nonce (Durable Object)
+    const nonceRes = await rateLimiter.fetch(`http://do/nonce?val=${nonce}`)
+    if (nonceRes.status !== 200) {
+       return c.json({ error: { code: 'NONCE_USED', message: 'Token already used' }, meta: { requestId } }, 409)
+    }
+  } else if (c.env.SCORE_SIGNING_SECRET) {
+      // If secret is configured but token is missing, reject
+      return c.json({ error: { code: 'MISSING_TOKEN', message: 'Score token required' }, meta: { requestId } }, 401)
+  }
+
+  // Turnstile Verification
+  if (c.env.TURNSTILE_SECRET_KEY && body.turnstileToken) {
+    const formData = new FormData();
+    formData.append('secret', c.env.TURNSTILE_SECRET_KEY);
+    formData.append('response', body.turnstileToken);
+    formData.append('remoteip', c.req.header('CF-Connecting-IP') || '');
+
+    const result = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      body: formData,
+      method: 'POST',
+    });
+
+    const outcome = await result.json() as any;
+    if (!outcome.success) {
+      return c.json({ error: { code: 'INVALID_TOKEN', message: 'Turnstile verification failed' }, meta: { requestId } }, 403);
+    }
   }
 
   // Cheat Detection

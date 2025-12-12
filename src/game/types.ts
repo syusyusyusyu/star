@@ -22,6 +22,8 @@ export interface GameResult {
   maxCombo: number
   rank: string
   playerName?: string
+  accuracy?: number
+  turnstileToken?: string
 }
 
 /** 歌詞データ */

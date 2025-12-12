@@ -12,5 +12,19 @@
   // "vars": {
   //   "SUPABASE_URL": "",
   //   "SUPABASE_ANON_KEY": ""
-  // }
+  // },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RATE_LIMITER",
+        "class_name": "RateLimiter"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["RateLimiter"]
+    }
+  ]
 }

@@ -326,6 +326,7 @@ function GamePage() {
                 >
                   ランキングに登録
                 </button>
+                <div id="turnstile-container" className="mt-2"></div>
               </div>
             </div>
             <div className="results-buttons flex flex-wrap justify-center gap-4 mt-8 w-full">

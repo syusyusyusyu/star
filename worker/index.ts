@@ -7,6 +7,7 @@ import { session } from './middleware/session'
 import { Env } from './types'
 import scoreRoute from './routes/score'
 import adminRoute from './routes/admin'
+export { RateLimiter } from './rateLimiter'
 
 const app = new Hono<Env>()
 
@@ -14,6 +15,16 @@ const app = new Hono<Env>()
 app.use('*', poweredBy())
 app.use('*', requestId())
 app.use('*', session())
+
+// Security Headers
+app.use('*', async (c, next) => {
+  await next()
+  c.header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://img.shields.io; connect-src 'self' https://api.songle.jp https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;")
+  c.header('X-Content-Type-Options', 'nosniff')
+  c.header('X-Frame-Options', 'DENY')
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
+  c.header('Permissions-Policy', 'camera=*, microphone=(), geolocation=(), payment=()')
+})
 
 // Custom Logger (JSON format)
 app.use('*', async (c, next) => {
@@ -58,6 +69,50 @@ app.get('/api/health', (c) => c.json({
   data: { status: 'ok' },
   meta: { requestId: c.get('requestId') }
 }))
+
+// Config
+app.get('/api/config', (c) => c.json({
+  data: { turnstileSiteKey: c.env.TURNSTILE_SITE_KEY },
+  meta: { requestId: c.get('requestId') }
+}))
+
+// Token generation (HMAC)
+app.get('/api/token', async (c) => {
+  const secret = c.env.SCORE_SIGNING_SECRET
+  if (!secret) {
+    return c.json({ error: { code: 'CONFIG_ERROR', message: 'Signing secret not configured' } }, 500)
+  }
+  
+  const nonce = crypto.randomUUID()
+  const timestamp = Date.now()
+  const data = `${nonce}:${timestamp}`
+  
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(data)
+  )
+  
+  // ArrayBuffer to Hex string
+  const hashArray = Array.from(new Uint8Array(signature))
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  
+  const token = `${nonce}.${timestamp}.${hashHex}`
+  
+  return c.json({
+    data: { token },
+    meta: { requestId: c.get('requestId') }
+  })
+})
 
 // Routes
 app.route('/api', scoreRoute)

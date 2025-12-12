@@ -2595,7 +2595,8 @@ class ResultsManager {
         window.dispatchEvent(event);
         return;
       }
-      location.href = '/';
+      // React側で遷移処理を行う（beforeunload対策）
+      window.dispatchEvent(new CustomEvent('game-navigate', { detail: { url: '/' } }));
     });
 
     addEvents(replaySong, () => {
@@ -2610,7 +2611,8 @@ class ResultsManager {
         window.dispatchEvent(event);
         return;
       }
-      location.reload();
+      // React側でリロード処理を行う（beforeunload対策）
+      window.dispatchEvent(new CustomEvent('game-reload'));
     });
   }
 }

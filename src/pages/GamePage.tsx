@@ -72,6 +72,7 @@ function GamePage() {
   const lastSubmittedKeyRef = useRef<string | null>(null)
   const scoreTokenRef = useRef<string | null>(null)
   const managerRef = useRef<GameManager | null>(null)
+  const isNavigatingRef = useRef(false)
   const prefersTouch = useMemo(() => {
     if (typeof window === 'undefined') return false
     return (
@@ -170,6 +171,7 @@ function GamePage() {
   const handleOpenRanking = useCallback(() => setShowRanking(true), [])
 
   const handleExitConfirm = useCallback(() => {
+    isNavigatingRef.current = true
     if (confirmAction) {
       confirmAction()
     } else {
@@ -183,13 +185,27 @@ function GamePage() {
     
     const handlePopState = () => {
       window.history.pushState(null, '', window.location.href)
-      setConfirmMessage(undefined)
+      
+      // リザルト画面で、すでにスコア送信済みの場合は確認なしで戻る
+      if (managerRef.current?.resultsDisplayed && managerRef.current?.resultReported) {
+        isNavigatingRef.current = true;
+        window.location.href = '/';
+        return;
+      }
+      
+      let message = undefined;
+      if (managerRef.current?.resultsDisplayed && !managerRef.current?.resultReported) {
+         message = 'ランキングに登録されていません。\nスコアは破棄されますが、タイトルに戻りますか？';
+      }
+
+      setConfirmMessage(message)
       setConfirmAction(null)
       setShowExitConfirm(true)
     }
 
     // リロード対策
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isNavigatingRef.current) return
       e.preventDefault()
       e.returnValue = ''
     }
@@ -208,14 +224,30 @@ function GamePage() {
       setShowExitConfirm(true);
     };
 
+    // 意図的な遷移イベント
+    const handleGameNavigate = (e: Event) => {
+      isNavigatingRef.current = true;
+      window.location.href = (e as CustomEvent).detail.url;
+    };
+
+    // 意図的なリロードイベント
+    const handleGameReload = () => {
+      isNavigatingRef.current = true;
+      window.location.reload();
+    };
+
     window.addEventListener('popstate', handlePopState)
     window.addEventListener('beforeunload', handleBeforeUnload)
     window.addEventListener('show-confirm-modal', handleShowConfirm)
+    window.addEventListener('game-navigate', handleGameNavigate)
+    window.addEventListener('game-reload', handleGameReload)
 
     return () => {
       window.removeEventListener('popstate', handlePopState)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       window.removeEventListener('show-confirm-modal', handleShowConfirm)
+      window.removeEventListener('game-navigate', handleGameNavigate)
+      window.removeEventListener('game-reload', handleGameReload)
     }
   }, [])
 

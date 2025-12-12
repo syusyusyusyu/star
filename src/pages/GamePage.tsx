@@ -10,7 +10,7 @@ import "../styles.css"
 const SONG_ID = "HmfsoBVch26BmLCm"
 
 // 終了確認モーダル
-const ConfirmModal = ({ open, onClose, onConfirm }: { open: boolean; onClose: () => void; onConfirm: () => void }) => {
+const ConfirmModal = ({ open, onClose, onConfirm, message }: { open: boolean; onClose: () => void; onConfirm: () => void; message?: string }) => {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
@@ -19,9 +19,8 @@ const ConfirmModal = ({ open, onClose, onConfirm }: { open: boolean; onClose: ()
           <span className="w-1 h-8 bg-miku block"></span>
           確認
         </h3>
-        <p className="text-gray-300 mb-8 leading-relaxed">
-          ゲームを終了してタイトル画面に戻りますか？<br/>
-          <span className="text-sm text-gray-500">※プレイ中のスコアは保存されません</span>
+        <p className="text-gray-300 mb-8 leading-relaxed whitespace-pre-wrap">
+          {message || <>ゲームを終了してタイトル画面に戻りますか？<br/><span className="text-sm text-gray-500">※プレイ中のスコアは保存されません</span></>}
         </p>
         <div className="flex justify-end gap-4">
           <button
@@ -67,6 +66,8 @@ function GamePage() {
   const [rankingMode, setRankingMode] = useState<PlayMode>(getInitialMode)
   const [showRanking, setShowRanking] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
+  const [confirmMessage, setConfirmMessage] = useState<string | undefined>(undefined)
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const lastSubmittedKeyRef = useRef<string | null>(null)
   const scoreTokenRef = useRef<string | null>(null)
@@ -169,8 +170,12 @@ function GamePage() {
   const handleOpenRanking = useCallback(() => setShowRanking(true), [])
 
   const handleExitConfirm = useCallback(() => {
-    window.location.href = '/'
-  }, [])
+    if (confirmAction) {
+      confirmAction()
+    } else {
+      window.location.href = '/'
+    }
+  }, [confirmAction])
 
   useEffect(() => {
     // ブラウザバック対策
@@ -178,6 +183,8 @@ function GamePage() {
     
     const handlePopState = () => {
       window.history.pushState(null, '', window.location.href)
+      setConfirmMessage(undefined)
+      setConfirmAction(null)
       setShowExitConfirm(true)
     }
 
@@ -187,12 +194,28 @@ function GamePage() {
       e.returnValue = ''
     }
 
+    // カスタム確認モーダルイベント
+    const handleShowConfirm = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setConfirmMessage(detail.message);
+      
+      if (detail.type === 'retry') {
+        setConfirmAction(() => () => location.reload());
+      } else {
+        setConfirmAction(() => () => location.href = '/');
+      }
+      
+      setShowExitConfirm(true);
+    };
+
     window.addEventListener('popstate', handlePopState)
     window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('show-confirm-modal', handleShowConfirm)
 
     return () => {
       window.removeEventListener('popstate', handlePopState)
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('show-confirm-modal', handleShowConfirm)
     }
   }, [])
 
@@ -411,6 +434,7 @@ function GamePage() {
           open={showExitConfirm}
           onClose={() => setShowExitConfirm(false)}
           onConfirm={handleExitConfirm}
+          message={confirmMessage}
         />
       </div>
     </>

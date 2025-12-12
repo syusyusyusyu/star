@@ -2584,12 +2584,32 @@ class ResultsManager {
     });
 
     addEvents(backToTitle, () => {
-      submitScore();
+      if (!this.game.resultReported) {
+        // カスタムモーダルを表示するためにイベントを発火
+        const event = new CustomEvent('show-confirm-modal', { 
+          detail: { 
+            type: 'title',
+            message: 'ランキングに登録されていません。\nスコアは破棄されますが、タイトルに戻りますか？' 
+          } 
+        });
+        window.dispatchEvent(event);
+        return;
+      }
       location.href = '/';
     });
 
     addEvents(replaySong, () => {
-      submitScore();
+      if (!this.game.resultReported) {
+        // カスタムモーダルを表示するためにイベントを発火
+        const event = new CustomEvent('show-confirm-modal', { 
+          detail: { 
+            type: 'retry',
+            message: 'ランキングに登録されていません。\nスコアは破棄されますが、リトライしますか？' 
+          } 
+        });
+        window.dispatchEvent(event);
+        return;
+      }
       location.reload();
     });
   }

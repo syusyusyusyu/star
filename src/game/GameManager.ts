@@ -2477,7 +2477,8 @@ class ResultsManager {
 
           try {
               (window as any).turnstile.render('#turnstile-container', {
-                  sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAA1zC2q7z7z7z7z7', // デモ用キーまたは環境変数
+                  // テスト用キー (Always Pass): 1x00000000000000000000AA
+                  sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
                   callback: (token: string) => {
                       if (typeof this.game.onGameEnd === 'function') {
                         this.game.resultReported = true;

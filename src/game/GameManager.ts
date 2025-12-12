@@ -1810,9 +1810,8 @@ class GameManager {
     this.gameLoop.stop();
     this.player?.requestStop();
     
-    // デモ用のスコア設定 (Sランク相当)
-    this.score = 950000;
-    this.maxCombo = 100;
+    // 現在のスコアとコンボを維持してリザルトへ
+    this.maxCombo = Math.max(this.maxCombo, this.combo);
     this.combo = 0;
     
     this.showResults();

@@ -58,10 +58,11 @@ A. Pose/SelfieSegmentationで人物を抜いてcanvas合成。全身未検出な
 
 Q. UI/UXの配慮は？
 A. モバイルで歌詞縮小・折返し、HUD位置調整。ネオン×ガラスの見た目。戻る操作は確認モーダルで止める。
+A. モバイルランキングは3カラム（# Player Score）に簡略化し、Rank/Comboは名前の下に配置して視認性確保。
 
 ## バックエンド/API
 Q. 提供APIは？
-A. `/api/score` (POST), `/api/ranking` (GET)（Workers）。ヘルスチェック`/api/health`。
+A. `/api/score` (POST), `/api/ranking` (GET), `/api/token` (GET), `/api/config` (GET)（Workers）。ヘルスチェック`/api/health`。
 
 Q. スコア登録のバリデーションは？
 A. Zodで厳格チェック。playerName1-20、songId英数/`-_`<=64、mode enum、score/maxCombo>=0 int、rank1-5、accuracy0-100。100万超は`is_suspicious=true`で除外。
@@ -70,7 +71,7 @@ Q. ランキング取得の仕様は？
 A. クエリ: songId必須、mode任意(デフォcursor)、limit1-50。`is_suspicious=false`のみ返し、score descでlimit件。count/totalとrequestId付き。
 
 Q. 管理APIは？
-A. `/admin/scores` DELETEで全削除。`x-admin-token` 必須。`ADMIN_TOKEN`は環境変数で設定。
+A. `/admin/scores` DELETE。`confirm=true`で条件付き削除、`confirm=ALL`で全削除。`x-admin-token` 必須。
 
 Q. 保存データは？
 A. Supabase `scores`。匿名セッションはhttpOnly/SameSite=Lax/Secureの`cs_session`(1年)で紐付け。個人情報は任意のplayer_nameのみ。
@@ -80,17 +81,26 @@ Q. スキーマ概要は？
 A. `supabase_scores.sql`参照。id uuid, session_id, song_id, mode(check), score, max_combo, rank, accuracy, is_suspicious, player_name, created_at。インデックス`(song_id, mode, score desc)`、pgcryptoでUUID生成。
 
 Q. RLSは？
-A. まだ無し。Originチェック＋入力検証で守っているが、公開度が上がるならRLS+サービスロール/Edge Functionsを検討。
+A. anon/authは`is_suspicious=false`のSELECTのみ許可。INSERT/DELETEはWorkers(service role)のみ。
 
 Q. 新曲の追加は？
 A. `src/types/game.ts`の`songsData`に曲情報を追加し、GameManagerのデフォsongIdを合わせる。
 
 ## セキュリティ・チート耐性
 Q. 不正投稿どう防ぐ？
-A. Zodで型/範囲強制、songId正規表現、100万超は`is_suspicious`で弾く。Originが`FRONTEND_ORIGIN`以外（ローカル除く）なら403。管理APIは固定トークン。
+A. 
+1. **Turnstile**: 投稿直前にボット検証。
+2. **HMAC署名**: `/api/token`で発行した署名付きトークンを検証。
+3. **Nonce**: トークンの使い回しをDurable Objectで防止。
+4. **レート制限**: IPごとに投稿頻度を制限。
+5. **Originチェック**: `FRONTEND_ORIGIN`以外からのリクエストを拒否。
+6. **異常値検知**: 100万点超えは自動でランキング除外。
 
-Q. 既知リスクは？
-A. RLS無しなのでanon key流出時に直書きリスク。異常検知は単純閾値だけ。会場のHTTPS/TLSは事前確認必須。
+Q. Durable Objectの役割は？
+A. `RateLimiter`クラスで、IPごとのレート制限カウンタと、Nonce（使い捨てトークン）の消費状態を強整合性で管理。
+
+Q. RLSとService Roleの使い分けは？
+A. クライアント（anon）は読み取り専用。書き込みは信頼できるWorkers（Service Role）経由でのみ許可し、不正な直接書き込みを防止。
 
 Q. セッション管理は？
 A. httpOnly/Secure/SameSite=Laxの`cs_session`で匿名セッション。requestIdと合わせてログで追跡。
@@ -111,8 +121,12 @@ A. `.dev.vars`例:
 ```
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=***
+SUPABASE_SERVICE_ROLE_KEY=***
 ADMIN_TOKEN=***
 FRONTEND_ORIGIN=https://example.com
+SCORE_SIGNING_SECRET=***
+TURNSTILE_SECRET_KEY=***
+TURNSTILE_SITE_KEY=***
 ```
 Workersでは`wrangler secret put`で登録。
 
@@ -130,7 +144,7 @@ Q. 何をテストしている？
 A. 手動中心。ゲーム進行→スコア送信→ランキング表示、モード切替、TextAliveダウン時フォールバック、Originチェックで403になるかを一通り確認。
 
 Q. 次に強化するとしたら？
-A. Supabase RLS追加、スコア異常検知の多段化（速度/頻度/IP）、PlaywrightでE2E自動化。
+A. スコア異常検知の多段化（速度/頻度/IP）、PlaywrightでE2E自動化。
 
 ## 「なんで〇〇じゃないの？」に答える
 Q. Next.jsじゃないの？

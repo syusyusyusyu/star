@@ -1,6 +1,12 @@
-import { DurableObject } from "cloudflare:workers";
+/// <reference types="@cloudflare/workers-types" />
 
-export class RateLimiter extends DurableObject {
+export class RateLimiter {
+  state: DurableObjectState;
+
+  constructor(state: DurableObjectState) {
+    this.state = state;
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     
@@ -16,14 +22,14 @@ export class RateLimiter extends DurableObject {
       const currentWindow = Math.floor(Date.now() / 1000 / windowSec);
       const storageKey = `limit:${key}:${currentWindow}`;
       
-      let count = (await this.ctx.storage.get<number>(storageKey)) || 0;
+      let count = (await this.state.storage.get<number>(storageKey)) || 0;
       
       if (count >= limit) {
         return new Response("Rate limit exceeded", { status: 429 });
       }
       
       count++;
-      await this.ctx.storage.put(storageKey, count, { expirationTtl: windowSec * 2 });
+      await this.state.storage.put(storageKey, count);
       
       return new Response("OK", { status: 200 });
     }
@@ -35,14 +41,14 @@ export class RateLimiter extends DurableObject {
         if (!nonce) return new Response("Missing nonce", { status: 400 });
 
         const key = `nonce:${nonce}`;
-        const exists = await this.ctx.storage.get(key);
+        const exists = await this.state.storage.get(key);
         
         if (exists) {
             return new Response("Nonce already used", { status: 409 });
         }
 
-        // Nonceを保存 (5分間有効)
-        await this.ctx.storage.put(key, true, { expirationTtl: 300 });
+        // Nonceを保存 (再利用防止)
+        await this.state.storage.put(key, true);
         return new Response("OK", { status: 200 });
     }
 

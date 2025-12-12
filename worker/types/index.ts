@@ -1,3 +1,5 @@
+import type { DurableObjectNamespace } from "@cloudflare/workers-types";
+
 export type Bindings = {
   SUPABASE_URL: string
   SUPABASE_ANON_KEY: string

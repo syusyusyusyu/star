@@ -86,6 +86,7 @@ class GameManager {
   public apiLoaded: boolean
   private _operationInProgress: boolean
   public resultsDisplayed: boolean
+  public isDebugMode: boolean = false
   
   // デバイス・モード
   public isMobile: boolean
@@ -1795,6 +1796,26 @@ class GameManager {
   createHitEffect(x: number, y: number): void {
   // SRP: EffectsManagerに委譲
   return this.effects.createHitEffect(x, y);
+  }
+
+  /**
+   * 強制的にゲームを終了し、リザルト画面を表示する（デバッグ用）
+   */
+  forceEndGame() {
+    if (this.resultReported) return;
+    
+    console.log('Force ending game (Debug)');
+    this.isDebugMode = true;
+    this.isPlaying = false;
+    this.gameLoop.stop();
+    this.player?.requestStop();
+    
+    // デモ用のスコア設定 (Sランク相当)
+    this.score = 950000;
+    this.maxCombo = 100;
+    this.combo = 0;
+    
+    this.showResults();
   }
 
   /**

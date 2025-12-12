@@ -69,6 +69,7 @@ function GamePage() {
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const lastSubmittedKeyRef = useRef<string | null>(null)
+  const scoreTokenRef = useRef<string | null>(null)
   const managerRef = useRef<GameManager | null>(null)
   const prefersTouch = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -79,11 +80,50 @@ function GamePage() {
     )
   }, [])
 
+  // デバッグ用キー入力監視
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      // windowオブジェクトに履歴を保存して永続化
+      const history = (window as any)._debugKeyHistory || "";
+      const newHistory = (history + key).slice(-4);
+      (window as any)._debugKeyHistory = newHistory;
+
+      if (newHistory === "hhrg") {
+        console.log("Debug command detected: hhrg");
+        managerRef.current?.forceEndGame();
+        (window as any)._debugKeyHistory = ""; // Reset
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   useEffect(() => {
     if (!prefersTouch && rankingMode === 'mobile') {
       setRankingMode('cursor')
     }
   }, [prefersTouch, rankingMode])
+
+  // Fetch score signing token
+  useEffect(() => {
+    const fetchToken = () => {
+      fetch('/api/token')
+        .then(res => res.json())
+        .then(data => {
+          if (data.data?.token) {
+            scoreTokenRef.current = data.data.token
+          }
+        })
+        .catch(err => console.error('Failed to fetch token:', err))
+    }
+
+    fetchToken()
+    // Refresh token every 4 minutes to prevent expiration
+    const interval = setInterval(fetchToken, 4 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   const submitScore = useCallback(async (gameResult: GameResult) => {
     const key = `${gameResult.songId}-${gameResult.mode}-${gameResult.score}-${gameResult.maxCombo}-${gameResult.rank}`
@@ -92,9 +132,14 @@ function GamePage() {
 
     setIsSubmitting(true)
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (scoreTokenRef.current) {
+        headers["x-score-token"] = scoreTokenRef.current
+      }
+
       const res = await fetch("/api/score", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(gameResult),
       })
       

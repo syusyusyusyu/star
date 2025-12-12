@@ -10,9 +10,11 @@ const SONG_ID = 'HmfsoBVch26BmLCm'
 const HelpModal = memo(function HelpModal({
   show,
   onClose,
+  isMobile,
 }: {
   show: boolean
   onClose: () => void
+  isMobile: boolean
 }) {
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') onClose()
@@ -47,27 +49,52 @@ const HelpModal = memo(function HelpModal({
           </div>
           
           <div className="space-y-8 text-gray-300">
-              <section>
-                <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
-                    <span className="w-1 h-6 bg-miku block"></span>
-                    基本ルール
-                </h3>
-                <p className="leading-relaxed">
-                    音楽に合わせて流れてくる歌詞をタイミングよくキャッチするリズムゲームです。
-                    歌詞に触れることでスコアとコンボが加算されます。
-                </p>
-              </section>
+              {isMobile ? (
+                <>
+                  <section>
+                    <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
+                        <span className="w-1 h-6 bg-miku block"></span>
+                        モバイルモードの遊び方
+                    </h3>
+                    <p className="leading-relaxed">
+                        音楽に合わせて流れてくる歌詞を指でタップ＆ホールドするリズムゲームです。
+                        歌詞バブルを長押ししてゲージを溜めることでスコアが加算されます。
+                    </p>
+                  </section>
+                  <section className="bg-white/5 p-4 rounded border border-white/5">
+                    <h3 className="text-white font-bold mb-2">操作方法</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-sm">
+                        <li>画面上の歌詞バブルを直接タップします。</li>
+                        <li>バブルが表示されている間、指を離さずに押し続けてください（ホールド）。</li>
+                        <li>ゲージがMAXになるとコンボが繋がります。</li>
+                    </ul>
+                  </section>
+                </>
+              ) : (
+                <>
+                  <section>
+                    <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
+                        <span className="w-1 h-6 bg-miku block"></span>
+                        基本ルール
+                    </h3>
+                    <p className="leading-relaxed">
+                        音楽に合わせて流れてくる歌詞をタイミングよくキャッチするリズムゲームです。
+                        歌詞に触れることでスコアとコンボが加算されます。
+                    </p>
+                  </section>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <section className="bg-white/5 p-4 rounded border border-white/5">
-                    <h3 className="text-white font-bold mb-2">マウスモード</h3>
-                    <p className="text-sm">マウスカーソルを使って歌詞をクリックまたはホバーします。</p>
-                  </section>
-                  <section className="bg-white/5 p-4 rounded border border-white/5">
-                    <h3 className="text-white font-bold mb-2">カメラモード</h3>
-                    <p className="text-sm">Webカメラを使用し、体の動きで歌詞に触れます。</p>
-                  </section>
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <section className="bg-white/5 p-4 rounded border border-white/5">
+                        <h3 className="text-white font-bold mb-2">マウスモード</h3>
+                        <p className="text-sm">マウスカーソルを使って歌詞をクリックまたはホバーします。</p>
+                      </section>
+                      <section className="bg-white/5 p-4 rounded border border-white/5">
+                        <h3 className="text-white font-bold mb-2">カメラモード</h3>
+                        <p className="text-sm">Webカメラを使用し、体の動きで歌詞に触れます。</p>
+                      </section>
+                  </div>
+                </>
+              )}
 
               <section>
                 <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
@@ -75,10 +102,20 @@ const HelpModal = memo(function HelpModal({
                     プレイの流れ
                 </h3>
                 <ol className="list-decimal pl-5 space-y-2 marker:text-miku">
-                  <li>プレイモード（マウス / カメラ）を選択</li>
-                  <li>「ゲームスタート」ボタンをクリック</li>
-                  <li>タイミングよく歌詞をキャッチ！</li>
-                  <li>曲が終わるとリザルト画面へ</li>
+                  {isMobile ? (
+                    <>
+                      <li>楽曲を選択して「START」をタップ</li>
+                      <li>歌詞バブルをタップ＆ホールド！</li>
+                      <li>曲が終わるとリザルト画面へ</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>プレイモード（マウス / カメラ）を選択</li>
+                      <li>「ゲームスタート」ボタンをクリック</li>
+                      <li>タイミングよく歌詞をキャッチ！</li>
+                      <li>曲が終わるとリザルト画面へ</li>
+                    </>
+                  )}
                 </ol>
               </section>
           </div>
@@ -356,7 +393,7 @@ export default function IndexPage() {
         onModeChange={setGameMode}
       />
 
-      <HelpModal show={showHelp} onClose={closeHelp} />
+      <HelpModal show={showHelp} onClose={closeHelp} isMobile={isMobile} />
     </div>
   )
 }

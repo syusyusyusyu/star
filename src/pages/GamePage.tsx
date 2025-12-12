@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Helmet } from "react-helmet-async"
+import { useNavigate } from "react-router-dom"
 import GameManager from "../game/GameManager"
 import { initLiveParticles, loadSongConfig } from "../game/gameLoader"
 import RankingModal from "../components/game/RankingModal"
@@ -62,10 +63,12 @@ function GamePage() {
     if (storedMode) return storedMode
     return prefersTouch ? 'mobile' : 'cursor'
   }, [])
+  const navigate = useNavigate()
   const { songData, accentColor } = useMemo(() => loadSongConfig(), [])
   const [rankingMode, setRankingMode] = useState<PlayMode>(getInitialMode)
   const [showRanking, setShowRanking] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
   const [confirmMessage, setConfirmMessage] = useState<string | undefined>(undefined)
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -175,9 +178,9 @@ function GamePage() {
     if (confirmAction) {
       confirmAction()
     } else {
-      window.location.href = '/'
+      navigate('/')
     }
-  }, [confirmAction])
+  }, [confirmAction, navigate])
 
   useEffect(() => {
     // ブラウザバック対策
@@ -189,7 +192,7 @@ function GamePage() {
       // リザルト画面で、すでにスコア送信済みの場合は確認なしで戻る
       if (managerRef.current?.resultsDisplayed && managerRef.current?.resultReported) {
         isNavigatingRef.current = true;
-        window.location.href = '/';
+        navigate('/');
         return;
       }
       
@@ -209,9 +212,9 @@ function GamePage() {
       setConfirmMessage(detail.message);
       
       if (detail.type === 'retry') {
-        setConfirmAction(() => () => location.reload());
+        setConfirmAction(() => () => setRetryCount(c => c + 1));
       } else {
-        setConfirmAction(() => () => location.href = '/');
+        setConfirmAction(() => () => navigate('/'));
       }
       
       setShowExitConfirm(true);
@@ -220,13 +223,13 @@ function GamePage() {
     // 意図的な遷移イベント
     const handleGameNavigate = (e: Event) => {
       isNavigatingRef.current = true;
-      window.location.href = (e as CustomEvent).detail.url;
+      navigate((e as CustomEvent).detail.url);
     };
 
     // 意図的なリロードイベント
     const handleGameReload = () => {
       isNavigatingRef.current = true;
-      window.location.reload();
+      setRetryCount(c => c + 1);
     };
 
     window.addEventListener('popstate', handlePopState)
@@ -281,7 +284,7 @@ function GamePage() {
       document.body.classList.remove(bodyClass)
       lastSubmittedKeyRef.current = null
     }
-  }, [accentColor, getInitialMode, handleGameEnd, songData.title])
+  }, [accentColor, getInitialMode, handleGameEnd, songData.title, retryCount])
 
   return (
     <>

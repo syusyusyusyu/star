@@ -160,41 +160,40 @@
     background: var(--synth-panel);
     border: 1px solid var(--synth-grid);
     border-radius: var(--synth-radius);
-    padding: 10px 20px;
+    padding: 8px 16px; /* Reduced padding to match song-info */
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     
     /* Position adjustment if needed, but keeping layout */
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    align-items: flex-end; /* Align text to right */
+    justify-content: center;
+    gap: 0px; /* Remove gap to compact height */
+    min-height: 54px; /* Match approximate height of song-info */
 }
 
 .theme-scoreSheetSynth #score {
     font-family: var(--synth-font-mono);
     font-variant-numeric: tabular-nums;
     color: var(--synth-accent);
-    font-size: 3rem; /* Adjust as needed */
+    font-size: 1.8rem; /* Reduced from 3rem to match card size */
     line-height: 1;
     text-shadow: 0 0 10px var(--synth-accent-glow);
-    letter-spacing: 0.1em;
+    letter-spacing: 0.05em;
 }
 
 .theme-scoreSheetSynth #combo {
     font-family: var(--synth-font-mono);
     color: var(--synth-muted);
-    font-size: 1rem;
+    font-size: 0.75rem; /* Reduced size */
     text-transform: uppercase;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.1em;
+    margin-top: 2px;
 }
 
 /* LCD Label style for Combo */
 .theme-scoreSheetSynth #combo::before {
-    content: 'COMBO';
-    display: block;
-    font-size: 0.6em;
-    color: var(--synth-grid);
-    margin-bottom: 2px;
+    content: none; /* Remove extra label to save space */
 }
 
 /* =========================================
@@ -227,22 +226,30 @@
    Song Info
    ========================================= */
 .theme-scoreSheetSynth #song-info {
-    background: linear-gradient(90deg, transparent, var(--synth-panel), transparent);
-    padding: 10px;
-    border-top: 1px solid var(--synth-grid);
-    border-bottom: 1px solid var(--synth-grid);
+    background: var(--synth-panel); /* Solid background like score card */
+    padding: 8px 16px;
+    border: 1px solid var(--synth-grid); /* Full border */
+    border-radius: var(--synth-radius); /* Rounded corners */
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    min-height: 54px; /* Match height */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .theme-scoreSheetSynth #song-title {
     font-family: var(--synth-font-ui);
     color: var(--synth-text);
     text-shadow: 0 0 5px rgba(255,255,255,0.3);
+    font-size: 1.1rem;
+    line-height: 1.2;
 }
 
 .theme-scoreSheetSynth #song-artist {
     color: var(--synth-muted);
     font-family: var(--synth-font-mono);
-    font-size: 0.8em;
+    font-size: 0.75rem;
+    margin-top: 2px;
 }
 
 /* =========================================

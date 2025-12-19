@@ -1,0 +1,269 @@
+/* 
+ * Theme: Future Score / DAW / Synth UI 
+ * Scope: .theme-scoreSheetSynth
+ */
+
+.theme-scoreSheetSynth {
+    /* Color Palette */
+    --synth-bg: #0E1116;
+    --synth-panel: #131A24;
+    --synth-grid: #243047;
+    --synth-accent: #39D0FF;
+    --synth-accent-glow: rgba(57, 208, 255, 0.6);
+    --synth-accent-secondary: #8B5CF6;
+    --synth-text: #E7EEF8;
+    --synth-muted: #A6B1C2;
+    --synth-danger: #EF596F;
+    
+    /* Typography */
+    --synth-font-mono: "Segoe UI Mono", "Roboto Mono", "Menlo", "Courier New", monospace;
+    --synth-font-ui: "Segoe UI", "Roboto", system-ui, sans-serif;
+
+    /* Dimensions */
+    --synth-radius: 6px;
+    --synth-border-width: 1px;
+}
+
+/* =========================================
+   Global Background & Grid
+   ========================================= */
+.theme-scoreSheetSynth .game-body,
+.theme-scoreSheetSynth #game-container {
+    /* Make background semi-transparent to show live stage */
+    background-color: rgba(14, 17, 22, 0.4) !important;
+    /* Grid Pattern: Vertical (beats) and Horizontal (tracks) */
+    background-image: 
+        linear-gradient(var(--synth-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--synth-grid) 1px, transparent 1px);
+    background-size: 100px 100px; /* Adjust for grid density */
+    background-position: center bottom;
+}
+
+/* Playhead / Center Line - REMOVED per user request */
+/* 
+.theme-scoreSheetSynth #game-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: linear-gradient(to bottom, transparent, var(--synth-accent-secondary), transparent);
+    box-shadow: 0 0 10px var(--synth-accent-secondary);
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 5;
+} 
+*/
+
+/* Removed live-background dimming to keep the stage visible */
+/* 
+.theme-scoreSheetSynth #live-background {
+    opacity: 0.2;
+    filter: grayscale(100%) contrast(120%);
+    mix-blend-mode: screen;
+} 
+*/
+
+/* =========================================
+   Note / Clip (Bubble) Design
+   ========================================= */
+.theme-scoreSheetSynth .lyric-bubble {
+    /* Reset/Override default bubble styles */
+    background-color: rgba(19, 26, 36, 0.85) !important;
+    /* Progress bar implemented as background gradient to ensure visibility under text */
+    background-image: linear-gradient(to right, 
+        rgba(57, 208, 255, 0.5) var(--hold-progress, 0%), 
+        transparent var(--hold-progress, 0%)
+    ) !important;
+    background-repeat: no-repeat !important;
+    background-size: 100% 100% !important;
+
+    border: 1px solid var(--synth-accent);
+    border-radius: 4px !important; /* Rectangular clip look */
+    box-shadow: 
+        0 0 0 1px rgba(57, 208, 255, 0.1),
+        inset 0 0 20px rgba(19, 26, 36, 0.9);
+    
+    color: var(--synth-text) !important;
+    font-family: var(--synth-font-ui);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 8px var(--synth-accent);
+    
+    /* Layout adjustments for clip look */
+    padding: 8px 16px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden; /* Clip the progress bar */
+    backdrop-filter: blur(4px);
+}
+
+/* Clip Header / Decoration (Top bar like in DAW clips) */
+.theme-scoreSheetSynth .lyric-bubble::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--synth-accent);
+    opacity: 0.7;
+}
+
+/* Hold Progress Visualization - REMOVED (Moved to background-image above) */
+/* 
+.theme-scoreSheetSynth .lyric-bubble::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--hold-progress, 0%);
+    background: linear-gradient(90deg, 
+        rgba(57, 208, 255, 0.2) 0%, 
+        rgba(57, 208, 255, 0.5) 100%
+    );
+    z-index: -1;
+    transition: width 0.1s linear;
+    will-change: width;
+} 
+*/
+
+/* Active/Holding State */
+/* When progress is visible or > 0% */
+.theme-scoreSheetSynth .lyric-bubble[style*="--hold-progress"]:not([style*="--hold-progress: 0%"]):not([style*="--hold-progress: 0"]):not([style*="--hold-progress:0"]) {
+    border-color: #fff;
+    box-shadow: 0 0 15px var(--synth-accent-glow);
+    z-index: 100;
+}
+
+/* Max Hold / Complete Flash */
+.theme-scoreSheetSynth .lyric-bubble[style*="--hold-progress: 100%"] {
+    background: var(--synth-accent) !important;
+    color: #000 !important;
+    text-shadow: none;
+    animation: synth-flash 0.2s ease-out;
+}
+
+@keyframes synth-flash {
+    0% { transform: translateX(-50%) scale(1); filter: brightness(2); }
+    50% { transform: translateX(-50%) scale(1.1); }
+    100% { transform: translateX(-50%) scale(1); filter: brightness(1); }
+}
+
+/* =========================================
+   HUD / Meters (Score, Combo)
+   ========================================= */
+.theme-scoreSheetSynth #score-container {
+    background: var(--synth-panel);
+    border: 1px solid var(--synth-grid);
+    border-radius: var(--synth-radius);
+    padding: 10px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    
+    /* Position adjustment if needed, but keeping layout */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.theme-scoreSheetSynth #score {
+    font-family: var(--synth-font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--synth-accent);
+    font-size: 3rem; /* Adjust as needed */
+    line-height: 1;
+    text-shadow: 0 0 10px var(--synth-accent-glow);
+    letter-spacing: 0.1em;
+}
+
+.theme-scoreSheetSynth #combo {
+    font-family: var(--synth-font-mono);
+    color: var(--synth-muted);
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+}
+
+/* LCD Label style for Combo */
+.theme-scoreSheetSynth #combo::before {
+    content: 'COMBO';
+    display: block;
+    font-size: 0.6em;
+    color: var(--synth-grid);
+    margin-bottom: 2px;
+}
+
+/* =========================================
+   UI Controls (Buttons)
+   ========================================= */
+.theme-scoreSheetSynth #controls button {
+    background: var(--synth-panel);
+    border: 1px solid var(--synth-grid);
+    border-radius: 4px;
+    color: var(--synth-text);
+    font-family: var(--synth-font-ui);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    transition: all 0.2s;
+}
+
+.theme-scoreSheetSynth #controls button:hover:not(:disabled) {
+    border-color: var(--synth-accent);
+    box-shadow: 0 0 10px var(--synth-accent-glow);
+    color: var(--synth-accent);
+}
+
+.theme-scoreSheetSynth #controls button:disabled {
+    opacity: 0.5;
+    border-color: transparent;
+}
+
+/* =========================================
+   Song Info
+   ========================================= */
+.theme-scoreSheetSynth #song-info {
+    background: linear-gradient(90deg, transparent, var(--synth-panel), transparent);
+    padding: 10px;
+    border-top: 1px solid var(--synth-grid);
+    border-bottom: 1px solid var(--synth-grid);
+}
+
+.theme-scoreSheetSynth #song-title {
+    font-family: var(--synth-font-ui);
+    color: var(--synth-text);
+    text-shadow: 0 0 5px rgba(255,255,255,0.3);
+}
+
+.theme-scoreSheetSynth #song-artist {
+    color: var(--synth-muted);
+    font-family: var(--synth-font-mono);
+    font-size: 0.8em;
+}
+
+/* =========================================
+   Results Screen
+   ========================================= */
+.theme-scoreSheetSynth #results-screen .results-container {
+    background: var(--synth-panel);
+    border: 1px solid var(--synth-accent);
+    box-shadow: 0 0 30px rgba(57, 208, 255, 0.2);
+    border-radius: 8px;
+}
+
+.theme-scoreSheetSynth #results-screen h2 {
+    color: var(--synth-accent);
+    font-family: var(--synth-font-mono);
+    border-bottom: 1px solid var(--synth-grid);
+}
+
+.theme-scoreSheetSynth #final-score-display {
+    font-family: var(--synth-font-mono);
+    color: #fff;
+    text-shadow: 0 0 15px var(--synth-accent);
+}
+

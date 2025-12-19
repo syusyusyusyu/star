@@ -29,12 +29,12 @@
    ========================================= */
 .theme-scoreSheetSynth .game-body,
 .theme-scoreSheetSynth #game-container {
-    /* Make background semi-transparent to show live stage */
-    background-color: rgba(14, 17, 22, 0.4) !important;
+    /* Make background transparent to show live stage */
+    background-color: transparent !important;
     /* Grid Pattern: Vertical (beats) and Horizontal (tracks) */
     background-image: 
-        linear-gradient(var(--synth-grid) 1px, transparent 1px),
-        linear-gradient(90deg, var(--synth-grid) 1px, transparent 1px);
+        linear-gradient(rgba(36, 48, 71, 0.4) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(36, 48, 71, 0.4) 1px, transparent 1px);
     background-size: 100px 100px; /* Adjust for grid density */
     background-position: center bottom;
 }

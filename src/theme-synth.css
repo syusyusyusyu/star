@@ -278,16 +278,26 @@
         top: 10px !important;
         align-items: flex-end !important;
         background: rgba(19, 26, 36, 0.9); /* Ensure readability */
+        padding: 5px 10px !important;
+    }
+
+    .theme-scoreSheetSynth #score {
+        font-size: 1.8rem !important; /* Smaller score font */
     }
     
     .theme-scoreSheetSynth #song-info {
         left: 10px !important;
         top: 10px !important;
         right: auto !important;
-        max-width: 55vw !important; /* Prevent overlap with score */
+        max-width: 40vw !important; /* Prevent overlap with score */
         background: rgba(19, 26, 36, 0.8);
         border: 1px solid var(--synth-grid);
         border-radius: 4px;
+        padding: 6px !important;
+    }
+
+    .theme-scoreSheetSynth #song-title {
+        font-size: 0.9rem !important;
     }
 }
 

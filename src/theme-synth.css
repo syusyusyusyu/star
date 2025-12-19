@@ -267,3 +267,27 @@
     text-shadow: 0 0 15px var(--synth-accent);
 }
 
+/* =========================================
+   Responsive Adjustments
+   ========================================= */
+@media (max-width: 768px) {
+    /* Fix overlap between song info and score on mobile */
+    .theme-scoreSheetSynth #score-container {
+        left: auto !important;
+        right: 10px !important;
+        top: 10px !important;
+        align-items: flex-end !important;
+        background: rgba(19, 26, 36, 0.9); /* Ensure readability */
+    }
+    
+    .theme-scoreSheetSynth #song-info {
+        left: 10px !important;
+        top: 10px !important;
+        right: auto !important;
+        max-width: 55vw !important; /* Prevent overlap with score */
+        background: rgba(19, 26, 36, 0.8);
+        border: 1px solid var(--synth-grid);
+        border-radius: 4px;
+    }
+}
+

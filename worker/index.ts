@@ -145,5 +145,23 @@ app.get('/api/token', async (c) => {
 app.route('/api', scoreRoute)
 app.route('/admin', adminRoute)
 
+// Static Assets & SPA Fallback
+app.get('*', async (c) => {
+  const env = c.env
+  if (env.ASSETS) {
+    const url = new URL(c.req.url)
+    // Try fetching the exact file
+    let response = await env.ASSETS.fetch(c.req.raw)
+    
+    // If 404 and not an API route, serve index.html (SPA fallback)
+    if (response.status === 404 && !url.pathname.startsWith('/api')) {
+      const indexUrl = new URL('/index.html', c.req.url)
+      response = await env.ASSETS.fetch(new Request(indexUrl, c.req.raw))
+    }
+    return response
+  }
+  return c.text('Not Found', 404)
+})
+
 export default app
 

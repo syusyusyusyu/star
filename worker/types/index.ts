@@ -1,4 +1,4 @@
-import type { DurableObjectNamespace } from "@cloudflare/workers-types";
+import type { DurableObjectNamespace, Fetcher } from "@cloudflare/workers-types";
 
 export type Bindings = {
   SUPABASE_URL: string
@@ -9,6 +9,7 @@ export type Bindings = {
   TURNSTILE_SITE_KEY?: string
   SCORE_SIGNING_SECRET?: string
   RATE_LIMITER: DurableObjectNamespace
+  ASSETS: Fetcher
 }
 
 export type Variables = {

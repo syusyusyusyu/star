@@ -2728,13 +2728,11 @@ class EffectsManager {
     }
 
     const pointDisplay = document.createElement('div');
-    pointDisplay.className = 'lyric-bubble';
-    pointDisplay.textContent = `+${Math.round(this.game.scorePerHit)}`;
-    pointDisplay.style.left = `${x}px`;
-    pointDisplay.style.top = `${y}px`;
-    pointDisplay.style.color = '#FFFF00';
-    pointDisplay.style.pointerEvents = 'none';
-    this.game.gamecontainer.appendChild(pointDisplay);
+            pointDisplay.className = 'score-popup';
+            pointDisplay.textContent = `+${Math.round(this.game.scorePerHit)}`;
+            pointDisplay.style.left = `${x}px`;
+            pointDisplay.style.top = `${y}px`;
+            pointDisplay.style.pointerEvents = 'none';    this.game.gamecontainer.appendChild(pointDisplay);
 
     const animate = () => {
       const top = parseFloat(pointDisplay.style.top);

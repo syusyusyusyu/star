@@ -694,6 +694,19 @@ html {
     text-shadow: 0 0 10px #39C5BB;
     transform: scale(1.2);
   }
+  
+  .score-popup {
+    position: absolute; /* Keep absolute positioning for dynamic placement */
+    color: #FFFF00; /* Yellow color */
+    font-size: 28px; /* Prominent size */
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(255, 255, 0, 0.8); /* Yellow text shadow */
+    pointer-events: none; /* Do not interfere with other events */
+    z-index: 50; /* Ensure it's above other elements */
+    opacity: 0; /* Will be animated to fade in/out */
+    will-change: transform, opacity;
+  }
+
 
 /* 背景レイヤーの調整 */
 #live-background {
@@ -792,8 +805,8 @@ html {
     #song-title {
         font-size: clamp(11px, 3.2vw, 15px);
     }
-    #song-artist {
-        font-size: clamp(9px, 2.8vw, 11px);
+    .viewer-lyrics-container {
+        display: none;
     }
     .lyric-bubble {
         font-size: clamp(14px, 4.5vw, 18px);

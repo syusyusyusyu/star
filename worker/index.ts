@@ -25,7 +25,8 @@ app.use('*', async (c, next) => {
   // CSP: Restrict sources significantly
   // Note: 'unsafe-eval' is required for some libraries (like MediaPipe/TensorFlow.js)
   // 'unsafe-inline' is kept for compatibility but should be removed if possible with nonces
-  c.header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net https://api.songle.jp; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://img.shields.io; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.songle.jp https://challenges.cloudflare.com https://api.textalive.jp https://songle.jp https://unpkg.com; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;")
+  // 開発・動作確認のため制限を大幅に緩和
+  c.header('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline'; font-src * data:; worker-src * blob:; upgrade-insecure-requests;")
   
   c.header('X-Content-Type-Options', 'nosniff')
   c.header('X-Frame-Options', 'DENY')

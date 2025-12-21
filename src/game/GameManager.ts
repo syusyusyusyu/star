@@ -2482,7 +2482,7 @@ class ResultsManager {
                   callback: async (token: string) => {
                       if (typeof this.game.onGameEnd === 'function') {
                         try {
-                          const success = await this.game.onGameEnd({
+                          const result = await this.game.onGameEnd({
                             songId: this.game.songId || 'HmfsoBVch26BmLCm',
                             mode: modeForResult,
                             score: Math.round(this.game.score),
@@ -2492,7 +2492,7 @@ class ResultsManager {
                             turnstileToken: token
                           });
                           
-                          if (success) {
+                          if ((result as any) === true) {
                             this.game.resultReported = true;
                             if (registerScore) {
                               registerScore.textContent = '登録完了';
@@ -2531,7 +2531,7 @@ class ResultsManager {
               // フォールバック
               if (typeof this.game.onGameEnd === 'function') {
                   (async () => {
-                    const success = await this.game.onGameEnd!({
+                    const result = await this.game.onGameEnd!({
                         songId: this.game.songId || 'HmfsoBVch26BmLCm',
                         mode: modeForResult,
                         score: Math.round(this.game.score),
@@ -2539,7 +2539,7 @@ class ResultsManager {
                         rank,
                         playerName,
                     });
-                    if (success) {
+                    if ((result as any) === true) {
                         this.game.resultReported = true;
                         if (registerScore) {
                             registerScore.textContent = '登録完了';
@@ -2559,7 +2559,7 @@ class ResultsManager {
           if (typeof this.game.onGameEnd === 'function') {
             (async () => {
                 try {
-                  const success = await this.game.onGameEnd!({
+                  const result = await this.game.onGameEnd!({
                     songId: this.game.songId || 'HmfsoBVch26BmLCm', // Fallback ID if undefined
                     mode: modeForResult,
                     score: Math.round(this.game.score),
@@ -2568,7 +2568,7 @@ class ResultsManager {
                     playerName,
                   });
                   
-                  if (success) {
+                  if ((result as any) === true) {
                     this.game.resultReported = true;
                     if (registerScore) {
                         registerScore.textContent = '登録完了';

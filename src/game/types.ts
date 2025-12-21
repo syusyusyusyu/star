@@ -11,7 +11,7 @@ export type PlayMode = 'cursor' | 'body' | 'mobile' | 'hand'
 export interface GameConfig {
   songId?: string
   mode?: PlayMode
-  onGameEnd?: (result: GameResult) => Promise<boolean> | void
+  onGameEnd?: (result: GameResult) => Promise<boolean | void> | void
 }
 
 /** ゲーム結果 */

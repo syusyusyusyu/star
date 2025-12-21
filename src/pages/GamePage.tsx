@@ -105,12 +105,6 @@ function GamePage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  useEffect(() => {
-    if (!prefersTouch && rankingMode === 'mobile') {
-      setRankingMode('cursor')
-    }
-  }, [prefersTouch, rankingMode])
-
   // Fetch score signing token
   useEffect(() => {
     const fetchToken = () => {

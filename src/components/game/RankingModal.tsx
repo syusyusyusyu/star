@@ -39,7 +39,7 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 sm:gap-6 justify-end w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6 justify-end w-full sm:w-auto relative z-10">
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}

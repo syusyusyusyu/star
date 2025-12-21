@@ -1,179 +1,139 @@
-﻿# Cross Stage 技術Q&A
+# Cross Stage 技術Q&A（完全版）
 
-作品展で即答するためのチートシート。学生ノリで短く、スライド読み上げしやすい文量にしています。
+作品展・技術発表で「即答」するための最強チートシート。
+想定される質問（甘口〜激辛）を網羅し、設計意図と実装詳細を言語化しました。
 
-## プロダクトと体験
-Q. 何をするプロダクト？
-A. 歌詞タイミングで「触れて遊ぶ」Webリズムゲーム。歌詞同期=TextAlive、体/手入力=MediaPipe、演出=Three.js。
+---
 
-Q. どんなプレイモード？
-A. `cursor`(マウス/タッチ) / `body`(全身) / `mobile`(タッチ特化) / `hand`(拡張枠)。スマホ検出→自動でmobile。
+## 🎨 プロダクト・体験設計 (UX)
 
-Q. 判定の特徴は？
-A. ホールド型。押さえてゲージ満タン→コンボ。重なり回避＆ホールド中は最前面で触りやすく。
+### Q. 一言でいうと何？
+**A.** 「音楽に触れる」を体現したWebリズムアクションゲーム。
+TextAliveの歌詞解析技術とMediaPipeの身体検知を融合させ、流れてくる歌詞を「掴んで」「奏でる」没入体験を作りました。
 
-Q. 歌詞同期が壊れたら？
-A. TextAliveが落ちてもフォールバック歌詞＋自前タイマーで続行。ゲームは止めない。
+### Q. どんなプレイモードがある？
+**A.** 3つのモードをデバイスに応じて自動/手動で切り替えます。
+- **Cursor**: マウス/タッチ操作（PC/タブレット）。基本モード。
+- **Mobile**: スマホ特化。画面下部の歌詞表示を排除し、タップ領域を最大化。親指でのプレイ感を最適化。
+- **Body**: Webカメラで全身検知。手や体を歌詞に重ねて「触れる」全身運動モード。
 
-## 全体アーキテクチャ
-Q. 技術スタックは？
-A. フロント: React 18 / Vite / Tailwind / Three.js / TextAlive / MediaPipe。API: Cloudflare Workers + Hono（開発はNode版も）。DB: Supabase(PostgreSQL)。検証: TypeScript + Zod。
+### Q. 判定の特徴は？「ホールド」って何？
+**A.** 単なるタップではなく「長押し」でゲージを溜める仕組みです。
+- **意図**: 歌詞の「余韻」や「伸び」を表現するため。
+- **工夫**: バブルが密集しても誤爆しないよう、ホールド中のバブルを最前面（z-index）に引き上げ、判定ロジックも「指を離さずスライド」に対応させています。
 
-Q. なんでReact+Vite？
-A. 起動とHMRが速い。Three.jsや外部SDKを混ぜてもビルドが軽くデモ向き。
+### Q. UIデザインのこだわりは？
+**A.** 「没入感」と「視認性」の両立です。
+- **Yellow Score Popups**: スコア加算表示を従来のカード型から「文字抜き・黄色・太字」に変更し、視認性を大幅向上。
+- **Mobile Optimized**: モバイルでは画面が狭いため、下部の歌詞テキストエリア（Viewer Lyrics）を非表示にし、ゲーム画面を広く確保。
+- **Neon/Glass**: 暗闇に光るネオンとグラスモーフィズムで、近未来のライブステージを演出。
 
-Q. なんでTailwind？
-A. 短期間でUIを組むため。ネオン/ガラス系の調整をユーティリティで即書きしたい。
+### Q. 歌詞同期がズレたり止まったりしない？
+**A.** **止まりません（The Show Must Go On）。**
+TextAlive APIが不安定な場合やネットワーク切断時でも、フォールバック用の歌詞データと自前タイマーでゲームを継続させる「フォールバック機構」を実装しています。
 
-Q. Three.jsはどこで？
-A. 背景ステージとライト演出。ロジックと分離して見た目担当。
+---
 
-Q. TextAliveは何をしてる？
-A. 再生制御＋歌詞タイミング提供。フレーズ/単語時刻を基準にバブル同期。
+## 🛠️ フロントエンド技術 (React / Vite)
 
-Q. MediaPipeは何をしてる？
-A. Poseで全身ランドマーク、SelfieSegmentationで背景切り抜き、Hands枠も用意。動きを入力にマップ。
+### Q. 技術スタックの選定理由は？
+**A.** 「開発速度」と「パフォーマンス」のバランス。
+- **React 18 + Vite**: 高速なHMRで試行錯誤を加速。
+- **Tailwind CSS**: UI構築の速さと、CSS変数を活用したテーマ管理（ミクグリーン等）の容易さ。
+- **Three.js**: 背景の3D演出用。Reactロジックとは切り離して軽量に実装。
 
-Q. なぜWorkers/Hono？
-A. エッジで軽くデプロイが速い。型も付けやすく、APIと静的配信を小さくまとめられる。
+### Q. ゲームループはどうなってる？
+**A.** `requestAnimationFrame` ベースの独自ループです。
+`GameManager` クラスが中心となり、`GameLoop`（時間管理）、`InputManager`（入力）、`LyricsRenderer`（描画）、`EffectsManager`（演出）を統括する **SRP（単一責任の原則）** に基づいた設計です。
 
-Q. インフラ構成は？
-A. API=Cloudflare Workers、静的=docs/配信（Workers/Pagesどちらも可）、DB=Supabase。開発はNode版Hono+Vite、`cf dev`でWorkers模擬。
+### Q. 状態管理ライブラリは？ (Redux/Recoil?)
+**A.** **使っていません。**
+ゲームのステート（スコア、コンボ等）はReactのレンダリングサイクルとは独立したクラス（GameManager）で管理し、必要な時だけReact側に反映させることで、Reactの再レンダリング負荷を回避し60fpsを維持しています。
 
-Q. なんでSupabase？
-A. Postgresベースでセットアップが速い。anon keyで手軽、SQL/RLS拡張性も確保。
+### Q. 「徹底したSPA遷移」とは？
+**A.** ユーザーの没入感を削がない工夫です。
+- `beforeunload` や `popstate` をフックし、ブラウザバック時も独自の確認モーダルを表示。
+- 画面遷移時に白画面やロードスピナーを挟まず、シームレスにシーンを切り替えます。
 
-## フロントエンド実装
-Q. ランキング取得フローは？
-A. `/api/ranking` → 30秒クライアントキャッシュ。mode失敗→modeなし再トライ→旧`/api/ranking`にフォールバック（src/components/game/RankingPanel.tsx）。
+### Q. デバッグ機能はある？
+**A.** 展示デモ用に、キーボードで **`hhrg`** と入力すると強制的にリザルト画面へ遷移する裏コマンドを実装しています。
 
-Q. ゲーム開始までの導線は？
-A. URL/LocalStorage/端末特性で初期モード決定→GameManager初期化。popstate/beforeunloadで誤離脱ガード（src/pages/GamePage.tsx）。
+---
 
-Q. カメラと背景合成は？
-A. Pose/SelfieSegmentationで人物を抜いてcanvas合成。全身未検出なら警告→カウントダウン開始。
+## 🔒 バックエンド・セキュリティ (Workers / Supabase)
 
-Q. UI/UXの配慮は？
-A. モバイルで歌詞縮小・折返し、HUD位置調整。ネオン×ガラスの見た目。
-A. **徹底したSPA遷移**: ブラウザバックやリロードもフックし、独自の確認モーダルで統一。白画面やネイティブ警告を出さない。
+### Q. なぜ Cloudflare Workers / Hono？
+**A.** **「爆速エッジ処理」と「堅牢性」。**
+- 全世界のエッジでAPIが実行されるためレイテンシが低い。
+- Hono は超軽量で型安全。Durable Objects との親和性も高い。
+- Node.jsサーバーを立てるより運用コストが圧倒的に安い（ほぼ無料）。
 
-Q. デバッグ機能はある？
-A. キーボードで `hhrg` と打つと強制的にリザルト画面へ遷移（展示デモ用）。
+### Q. セキュリティ対策は？（ガチ勢向け回答）
+**A.** **情報処理安全確保支援士レベル**の対策を実装しています。
+1.  **Turnstile**: CloudflareのスマートCAPTCHAでボットによるスコア荒らしを排除。
+2.  **HMAC署名**: サーバー発行の署名付きトークンがないとスコア登録不可。
+3.  **Nonce (Durable Objects)**: トークンの使い回し（リプレイ攻撃）を物理的に阻止。
+4.  **CSP / HSTS / Permissions-Policy**: 厳格なセキュリティヘッダでXSSや不正な機能利用をブロック。
+5.  **RLS (Supabase)**: クライアントからは読み取りのみ許可。書き込みは署名検証済みのWorkersからのみ許可。
 
-## バックエンド/API
-Q. 提供APIは？
-A. `/api/score` (POST), `/api/ranking` (GET), `/api/token` (GET), `/api/config` (GET)（Workers）。ヘルスチェック`/api/health`。
+### Q. スコアの二重送信（連打）対策は？
+**A.** **Idempotency Key（冪等性キー）** を導入しています。
+クライアントが生成した `clientAttemptId` を元に、同じプレイ結果の再送信は無視しつつ、正常なレスポンスを返すことで、ネットワーク不安定時の再試行を安全に処理します。
 
-Q. スコア登録のバリデーションは？
-A. Zodで厳格チェック。playerName1-20、songId英数/`-_`<=64、mode enum、score/maxCombo>=0 int、rank1-5、accuracy0-100。100万超は`is_suspicious=true`で除外。
+### Q. 管理機能はある？
+**A.** あります。
+`/admin/scores` エンドポイントに対し、管理者用トークン（`x-admin-token`）を用いて特定条件のスコア削除や全削除が可能です。誤操作防止のため `confirm` パラメータを必須にしています。
 
-Q. ランキング取得の仕様は？
-A. クエリ: songId必須、mode任意(デフォcursor)、limit1-50。`is_suspicious=false`のみ返し、score descでlimit件。count/totalとrequestId付き。
+---
 
-Q. 管理APIは？
-A. `/admin/scores` DELETE。`confirm=true`で条件付き削除、`confirm=ALL`で全削除。`x-admin-token` 必須。
+## 🧪 パフォーマンス・可用性
 
-Q. 保存データは？
-A. Supabase `scores`。匿名セッションはhttpOnly/SameSite=Strict/Secureの`cs_session`(1年)で紐付け。個人情報は任意のplayer_nameのみ。
+### Q. 重い端末への配慮は？
+**A.** レンダリング負荷の軽減策を入れています。
+- **オブジェクトプーリング**: パーティクルやバブルのDOM要素を再利用し、GC発生を抑制。
+- **will-change**: アニメーション要素にGPUアクセラレーションを明示。
+- **演出削減**: モバイルや低スペック環境ではThree.js演出を自動で簡易版に切り替え。
 
-## データベース
-Q. スキーマ概要は？
-A. `supabase_scores.sql`参照。id uuid, session_id, song_id, mode(check), score, max_combo, rank, accuracy, is_suspicious, player_name, created_at。インデックス`(song_id, mode, score desc)`、pgcryptoでUUID生成。
+### Q. 異常なハイスコア（チート）への対策は？
+**A.** **多層防御**で防ぎます。
+1.  **バリデーション**: Zodでスコア、コンボ、ランク等の整合性を厳格にチェック。
+2.  **閾値制限**: 100万点（理論値）を超えるスコアは `is_suspicious` フラグを立ててランキングから自動除外。
+3.  **レート制限**: 同一IPからの過度な連続投稿をブロック。
 
-Q. RLSは？
-A. anon/authは`is_suspicious=false`のSELECTのみ許可。INSERT/DELETEはWorkers(service role)のみ。
+---
 
-Q. 新曲の追加は？
-A. `src/types/game.ts`の`songsData`に曲情報を追加し、GameManagerのデフォsongIdを合わせる。
+## 💡 「なぜ〇〇じゃないの？」 (FAQ)
 
-## セキュリティ・チート耐性
-Q. 不正投稿どう防ぐ？
-A. 
-1. **Turnstile**: 投稿直前にボット検証。
-2. **HMAC署名**: `/api/token`で発行した署名付きトークンを検証。
-3. **Nonce**: トークンの使い回しをDurable Objectで防止。
-4. **レート制限**: IPごとに投稿頻度を制限。
-5. **Originチェック**: `FRONTEND_ORIGIN`以外からのリクエストを拒否。
-6. **異常値検知**: 100万点超えは自動でランキング除外。
+### Q. Next.js じゃないの？
+**A.** **SSR（サーバーサイドレンダリング）が不要だからです。**
+ゲームはクライアントサイドでのインタラクションが全て。ViteによるSPAの方が初期ロード後の挙動が軽く、ホスティングもシンプルになります。
 
-Q. Webセキュリティ対策は？
-A. 情報処理安全確保支援士レベルの対策を実施。
-- **HSTS**: HTTPS強制（max-age=2年, preload）。
-- **CSP**: 厳格なContent-Security-PolicyでXSS防止。
-- **Permissions-Policy**: カメラ以外の不要なAPI（マイク/位置情報/決済等）を全ブロック。
-- **COOP/CORP**: Cross-Origin-Opener-Policy等でサイドチャネル攻撃対策。
+### Q. Canvas で全部描画しないの？
+**A.** **DOM操作とCSSアニメーションの方がUI調整が速いからです。**
+歌詞バブルの文字折り返しや装飾はHTML/CSSが得意。背景エフェクトのみCanvas(Three.js)に任せるハイブリッド構成が、開発効率と表現力の最適解でした。
 
-Q. Durable Objectの役割は？
-A. `RateLimiter`クラスで、IPごとのレート制限カウンタと、Nonce（使い捨てトークン）の消費状態を強整合性で管理。
+### Q. Websocket (Realtime) は使わない？
+**A.** **今回はランキング機能のみなので不要です。**
+リアルタイム対戦を実装するならDurable ObjectsでWebsocketサーバーを立てますが、現在の仕様ではHTTPリクエスト（REST）で十分かつステートレスで堅牢です。
 
-Q. RLSとService Roleの使い分けは？
-A. クライアント（anon）は読み取り専用。書き込みは信頼できるWorkers（Service Role）経由でのみ許可し、不正な直接書き込みを防止。
+### Q. AWS や GCP じゃないの？
+**A.** **「展示会特化」のデプロイ速度を優先しました。**
+Cloudflare Pages/Workersなら、`git push` から数秒で全世界にデプロイ完了。インフラ構築の時間を、ゲームの面白さを磨く時間に充てました。
 
-Q. セッション管理は？
-A. httpOnly/Secure/SameSite=Laxの`cs_session`で匿名セッション。requestIdと合わせてログで追跡。
+---
 
-## パフォーマンスと可用性
-Q. レイテンシ対策は？
-A. APIをWorkersでエッジ実行、静的はCDN想定。ランキングは30秒キャッシュ＋limitで帯域削減。
+## 🔍 トラブルシューティング（展示現場用）
 
-Q. フォールトトレランスは？
-A. TextAliveが落ちてもフォールバック歌詞で続行。スコア送信はキーで重複防止。beforeunloadで離脱警告、cleanupで解放。
+### Q. カメラが映らない！
+**A.**
+1. ブラウザのカメラ権限許可を確認。
+2. 別のアプリ（Zoom等）がカメラを占有していないか確認。
+3. URLパラメータ `?mode=body` を付け直してリロード。
 
-Q. 重い端末向け工夫は？
-A. モバイルUI簡素化、歌詞バブル縮小、viewer歌詞オフ。Three.js演出も軽め。
+### Q. 音が出ない！
+**A.**
+ブラウザの自動再生ポリシー制限です。画面を一度クリック/タップしてからリロード、またはスタートボタンを押してください。
 
-## 運用・デプロイ
-Q. 必要な環境変数は？
-A. `.dev.vars`例:
-```
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_ANON_KEY=***
-SUPABASE_SERVICE_ROLE_KEY=***
-ADMIN_TOKEN=***
-FRONTEND_ORIGIN=https://example.com
-SCORE_SIGNING_SECRET=***
-TURNSTILE_SECRET_KEY=***
-TURNSTILE_SITE_KEY=***
-```
-Workersでは`wrangler secret put`で登録。
-
-Q. ローカル開発の流れは？
-A. `npm install` → `npm run dev` でVite(:5173)とHono(:8787)同時起動。Workers実機は`npm run cf:dev`。
-
-Q. デプロイ手順は？
-A. `npm run deploy` でViteビルド→wrangler deploy。静的成果物は`docs/`にあるのでGitHub Pages等でも配信可。
-
-Q. ログはどこで見る？
-A. Workers: Cloudflareダッシュボード or `wrangler tail`。Node開発サーバー: コンソール。レスポンスにrequestId付き。
-
-## テスト・確認観点
-Q. 何をテストしている？
-A. 手動中心。ゲーム進行→スコア送信→ランキング表示、モード切替、TextAliveダウン時フォールバック、Originチェックで403になるかを一通り確認。
-
-Q. 次に強化するとしたら？
-A. スコア異常検知の多段化（速度/頻度/IP）、PlaywrightでE2E自動化。
-
-## 「なんで〇〇じゃないの？」に答える
-Q. Next.jsじゃないの？
-A. SSR不要でViteの速さ優先。Workers配信のSPAで十分。
-
-Q. Express/Fastifyじゃないの？
-A. エッジ対応とバンドル軽量化でHono。Workersとの相性と型付けのしやすさ重視。
-
-Q. Firebaseじゃないの？
-A. Postgresを使いたくてSupabase。SQL/RLSの拡張性を取りたかった。
-
-Q. Prisma使わないの？
-A. Supabaseクライアント直叩きで足りる。ORMバンドルを削って軽量化。
-
-Q. Babylon.jsは？
-A. チーム経験がThree.js寄り。短期で仕上げるため慣れたスタックを採用。
-
-Q. WebRTC/Socketは？
-A. 今回はランキングのみで不要。リアルタイム対戦・観戦をやるなら追加検討。
-
-Q. Redux/Recoilは？
-A. 状態が局所的なのでReact state/コンテキストで足りる。
-
-Q. AWS/GCPじゃないの？
-A. デプロイ速度・コスト・CDN近さでCloudflare。展示用に即デプロイを優先。
+### Q. ランキングが出ない！
+**A.**
+ネットワーク接続を確認してください。オフラインでもゲーム自体はプレイ可能です（スコア送信は失敗しますが、再試行ロジックが働きます）。

@@ -58,10 +58,13 @@ function GamePage() {
     if (prefersTouch && urlMode === 'body') return 'mobile'
     if (!prefersTouch && urlMode === 'mobile') return 'cursor'
     if (urlMode) return urlMode
-    if (prefersTouch && storedMode === 'body') return 'mobile'
+    
+    // モバイル端末なら、localStorageに関わらずmobileモードをデフォルトにする
+    if (prefersTouch) return 'mobile'
+
     if (!prefersTouch && storedMode === 'mobile') return 'cursor'
     if (storedMode) return storedMode
-    return prefersTouch ? 'mobile' : 'cursor'
+    return 'cursor'
   }, [])
   const navigate = useNavigate()
   const { songData, accentColor } = useMemo(() => loadSongConfig(), [])

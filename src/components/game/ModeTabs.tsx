@@ -11,8 +11,21 @@ const tabs: { value: PlayMode; label: string }[] = [
   { value: 'mobile', label: 'モバイルモード' },
 ]
 
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false
+  return (
+    window.matchMedia('(max-width: 820px)').matches ||
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0
+  )
+}
+
 const ModeTabs = ({ value, onChange }: ModeTabsProps) => {
-  const visibleTabs = tabs
+  const isMobile = isMobileDevice()
+  const visibleTabs = isMobile
+    ? tabs.filter((t) => t.value === 'mobile')
+    : tabs.filter((t) => t.value !== 'mobile')
+
   const effectiveValue = visibleTabs.some((t) => t.value === value)
     ? value
     : visibleTabs[0]?.value ?? value

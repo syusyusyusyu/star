@@ -127,9 +127,9 @@ function GamePage() {
     return () => clearInterval(interval)
   }, [])
 
-  const submitScore = useCallback(async (gameResult: GameResult) => {
+  const submitScore = useCallback(async (gameResult: GameResult): Promise<boolean> => {
     const key = `${gameResult.songId}-${gameResult.mode}-${gameResult.score}-${gameResult.maxCombo}-${gameResult.rank}`
-    if (lastSubmittedKeyRef.current === key) return
+    if (lastSubmittedKeyRef.current === key) return true
     lastSubmittedKeyRef.current = key
 
     setIsSubmitting(true)
@@ -148,21 +148,24 @@ function GamePage() {
       if (!res.ok) {
         const payload = await res.json().catch(() => null)
         console.error("Score submit failed", payload?.error?.message ?? res.statusText)
+        return false
       } else {
         // スコア送信成功時にランキングキャッシュをクリア
         clearRankingCache()
+        return true
       }
     } catch (error) {
       console.error("Score submit error", error)
+      return false
     } finally {
       setIsSubmitting(false)
     }
   }, [])
 
   const handleGameEnd = useCallback(
-    (gameResult: GameResult) => {
+    async (gameResult: GameResult) => {
       setRankingMode(gameResult.mode)
-      submitScore(gameResult)
+      return await submitScore(gameResult)
     },
     [submitScore]
   )

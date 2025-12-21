@@ -2479,11 +2479,10 @@ class ResultsManager {
               (window as any).turnstile.render('#turnstile-container', {
                   // テスト用キー (Always Pass): 1x00000000000000000000AA
                   sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
-                  callback: (token: string) => {
+                  callback: async (token: string) => {
                       if (typeof this.game.onGameEnd === 'function') {
-                        this.game.resultReported = true;
                         try {
-                          this.game.onGameEnd({
+                          const success = await this.game.onGameEnd({
                             songId: this.game.songId || 'HmfsoBVch26BmLCm',
                             mode: modeForResult,
                             score: Math.round(this.game.score),
@@ -2493,18 +2492,30 @@ class ResultsManager {
                             turnstileToken: token
                           });
                           
-                          if (registerScore) {
-                            registerScore.textContent = '登録完了';
-                            registerScore.classList.add('opacity-50', 'cursor-not-allowed');
-                            (registerScore as HTMLButtonElement).disabled = true;
+                          if (success) {
+                            this.game.resultReported = true;
+                            if (registerScore) {
+                              registerScore.textContent = '登録完了';
+                              registerScore.classList.add('opacity-50', 'cursor-not-allowed');
+                              (registerScore as HTMLButtonElement).disabled = true;
+                            }
+                            // ウィジェット削除
+                            setTimeout(() => {
+                               try { (window as any).turnstile.remove('#turnstile-container'); } catch(e) {}
+                            }, 1000);
+                          } else {
+                            if (registerScore) {
+                              (registerScore as HTMLButtonElement).disabled = false;
+                              registerScore.textContent = '登録失敗 (再試行)';
+                            }
+                            try { (window as any).turnstile.reset('#turnstile-container'); } catch(e) {}
                           }
-                          // ウィジェット削除
-                          setTimeout(() => {
-                             try { (window as any).turnstile.remove('#turnstile-container'); } catch(e) {}
-                          }, 1000);
                         } catch (error) {
                           console.error('onGameEnd handler error', error);
-                          this.game.resultReported = false;
+                          if (registerScore) {
+                              (registerScore as HTMLButtonElement).disabled = false;
+                              registerScore.textContent = '登録失敗 (再試行)';
+                          }
                         }
                       }
                   },
@@ -2519,45 +2530,65 @@ class ResultsManager {
               console.error('Turnstile error:', e);
               // フォールバック
               if (typeof this.game.onGameEnd === 'function') {
-                  this.game.resultReported = true;
-                  this.game.onGameEnd({
-                    songId: this.game.songId || 'HmfsoBVch26BmLCm',
+                  (async () => {
+                    const success = await this.game.onGameEnd!({
+                        songId: this.game.songId || 'HmfsoBVch26BmLCm',
+                        mode: modeForResult,
+                        score: Math.round(this.game.score),
+                        maxCombo: this.game.maxCombo,
+                        rank,
+                        playerName,
+                    });
+                    if (success) {
+                        this.game.resultReported = true;
+                        if (registerScore) {
+                            registerScore.textContent = '登録完了';
+                            registerScore.classList.add('opacity-50', 'cursor-not-allowed');
+                            (registerScore as HTMLButtonElement).disabled = true;
+                        }
+                    } else {
+                        if (registerScore) {
+                            (registerScore as HTMLButtonElement).disabled = false;
+                            registerScore.textContent = '登録失敗 (再試行)';
+                        }
+                    }
+                  })();
+              }
+          }
+      } else {
+          if (typeof this.game.onGameEnd === 'function') {
+            (async () => {
+                try {
+                  const success = await this.game.onGameEnd!({
+                    songId: this.game.songId || 'HmfsoBVch26BmLCm', // Fallback ID if undefined
                     mode: modeForResult,
                     score: Math.round(this.game.score),
                     maxCombo: this.game.maxCombo,
                     rank,
                     playerName,
                   });
-                  if (registerScore) {
-                    registerScore.textContent = '登録完了';
-                    registerScore.classList.add('opacity-50', 'cursor-not-allowed');
-                    (registerScore as HTMLButtonElement).disabled = true;
+                  
+                  if (success) {
+                    this.game.resultReported = true;
+                    if (registerScore) {
+                        registerScore.textContent = '登録完了';
+                        registerScore.classList.add('opacity-50', 'cursor-not-allowed');
+                        (registerScore as HTMLButtonElement).disabled = true;
+                    }
+                  } else {
+                    if (registerScore) {
+                        (registerScore as HTMLButtonElement).disabled = false;
+                        registerScore.textContent = '登録失敗 (再試行)';
+                    }
                   }
-              }
-          }
-      } else {
-          if (typeof this.game.onGameEnd === 'function') {
-            this.game.resultReported = true;
-            try {
-              this.game.onGameEnd({
-                songId: this.game.songId || 'HmfsoBVch26BmLCm', // Fallback ID if undefined
-                mode: modeForResult,
-                score: Math.round(this.game.score),
-                maxCombo: this.game.maxCombo,
-                rank,
-                playerName,
-              });
-              
-              // UI feedback
-              if (registerScore) {
-                registerScore.textContent = '登録完了';
-                registerScore.classList.add('opacity-50', 'cursor-not-allowed');
-                (registerScore as HTMLButtonElement).disabled = true;
-              }
-            } catch (error) {
-              console.error('onGameEnd handler error', error);
-              this.game.resultReported = false;
-            }
+                } catch (error) {
+                  console.error('onGameEnd handler error', error);
+                  if (registerScore) {
+                      (registerScore as HTMLButtonElement).disabled = false;
+                      registerScore.textContent = '登録失敗 (再試行)';
+                  }
+                }
+            })();
           }
       }
     };

@@ -1,7 +1,9 @@
-# Cross Stage（クロスステージ）
+# Cross Stage (クロスステージ)
 
-音楽と一体化する Web リズムアクションゲーム。  
-TextAlive App API の歌詞タイミングと MediaPipe Pose の全身/手の検知を組み合わせ、流れてくる歌詞バブルを「長押し（ホールド）」してスコアを稼ぎます。
+**音楽と身体が交差する、次世代Webリズムアクション。**
+
+Cross Stage は、TextAlive App API による歌詞同期技術と MediaPipe Pose による身体検知AIを融合させた、没入型Webリズムゲームです。
+近未来的なライブステージを舞台に、流れてくる歌詞を「掴み」「奏でる」ような体験を提供します。
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
@@ -12,248 +14,152 @@ TextAlive App API の歌詞タイミングと MediaPipe Pose の全身/手の検
 
 ---
 
-## 特徴
+## 🎮 ゲーム概要
 
-- **ホールド判定リズムゲーム**
-  - 歌詞バブルをホールドしてゲージMAXでコンボ/スコア加算。
-  - 近距離スポーンの重なり回避、ホールド中バブルの最前面化など、プレイ感を重視。
-- **3つの入力モード**
-  - `cursor`: マウス/タッチでホールド（PC/タブレット向け）。
-  - `body`: Webカメラ + Pose で全身入力。手首/指先の近接でホールド判定。
-  - `mobile`: スマホ専用 UI（タップホールド特化、端末検知で自動切替）。
-  - `hand`: 研究/拡張枠（現在は Pose ベースの手判定を強化中）。
-- **Live Venue UI**
-  - ネオン×ガラスモーフィズム調のステージ UI。
-  - Three.js による軽量ステージ演出（WebGL 非対応環境では自動で無効化）。
-- **TextAlive フォールバック**
-  - API が不安定な場合でもフォールバック歌詞とローカルタイマーでプレイ継続。
-  - 曲頭の歌詞漏れ対策として最初の 500ms はスポーン抑制。
-- **モード別ランキング**
-  - Supabase `scores` テーブルへ保存し、`all / weekly / daily` の期間別で表示。
-  - Workers 側で冪等キーを生成し重複投稿を抑止。
-- **高度なセキュリティ**
-  - HSTS / CSP / Permissions-Policy などの厳格なセキュリティヘッダ。
-  - Cloudflare Turnstile と HMAC 署名による堅牢なスコア保護。
-- **シームレスな UX**
-  - ブラウザバックやリロード操作をフックし、独自の確認モーダルで誤操作を防止。
-  - SPA 遷移を徹底し、ローディング画面のちらつきを排除。
+プレイヤーはバーチャルライブステージの観客、あるいは演者となり、楽曲に合わせて流れてくる「歌詞バブル」をタイミングよく操作します。単なるタップではなく、**「ホールド（長押し）」**することでゲージを溜め、スコアを稼ぐ独自のリズムアクションを採用しています。
+
+### Immersive Live Experience
+- **ネオン×グラスモーフィズム**: 暗闇に輝くネオンライトと、透き通るようなUIデザイン。
+- **3Dステージ演出**: Three.js と CSS Animation を組み合わせた、軽量かつダイナミックなライティング演出。
+- **レスポンシブデザイン**: PCの大画面からスマートフォンの縦持ちプレイまで、デバイスに最適化されたUI。
 
 ---
 
-## 技術スタック
+## 🕹️ プレイモード
 
-|カテゴリ|技術|役割|
-|---|---|---|
-|Frontend|React 19 / Vite / TypeScript|SPA|
-|Game Core|TextAlive App API|再生/歌詞同期|
-|Input|MediaPipe Pose / SelfieSegmentation|全身/背景処理|
-|Effects|Three.js|ステージ演出（任意）|
-|Backend|Cloudflare Workers + Hono|API / 静的配信|
-|DB|Supabase (PostgreSQL)|RLS / ランキング|
+デバイスや環境に合わせて、3つの操作モードを搭載しています。
+
+| モード | 対象デバイス | 操作方法 | 特徴 |
+| :--- | :--- | :--- | :--- |
+| **Cursor Mode** | PC / タブレット | マウス / タッチ | マウスカーソルやタッチ操作で歌詞をホールド。手軽に楽しめる基本モード。 |
+| **Mobile Mode** | スマートフォン | タップ & ホールド | スマホ操作に特化。画面下部の歌詞表示を排除し、プレイ領域を最大化。親指一つで遊べる直感的な操作感。 |
+| **Body Mode** | PC (Webカメラ) | 全身アクション | Webカメラでプレイヤーの動きを検知。手や体を歌詞に重ねて「触れる」ことで入力する、全身を使ったエクササイズモード。 |
 
 ---
 
-## アーキテクチャ概要
+## 🚀 技術的な特徴
 
-### Frontend
-SRP に基づき GameManager を中心に各責務を分割。
+### Frontend (Modern Web)
+- **React 19 & Vite**: 高速なレンダリングと開発体験。
+- **Architecture**: `GameManager` を中心とした厳格な責務分離（SRP）。ゲームループ、入力処理、描画、音声同期を独立管理。
+- **Performance**: パーティクルやバブルの描画に `will-change` 最適化やオブジェクトプーリングを採用し、Webブラウザ上で滑らかな60fps動作を実現。
+
+### Backend (Robust & Secure)
+- **Cloudflare Workers & Hono**: エッジでの高速なAPI処理。
+- **Supabase (PostgreSQL)**: RLS (Row Level Security) を活用した堅牢なデータ管理。
+- **Security First**:
+  - **Turnstile**: CloudflareのスマートCAPTCHAによるボット排除。
+  - **HMAC署名**: スコア送信時の改ざん防止。
+  - **Idempotency**: 冪等性を担保し、ネットワーク不安定時の二重投稿を防止。
+
+---
+
+## 🛠️ アーキテクチャ
+
+### システム構成図
+
+```mermaid
+graph TD
+    User[Player] -->|Interact| FE[Frontend (React/Vite)]
+    FE -->|Score/Rank| API[Cloudflare Workers (Hono)]
+    FE -->|Lyrics| TA[TextAlive App API]
+    FE -->|Vision| MP[MediaPipe Pose]
+    
+    subgraph "Backend (Edge)"
+        API -->|Rate Limit| DO[Durable Objects]
+        API -->|Verify| TS[Turnstile]
+        API -->|Auth/DB| DB[(Supabase)]
+    end
+```
+
+### クラス設計 (Frontend)
 
 ```mermaid
 classDiagram
-  GameManager --> UIManager
-  GameManager --> BodyDetectionManager
+  class GameManager {
+    +start()
+    +update()
+    +draw()
+  }
+  class InputManager {
+    +handleMouse()
+    +handlePose()
+  }
+  class LyricsRenderer {
+    +spawnBubble()
+    +animate()
+  }
+  class EffectsManager {
+    +spawnParticles()
+    +showScorePopup()
+  }
+  
+  GameManager --> InputManager
   GameManager --> LyricsRenderer
   GameManager --> EffectsManager
-  GameManager --> ResultsManager
-  GameManager --> InputManager
-  GameManager --> LiveStageVisuals
-  GameManager --> GameLoop
-  GameManager --> BubblePool
-  GameManager --> TimerManager
 ```
 
-### Backend (Workers)
-- `/api/*` を Hono で提供。
-- Durable Object `RateLimiter` で **分散レート制限**と**nonce 再利用防止**。
-- Supabase は service role を Workers のみが持つ（anon は read-only）。
-
 ---
 
-## データベース (Supabase)
-`supabase_scores.sql` に定義。
+## 📦 ディレクトリ構成
 
-主なカラム:
-- `session_id`, `song_id`, `mode`, `score`, `max_combo`, `rank`, `accuracy`
-- `player_name`
-- `is_suspicious`: 疑わしい投稿フラグ（ランキング除外）
-- `idempotency_key`: 重複投稿防止（Workersが `clientAttemptId` を元に生成）
-
-RLS:
-- anon/auth は `is_suspicious=false` の **SELECT のみ**許可。
-- INSERT/DELETE は Workers(service role) のみ。
-
----
-
-## API
-Base: `/api`
-
-### スコア登録
-`POST /api/score`
-
-Headers:
-- `Content-Type: application/json`
-- `x-score-token: <token>`（`SCORE_SIGNING_SECRET` 設定時のみ必須）
-
-Body:
-```json
-{
-  "playerName": "Guest",
-  "songId": "HmfsoBVch26BmLCm",
-  "mode": "cursor",
-  "score": 10000,
-  "maxCombo": 50,
-  "rank": "S",
-  "accuracy": 95.5,
-  "turnstileToken": "...",
-  "clientAttemptId": "uuid-v4"
-}
+```bash
+star-5/
+├── src/                  # フロントエンド・ソースコード
+│   ├── components/       # React UIコンポーネント (Ranking, Modal等)
+│   ├── game/             # ゲームコアロジック
+│   │   ├── GameManager.ts # ゲーム進行管理
+│   │   ├── GameLoop.ts    # メインループ
+│   │   └── ...           
+│   ├── pages/            # ルーティングページ (Index, Game)
+│   └── styles.css        # グローバルスタイル・アニメーション定義
+├── worker/               # バックエンド・API (Cloudflare Workers)
+│   ├── index.ts          # Hono エントリーポイント
+│   ├── rateLimiter.ts    # レート制限 (Durable Object)
+│   └── ...
+├── supabase_scores.sql   # データベーススキーマ定義
+└── UI.md                 # UIデザイン詳細仕様書
 ```
 
-補足:
-- Turnstile を有効にしている場合、`turnstileToken` が必須です（フロントが自動付与）。
-- `hhrg` の強制リザルト時は `debugBypass=true` が自動で付与され、短いデモ投稿のみ疑わしい判定を無効化します。
-- `clientAttemptId` は「このプレイ1回分のID」。同じスコアでも別プレイなら別IDになるので、**同点の再登録もランキングに反映**されます。二重送信だけを防ぐ目的です。
-
-### ランキング取得
-`GET /api/ranking?songId=...&mode=cursor&period=all&limit=20`
-
-Query:
-- `songId`（必須）
-- `mode`（任意: `cursor|body|mobile|hand`）
-- `period`（任意: `all|weekly|daily`）
-- `limit`（任意: 1〜50）
-
-### スコア用トークン取得（署名付き投稿）
-`GET /api/token`
-
-### 公開設定取得
-`GET /api/config`
-- `turnstileSiteKey` を返します（Workers 側の環境変数から配布）。
-
-### ヘルスチェック
-`GET /api/health`
-
-### 管理スコア削除
-`DELETE /admin/scores?confirm=true&songId=...`
-
-Headers:
-- `x-admin-token: <ADMIN_TOKEN>`
-
-安全弁:
-- `confirm=true` のときは `songId|mode|before|after` のどれか条件必須。
-- 全削除は `confirm=ALL` のみ。
-
 ---
 
-## セキュリティ設計（要点）
+## 🔧 開発・デプロイ
 
-- **RLS + service role 分離**  
-  anon/auth は読み取りのみ。書き込みは Workers 経由。
-- **署名付きスコア投稿**  
-  `/api/token` で 5分有効の HMAC トークン発行。nonce 再利用は DO で拒否。
-- **分散レート制限**  
-  `/api/score` は IP あたり 10/min、`/api/ranking` は 120/min。
-- **Turnstile ボット対策**  
-  スコア投稿前に不可視 Turnstile を実行し、人間確認トークンを同梱。
-- **CSP/セキュリティヘッダ**  
-  Workers が CSP/Permissions‑Policy/HSTS/COOP/CORP 等を付与。
-- **サプライチェーン対策**  
-  `index.html` の CDN スクリプトは **バージョン固定 + SRI(integrity)**。
-
----
-
-## 開発手順
-
-### 要件
+### 必須要件
 - Node.js 20+
-- Cloudflare Workers アカウント
+- Cloudflare アカウント (Workers / Turnstile)
 - Supabase プロジェクト
 
-### 環境変数（ローカル）
-`.dev.vars`（Workers dev 用）
-```ini
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-ADMIN_TOKEN=secret-admin-token
-FRONTEND_ORIGIN=http://localhost:5173
-SCORE_SIGNING_SECRET=long-random-secret
-TURNSTILE_SECRET_KEY=your-turnstile-secret
-TURNSTILE_SITE_KEY=your-turnstile-site
-```
+### セットアップ
 
-Vite 側 `.env`（dev で site key を直読みしたい場合のみ）
-```ini
-VITE_TURNSTILE_SITE_KEY=your-turnstile-site
-```
+1. **依存関係のインストール**
+   ```bash
+   npm install
+   ```
 
-### 起動
-```bash
-npm install
-npm run dev
-```
-- Frontend: `http://localhost:5173`
-- Workers dev: `http://localhost:8787`
+2. **環境変数の設定**
+   `.dev.vars` および `.env` ファイルを作成し、必要なAPIキーを設定します（`README_OLD.md` または `TROUBLESHOOTING.md` 参照）。
 
-### Workers ローカル実機寄りデバッグ
-```bash
-npm run cf:dev
-```
+3. **開発サーバー起動**
+   ```bash
+   # フロントエンド + バックエンド(エミュレーション)
+   npm run dev
+   npm run cf:dev
+   ```
 
-### デプロイ
-```bash
-npm run build
-npm run deploy
-```
-
-Secrets 登録:
-```bash
-wrangler secret put SUPABASE_URL
-wrangler secret put SUPABASE_ANON_KEY
-wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-wrangler secret put ADMIN_TOKEN
-wrangler secret put FRONTEND_ORIGIN
-wrangler secret put SCORE_SIGNING_SECRET
-wrangler secret put TURNSTILE_SECRET_KEY
-wrangler secret put TURNSTILE_SITE_KEY
-```
+4. **デプロイ**
+   ```bash
+   npm run deploy
+   ```
 
 ---
 
-## ディレクトリ構成
+## 📜 ライセンス & クレジット
 
-```
-star/
-├── src/                  # Frontend (React)
-│   ├── components/       # UI components
-│   ├── game/             # Game logic (Managers)
-│   └── pages/            # Pages
-├── worker/               # Backend (Cloudflare Workers)
-│   ├── index.ts          # Entry / headers / config
-│   ├── rateLimiter.ts    # Durable Object
-│   ├── supabaseClient.ts # Supabase clients
-│   ├── middleware/       # requestId/session/admin
-│   └── routes/           # score/ranking/admin
-├── server/               # Node dev server (optional)
-├── docs/                 # Built static assets
-├── supabase_scores.sql   # Supabase schema
-├── wrangler.jsonc        # Workers config
-└── README.md
-```
+- **License**: MIT
+- **Music & Lyrics**: Powered by [TextAlive App API](https://api.songle.jp/) (National Institute of Advanced Industrial Science and Technology - AIST).
+- **Vision AI**: MediaPipe by Google.
 
 ---
 
-## ライセンス & クレジット
-- MIT License
-- TextAlive App API / Songle (AIST)  
-  利用規約に従い、https://api.songle.jp/ へのリンク表記を行っています。
+*Enjoy the stage!* 🎤✨

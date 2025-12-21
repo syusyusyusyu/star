@@ -11,6 +11,7 @@ export type PlayMode = 'cursor' | 'body' | 'mobile' | 'hand'
 export interface GameConfig {
   songId?: string
   mode?: PlayMode
+  turnstileSiteKey?: string
   onGameEnd?: (result: GameResult) => Promise<boolean | void> | void
 }
 

@@ -87,6 +87,8 @@ class GameManager {
   private _operationInProgress: boolean
   public resultsDisplayed: boolean
   public isDebugMode: boolean = false
+  private turnstileSiteKey: string | null
+  private turnstileSiteKeyPromise: Promise<string | null> | null
   
   // デバイス・モード
   public isMobile: boolean
@@ -188,6 +190,8 @@ class GameManager {
     this.apiLoaded = false; // TextAlive APIがロード完了したかを追跡
     this._operationInProgress = false; // 操作のロック状態を追跡（連打防止）
     this.resultsDisplayed = false; // リザルト画面表示フラグを初期化（重要：リザルト画面重複表示防止）
+    this.turnstileSiteKey = config.turnstileSiteKey ?? null;
+    this.turnstileSiteKeyPromise = null;
     
     // モバイルデバイス検出
     this.isMobile = this.detectMobileDevice();
@@ -440,6 +444,36 @@ class GameManager {
   return this.ui.updateInstructions();
   }
 
+  private isAbortError(error: unknown): boolean {
+    return Boolean(error && typeof error === 'object' && 'name' in error && (error as { name?: string }).name === 'AbortError');
+  }
+
+  public async getTurnstileSiteKey(): Promise<string | null> {
+    if (this.turnstileSiteKey) return this.turnstileSiteKey;
+    if (this.turnstileSiteKeyPromise) return this.turnstileSiteKeyPromise;
+
+    const promise = fetch('/api/config')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        const key = data?.data?.turnstileSiteKey;
+        if (typeof key === 'string' && key.trim()) {
+          this.turnstileSiteKey = key;
+          return key;
+        }
+        return null;
+      })
+      .catch(error => {
+        console.error('[GameManager] Failed to fetch Turnstile site key', error);
+        return null;
+      });
+
+    this.turnstileSiteKeyPromise = promise;
+    promise.finally(() => {
+      this.turnstileSiteKeyPromise = null;
+    });
+    return promise;
+  }
+
   private handleGameLoopUpdate = (delta: number, elapsed: number): void => {
     // three.js シーン描画を統合（body モード時のみ）
     this.visuals?.render();
@@ -509,20 +543,24 @@ class GameManager {
             try {
               await this.player.requestPlay();
             } catch (e) {
-              console.error("Player play error:", e);
-              // エラー発生時はフォールバックモードへ
-              if (this.allowFallback) {
-                this.fallback();
-                this.startLyricsTimer();
+              if (!this.isAbortError(e)) {
+                console.error("Player play error:", e);
+                // エラー発生時はフォールバックモードへ
+                if (this.allowFallback) {
+                  this.fallback();
+                  this.startLyricsTimer();
+                }
               }
             }
           }
         } catch (e) {
-          console.error("Player play error:", e);
-          // エラー発生時はフォールバックモードへ
-          if (this.allowFallback) {
-            this.fallback();
-            this.startLyricsTimer();
+          if (!this.isAbortError(e)) {
+            console.error("Player play error:", e);
+            // エラー発生時はフォールバックモードへ
+            if (this.allowFallback) {
+              this.fallback();
+              this.startLyricsTimer();
+            }
           }
         }
       } else {
@@ -835,10 +873,12 @@ class GameManager {
           if (!this.player.isPlaying) {
             try {
               // Promise形式ではなくtry-catch形式に変更
-              this.player.requestPlay();
+              await this.player.requestPlay();
             } catch (e) {
-              console.error("Play error:", e);
-              this.fallback();
+              if (!this.isAbortError(e)) {
+                console.error("Play error:", e);
+                this.fallback();
+              }
             }
           }
         } else {
@@ -929,10 +969,12 @@ class GameManager {
         }
         
         try {
-          this.player.requestPlay();
+          await this.player.requestPlay();
         } catch (e) {
-          console.error("Play error:", e);
-          this.fallback();
+          if (!this.isAbortError(e)) {
+            console.error("Play error:", e);
+            this.fallback();
+          }
         }
       }
       this.playpause.textContent = '一時停止';
@@ -2456,7 +2498,7 @@ class ResultsManager {
     const openRanking = document.getElementById('open-ranking');
     const nameInput = document.getElementById('player-name-input') as HTMLInputElement;
 
-    const submitScore = () => {
+    const submitScore = async () => {
       if (this.game.resultReported) return;
       
       const rank = calculateRank(this.game.score);
@@ -2469,7 +2511,19 @@ class ResultsManager {
 
       // Turnstile 実行
       const turnstileContainer = document.getElementById('turnstile-container');
-      if (turnstileContainer && (window as any).turnstile) {
+      const hasTurnstile = Boolean(turnstileContainer && (window as any).turnstile);
+      const siteKey = hasTurnstile ? await this.game.getTurnstileSiteKey() : null;
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const resolvedSiteKey = siteKey || (isLocalhost ? '1x00000000000000000000AA' : null);
+      if (hasTurnstile) {
+          if (!resolvedSiteKey) {
+            console.error('[Results] Turnstile site key not configured');
+            if (registerScore) {
+              (registerScore as HTMLButtonElement).disabled = false;
+              registerScore.textContent = '認証設定エラー';
+            }
+            return;
+          }
           if (registerScore) {
              (registerScore as HTMLButtonElement).disabled = true;
              registerScore.textContent = '認証中...';
@@ -2478,7 +2532,7 @@ class ResultsManager {
           try {
               (window as any).turnstile.render('#turnstile-container', {
                   // テスト用キー (Always Pass): 1x00000000000000000000AA
-                  sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
+                  sitekey: resolvedSiteKey,
                   callback: async (token: string) => {
                       if (typeof this.game.onGameEnd === 'function') {
                         try {
@@ -2607,11 +2661,11 @@ class ResultsManager {
     };
 
     addEvents(registerScore, () => {
-      submitScore();
+      void submitScore();
     });
 
     addEvents(openRanking, () => {
-      submitScore();
+      void submitScore();
     });
 
     addEvents(backToTitle, () => {

@@ -162,10 +162,8 @@ export default function IndexPage() {
       navigator.maxTouchPoints > 0)
     : false
   const availableModes = useMemo(
-    () => (['cursor', 'body', 'mobile'] as const).filter((m) =>
-      isMobile ? m === 'mobile' : m !== 'mobile'
-    ),
-    [isMobile]
+    () => (['cursor', 'body', 'mobile'] as const),
+    []
   )
 
   useEffect(() => {

@@ -2736,8 +2736,8 @@ class EffectsManager {
 
     const animate = () => {
       const top = parseFloat(pointDisplay.style.top);
-      pointDisplay.style.top = `${top - 1}px`;
-      pointDisplay.style.opacity = String(parseFloat(pointDisplay.style.opacity || '1') - 0.02);
+      pointDisplay.style.top = `${top - 0.3}px`;
+      pointDisplay.style.opacity = String(parseFloat(pointDisplay.style.opacity || '1') - 0.005);
       if (parseFloat(pointDisplay.style.opacity) > 0) {
         requestAnimationFrame(animate);
       } else {

@@ -2868,23 +2868,29 @@ class EffectsManager {
     }
 
     const pointDisplay = document.createElement('div');
-            pointDisplay.className = 'score-popup';
-            pointDisplay.textContent = `+${Math.round(this.game.scorePerHit)}`;
-            pointDisplay.style.left = `${x}px`;
-            pointDisplay.style.top = `${y}px`;
-            pointDisplay.style.pointerEvents = 'none';    this.game.gamecontainer.appendChild(pointDisplay);
+    pointDisplay.className = 'score-popup';
+    pointDisplay.textContent = `+${Math.round(this.game.scorePerHit)}`;
+    pointDisplay.style.left = `${x}px`;
+    pointDisplay.style.top = `${y}px`;
+    pointDisplay.style.opacity = '1';
+    pointDisplay.style.pointerEvents = 'none';
+    this.game.gamecontainer.appendChild(pointDisplay);
 
-    const animate = () => {
-      const top = parseFloat(pointDisplay.style.top);
-      pointDisplay.style.top = `${top - 0.3}px`;
-      pointDisplay.style.opacity = String(parseFloat(pointDisplay.style.opacity || '1') - 0.005);
-      if (parseFloat(pointDisplay.style.opacity) > 0) {
+    const start = performance.now();
+    const duration = this.game.isMobile ? 900 : 1200;
+    const drift = this.game.isMobile ? 20 : 28;
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration);
+      pointDisplay.style.top = `${y - drift * progress}px`;
+      pointDisplay.style.opacity = String(1 - progress);
+      if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
         pointDisplay.remove();
       }
     };
     requestAnimationFrame(animate);
+    setTimeout(() => pointDisplay.remove(), duration + 500);
   }
 
   createHitEffect(x: number, y: number): void {

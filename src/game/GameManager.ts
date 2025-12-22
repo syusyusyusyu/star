@@ -96,6 +96,7 @@ class GameManager {
   public currentMode: PlayMode
   private pose: any | null
   public enableBodyWarning: boolean
+  private suppressBodyWarningForSong: boolean
   private bodyDetection!: BodyDetectionManager
   private visuals: LiveStageVisuals | null
   private gameLoop: GameLoop
@@ -222,6 +223,7 @@ class GameManager {
     console.log(`ゲームモード: ${this.currentMode} (URL: ${urlMode}, localStorage: ${storedMode})`);
     this.pose = null; // MediaPipe Poseインスタンス
     this.enableBodyWarning = true; // Body warning toggle for testing
+    this.suppressBodyWarningForSong = false;
     
     // 内部処理用のグループサイズはプロパティ宣言時に初期化済み
     this.visuals = null; // Only create heavy 3D visuals when the mode requires it
@@ -447,6 +449,20 @@ class GameManager {
 
   private isAbortError(error: unknown): boolean {
     return Boolean(error && typeof error === 'object' && 'name' in error && (error as { name?: string }).name === 'AbortError');
+  }
+
+  public isBodyWarningEnabled(): boolean {
+    return this.enableBodyWarning && !this.suppressBodyWarningForSong;
+  }
+
+  public suppressBodyWarningsForSong(): void {
+    if (this.suppressBodyWarningForSong) return;
+    this.suppressBodyWarningForSong = true;
+    this.bodyDetection.cancelCountdown();
+    this.bodyDetection.cancelFullBodyWarning();
+    this.countdownText.textContent = '';
+    this.countdownOverlay.classList.add('hidden');
+    console.log('Body warnings suppressed for this song.');
   }
 
   public async getTurnstileSiteKey(): Promise<string | null> {
@@ -2212,7 +2228,7 @@ class BodyDetectionManager {
 
   /** 再生ボタン押下時に全身調整メッセージを提示 */
   remindAdjustment(): void {
-    if (!this.game.enableBodyWarning) {
+    if (!this.game.isBodyWarningEnabled()) {
       this.hideCountdownOverlay();
       return;
     }
@@ -2244,7 +2260,7 @@ class BodyDetectionManager {
     }
 
     if (
-      this.game.enableBodyWarning &&
+      this.game.isBodyWarningEnabled() &&
       (this.ready || this.game.player?.isPlaying) &&
       !this.timers.has(TIMER_KEYS.FullBodyLost)
     ) {
@@ -2277,7 +2293,7 @@ class BodyDetectionManager {
   cancelCountdown(message?: string): void {
     if (!this.isCountdownActive()) return;
     this.timers.clearTimer(TIMER_KEYS.BodyCountdown);
-    if (message && this.game.enableBodyWarning) {
+    if (message && this.game.isBodyWarningEnabled()) {
       this.game.countdownOverlay.classList.remove('hidden');
       this.game.countdownText.textContent = message;
     } else {
@@ -2896,16 +2912,25 @@ class InputManager {
 
     // デバッグ用コマンド入力
     let keyBuffer = '';
-    const secretCode = 'hhrg';
-    document.addEventListener('keydown', (e) => {
-      keyBuffer += e.key.toLowerCase();
-      if (keyBuffer.length > secretCode.length) {
-        keyBuffer = keyBuffer.slice(-secretCode.length);
-      }
-      if (keyBuffer === secretCode) {
+    const secretCommands: Record<string, () => void> = {
+      hhrg: () => {
         console.log('Debug command detected: Force Results');
         gm.showResults();
-        keyBuffer = '';
+      },
+      knnk: () => gm.suppressBodyWarningsForSong()
+    };
+    const maxCommandLength = Math.max(...Object.keys(secretCommands).map(code => code.length));
+    document.addEventListener('keydown', (e) => {
+      keyBuffer += e.key.toLowerCase();
+      if (keyBuffer.length > maxCommandLength) {
+        keyBuffer = keyBuffer.slice(-maxCommandLength);
+      }
+      for (const [code, action] of Object.entries(secretCommands)) {
+        if (keyBuffer.endsWith(code)) {
+          action();
+          keyBuffer = '';
+          break;
+        }
       }
     });
 
@@ -2958,7 +2983,7 @@ class InputManager {
       if (gm.isFirstInteraction) {
         if (gm.currentMode === 'body') {
           gm.isFirstInteraction = false;
-          if (gm.enableBodyWarning) {
+          if (gm.isBodyWarningEnabled()) {
             gm.countdownOverlay.classList.remove('hidden');
             gm.countdownText.textContent = '全身が映るように調整してください';
           } else {

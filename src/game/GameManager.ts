@@ -47,6 +47,7 @@ type HoldSource = 'pointer' | 'auto'
 
 interface HoldState {
   progress: number
+  scoredProgress: number
   duration: number
   pointerHolding: boolean
   autoHolding: boolean
@@ -1424,11 +1425,11 @@ class GameManager {
   }
 
   prepareBubbleForLyric(bubble: HTMLElement, lyric: LyricData): void {
-    const duration = Math.max(lyric.displayDuration || 0, 800);
-    // ホールド完了までの時間は2秒前後に収める
-    const holdDuration = Math.min(Math.max(duration, 1800), 2200);
+    // ホールド完了までの時間は2秒固定
+    const holdDuration = 2000;
     this.holdStates.set(bubble, {
       progress: 0,
+      scoredProgress: 0,
       duration: holdDuration,
       pointerHolding: false,
       autoHolding: false,
@@ -1505,12 +1506,19 @@ class GameManager {
     this.holdStates.forEach((state, bubble) => {
       if (state.isComplete) return;
       if (state.pointerHolding || state.autoHolding) {
-        const progress = Math.min(1, state.progress + delta / state.duration);
-        state.progress = progress;
-        bubble.style.setProperty('--hold-progress', `${(progress * 100).toFixed(1)}%`);
+        const nextProgress = Math.min(1, state.progress + delta / state.duration);
+        const scoreProgressDelta = Math.max(0, nextProgress - state.scoredProgress);
+        if (scoreProgressDelta > 0 && this.scorePerHit) {
+          this.score += this.scorePerHit * scoreProgressDelta;
+          if (this.score > 1000000) this.score = 1000000;
+          state.scoredProgress = nextProgress;
+          this.scoreEl.textContent = String(Math.round(this.score));
+        }
+        state.progress = nextProgress;
+        bubble.style.setProperty('--hold-progress', `${(nextProgress * 100).toFixed(1)}%`);
         bubble.style.setProperty('--progress-visible', '1');
         bubble.style.animationPlayState = 'paused';
-        if (progress >= 1) {
+        if (nextProgress >= 1) {
           this.completeBubbleHold(bubble, state);
         }
       }
@@ -1776,19 +1784,13 @@ class GameManager {
     this.combo++;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
     
-    if (this.scorePerHit) {
-      this.score += this.scorePerHit;
-      
-      // 最終ノーツ（フルコンボ）の場合は誤差補正して確実に1,000,000点にする
-      if (this.lyricsData && this.combo === this.lyricsData.length) {
-        this.score = 1000000;
-        console.log('Full Combo! Score corrected to 1,000,000');
-      }
-      
-      console.log(`Hit! Combo: ${this.combo}, ScorePerHit: ${this.scorePerHit}, NewScore: ${this.score}`);
-    } else {
-      console.warn('ScorePerHit is 0 or undefined!');
+    // 最終ノーツ（フルコンボ）の場合は誤差補正して確実に1,000,000点にする
+    if (this.lyricsData && this.combo === this.lyricsData.length) {
+      this.score = 1000000;
+      console.log('Full Combo! Score corrected to 1,000,000');
     }
+
+    console.log(`Hit! Combo: ${this.combo}, Score: ${this.score}`);
     
     // 表示を更新
     this.scoreEl.textContent = String(Math.round(this.score));

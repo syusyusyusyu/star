@@ -10,6 +10,18 @@ import adminRoute from './routes/admin'
 export { RateLimiter } from './rateLimiter'
 
 const app = new Hono<Env>()
+const contentSecurityPolicy = [
+  "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:",
+  "script-src * 'unsafe-inline' 'unsafe-eval'",
+  "script-src-elem * 'unsafe-inline' 'unsafe-eval'",
+  "connect-src * 'unsafe-inline'",
+  "img-src * data: blob: 'unsafe-inline'",
+  "frame-src *",
+  "style-src * 'unsafe-inline'",
+  "font-src * data:",
+  "worker-src * blob:",
+  'upgrade-insecure-requests',
+].join('; ')
 
 // Global Middlewares
 app.use('*', poweredBy())
@@ -26,7 +38,7 @@ app.use('*', async (c, next) => {
   // Note: 'unsafe-eval' is required for some libraries (like MediaPipe/TensorFlow.js)
   // 'unsafe-inline' is kept for compatibility but should be removed if possible with nonces
   // 開発・動作確認のため制限を大幅に緩和
-  c.header('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline'; font-src * data:; worker-src * blob:; upgrade-insecure-requests;")
+  c.header('Content-Security-Policy', contentSecurityPolicy)
   
   c.header('X-Content-Type-Options', 'nosniff')
   c.header('X-Frame-Options', 'DENY')
@@ -165,4 +177,3 @@ app.get('*', async (c) => {
 })
 
 export default app
-

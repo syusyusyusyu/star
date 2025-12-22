@@ -2423,9 +2423,20 @@ class LyricsRenderer {
 // SRP: リザルト画面の表示とボタン配線を担当
 class ResultsManager {
   private game: GameManager
+  private turnstileWidgetId: string | null
 
   constructor(game: GameManager) {
     this.game = game;
+    this.turnstileWidgetId = null;
+  }
+
+  private clearTurnstileWidget(): void {
+    if (this.turnstileWidgetId && (window as any).turnstile) {
+      try { (window as any).turnstile.remove(this.turnstileWidgetId); } catch {}
+    }
+    this.turnstileWidgetId = null;
+    const container = document.getElementById('turnstile-container');
+    if (container) container.innerHTML = '';
   }
 
   showResults(): void {
@@ -2436,6 +2447,7 @@ class ResultsManager {
     console.log('結果画面を表示します');
     this.game.resultsDisplayed = true;
     this.game.cancelFinishGuards();
+    this.clearTurnstileWidget();
 
     if (this.game.player?.isPlaying) {
       try { this.game.player.requestPause(); } catch (e) { console.error('Results pause error:', e); }
@@ -2524,13 +2536,21 @@ class ResultsManager {
             }
             return;
           }
+          if (this.turnstileWidgetId) {
+            if (registerScore) {
+              (registerScore as HTMLButtonElement).disabled = true;
+              registerScore.textContent = '認証中...';
+            }
+            try { (window as any).turnstile.reset(this.turnstileWidgetId); } catch {}
+            return;
+          }
           if (registerScore) {
              (registerScore as HTMLButtonElement).disabled = true;
              registerScore.textContent = '認証中...';
           }
 
           try {
-              (window as any).turnstile.render('#turnstile-container', {
+              const widgetId = (window as any).turnstile.render('#turnstile-container', {
                   // テスト用キー (Always Pass): 1x00000000000000000000AA
                   sitekey: resolvedSiteKey,
                   callback: async (token: string) => {
@@ -2555,14 +2575,27 @@ class ResultsManager {
                             }
                             // ウィジェット削除
                             setTimeout(() => {
-                               try { (window as any).turnstile.remove('#turnstile-container'); } catch(e) {}
+                               try {
+                                 if (this.turnstileWidgetId) {
+                                   (window as any).turnstile.remove(this.turnstileWidgetId);
+                                 } else {
+                                   (window as any).turnstile.remove('#turnstile-container');
+                                 }
+                               } catch(e) {}
+                               this.turnstileWidgetId = null;
                             }, 1000);
                           } else {
                             if (registerScore) {
                               (registerScore as HTMLButtonElement).disabled = false;
                               registerScore.textContent = '登録失敗 (再試行)';
                             }
-                            try { (window as any).turnstile.reset('#turnstile-container'); } catch(e) {}
+                            try {
+                              if (this.turnstileWidgetId) {
+                                (window as any).turnstile.reset(this.turnstileWidgetId);
+                              } else {
+                                (window as any).turnstile.reset('#turnstile-container');
+                              }
+                            } catch(e) {}
                           }
                         } catch (error) {
                           console.error('onGameEnd handler error', error);
@@ -2580,8 +2613,10 @@ class ResultsManager {
                       }
                   }
               });
+              this.turnstileWidgetId = typeof widgetId === 'string' ? widgetId : null;
           } catch (e) {
               console.error('Turnstile error:', e);
+              this.turnstileWidgetId = null;
               // フォールバック
               if (typeof this.game.onGameEnd === 'function') {
                   (async () => {
@@ -2647,15 +2682,17 @@ class ResultsManager {
       }
     };
 
+    let lastTouchTime = 0;
     const addEvents = (element: HTMLElement | null, handler: () => void) => {
       if (!element) return;
       // Use onclick to prevent duplicate listeners
       element.onclick = (e) => {
-        // e.preventDefault(); // Allow default for buttons unless needed
+        if (Date.now() - lastTouchTime < 600) return;
         handler();
       };
       element.ontouchend = (e) => {
-        // e.preventDefault(); // Allow touch
+        e.preventDefault();
+        lastTouchTime = Date.now();
         handler();
       };
     };

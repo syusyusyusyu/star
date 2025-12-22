@@ -1753,7 +1753,7 @@ class GameManager {
     if (!bubble.dataset.prevZ) {
       bubble.dataset.prevZ = bubble.style.zIndex || '';
     }
-    bubble.style.zIndex = '2000';
+    bubble.style.zIndex = '45';
     if (source === 'pointer') {
       this.activePointerHold = bubble;
       state.pointerHolding = true;

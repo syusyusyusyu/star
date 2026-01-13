@@ -247,8 +247,31 @@ export default function IndexPage() {
     }
   }, [])
 
+  // PC向けのスケーリング処理
+  const [scale, setScale] = useState(1)
+  useEffect(() => {
+    if (isMobile) {
+      setScale(1)
+      return
+    }
+
+    const handleResize = () => {
+      const h = window.innerHeight
+      const baseHeight = 900 // デザインの基準となる高さ
+      const newScale = h < baseHeight ? h / baseHeight : 1
+      setScale(newScale)
+    }
+
+    window.addEventListener('resize', handleResize)
+    handleResize()
+    return () => window.removeEventListener('resize', handleResize)
+  }, [isMobile])
+
   return (
-    <div className="live-venue-bg min-h-screen w-full text-white relative overflow-hidden" style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
+    <div 
+      className={`live-venue-bg w-full text-white relative ${isMobile ? 'min-h-screen' : 'h-screen overflow-hidden flex items-center justify-center'}`}
+      style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
+    >
       {/* ライブ会場背景 */}
       <div className="fixed inset-0 z-0">
         {/* Cross Beam Background */}
@@ -275,7 +298,13 @@ export default function IndexPage() {
       </div>
       
       {/* メインコンテンツ */}
-      <div className="relative z-10 w-full max-w-[1440px] flex flex-col items-center justify-center py-8 px-6 mx-auto min-h-screen" style={{ touchAction: 'pan-y' }}>
+      <div 
+        className={`relative z-10 w-full max-w-[1440px] flex flex-col items-center justify-center mx-auto ${isMobile ? 'py-8 px-6 min-h-screen' : 'h-full'}`}
+        style={{ 
+          touchAction: 'pan-y',
+          ...( !isMobile ? { transform: `scale(${scale})` } : {} )
+        }}
+      >
         
         {/* タイトルエリア */}
         <div className="w-full mb-16 flex flex-col items-center">

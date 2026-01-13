@@ -1733,6 +1733,22 @@ class GameManager {
    */
   checkLyrics(x: number, y: number, radius: number): void {
     if (this.isFirstInteraction) return;
+
+    // 優先ホールド判定: 既にホールド中の対象が有効範囲内ならターゲットを変更しない（誤って隣のバブルに移らないようにする）
+    if (this.autoHoldTarget && this.activeLyricBubbles.has(this.autoHoldTarget)) {
+      const bounds = this.bubbleBounds.get(this.autoHoldTarget);
+      if (bounds && this.autoHoldTarget.style.pointerEvents !== 'none') {
+        const dx = x - bounds.x;
+        const dy = y - bounds.y;
+        const dist2 = dx * dx + dy * dy;
+        // 判定内であれば継続（少し余裕を持たせても良いが、一旦radius+bounds.radiusで判定）
+        if (dist2 <= (radius + bounds.radius) ** 2) {
+          this.startBubbleHold(this.autoHoldTarget, 'pointer');
+          return;
+        }
+      }
+    }
+
     let closest: { el: HTMLElement; dist2: number } | null = null;
     for (const el of this.activeLyricBubbles) {
       if (el.style.pointerEvents === 'none') continue; // 既に処理済みの場合はスキップ
@@ -1777,7 +1793,7 @@ class GameManager {
     if (!bubble.dataset.prevZ) {
       bubble.dataset.prevZ = bubble.style.zIndex || '';
     }
-    bubble.style.zIndex = '45';
+    bubble.style.zIndex = '100';
     if (source === 'pointer') {
       this.activePointerHold = bubble;
       state.pointerHolding = true;
@@ -2310,6 +2326,9 @@ class FaceDetectionManager {
     // フェイスモード改修: 「開いた口の位置」でホールド
     if (isOpen) {
       this.game.checkLyrics(screenX, screenY, 60);
+    } else {
+      // 口を閉じている場合はホールド解除判定のために画面外の座標を渡す
+      this.game.checkLyrics(-9999, -9999, 0);
     }
   }
 }
@@ -2451,11 +2470,13 @@ class LyricsRenderer {
 
   private handleBubbleHoldStart = (event: Event): void => {
     if (event.type === 'touchstart') event.preventDefault();
+    if (this.game.isFaceMode()) return;
     const bubble = event.currentTarget as HTMLElement;
     this.game.startBubbleHold(bubble, 'pointer');
   }
 
   private handleBubbleHoldEnd = (event: Event): void => {
+    if (this.game.isFaceMode()) return;
     const bubble = event.currentTarget as HTMLElement;
     this.game.stopBubbleHold(bubble, 'pointer');
   }

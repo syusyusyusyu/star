@@ -1123,7 +1123,11 @@ class GameManager {
         // 一時停止時
         onPause: () => {
           this.isPaused = true;
-          if (this.playpause) {
+          // 終了間際（残り1.5秒未満）なら、リザルト遷移待ちなので「再生」に戻さない
+          const duration = this.player?.video?.duration;
+          const isNearEnd = duration && this.lastPlayerPosition && (duration - this.lastPlayerPosition < 1500);
+
+          if (this.playpause && !isNearEnd) {
             const span = this.playpause.querySelector('span');
             if (span) span.textContent = '再生';
             else this.playpause.textContent = '再生';
@@ -1133,17 +1137,20 @@ class GameManager {
         // 停止時（自動リスタートを廃止し、終了間際ならリザルトを表示）
         onStop: () => {
           this.isPaused = true;
-          if (this.playpause) {
-            const span = this.playpause.querySelector('span');
-            if (span) span.textContent = '再生';
-            else this.playpause.textContent = '再生';
-          }
           const duration = this.player?.video?.duration;
-          if (!this.resultsDisplayed && duration && this.lastPlayerPosition && duration - this.lastPlayerPosition < 1500) {
+          const isNearEnd = !this.resultsDisplayed && duration && this.lastPlayerPosition && (duration - this.lastPlayerPosition < 1500);
+
+          if (isNearEnd) {
             console.log('onStop 終了直前停止を検出 → リザルト表示');
             this.showResults();
+            // ボタンは「一時停止」のまま維持する
           } else {
             console.log('onStop 通常停止（再生ボタン待機）');
+            if (this.playpause) {
+              const span = this.playpause.querySelector('span');
+              if (span) span.textContent = '再生';
+              else this.playpause.textContent = '再生';
+            }
           }
         },
         // 曲終了時（最重要：ここでリザルト画面を表示）

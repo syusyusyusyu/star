@@ -42,6 +42,7 @@ const TIMER_KEYS = {
   FinishFallback: 'finish-fallback',
   BodyCountdown: 'body-countdown',
   FullBodyLost: 'full-body-lost',
+  IdleTimeout: 'idle-timeout', // 30秒放置でリザルトへ
 } as const
 
 type HoldSource = 'pointer' | 'auto'
@@ -107,7 +108,7 @@ class GameManager {
   private bubbleBounds: Map<HTMLElement, { x: number; y: number; radius: number }>
   private currentBodyHolds: Set<HTMLElement> = new Set()
   private lastBoundsUpdate = 0
-  private timers: TimerManager
+  public timers: TimerManager
   private holdStates: Map<HTMLElement, HoldState>
   private activePointerHold: HTMLElement | null
   private autoHoldTarget: HTMLElement | null
@@ -294,6 +295,15 @@ class GameManager {
     
     // 初期状態ではすべてのボタンを読み込み中と表示
     this.isPaused = true;
+    
+    // 30秒間ボタン操作がなければ強制リザルト画面へ (ゲーム開始前のみ)
+    this.timers.setTimeout(TIMER_KEYS.IdleTimeout, () => {
+      if (!this.isPlaying && !this.resultsDisplayed) {
+        console.log('Idle timeout: Force show results');
+        this.showResults();
+      }
+    }, 30000);
+
     // ゲームの基本セットアップ
     this.setupEvents();
     this.initGame();
@@ -2325,7 +2335,7 @@ class FaceDetectionManager {
 
     // フェイスモード改修: 「開いた口の位置」でホールド
     if (isOpen) {
-      this.game.checkLyrics(screenX, screenY, 40);
+      this.game.checkLyrics(screenX, screenY, 5);
     } else {
       // 口を閉じている場合はホールド解除判定のために画面外の座標を渡す
       this.game.checkLyrics(-9999, -9999, 0);
@@ -2711,11 +2721,8 @@ class ResultsManager {
       if (this.game.resultReported) return;
       
       const rank = calculateRank(this.game.score);
-      const modeForResult = this.game.currentMode === 'body'
-        ? 'body'
-        : this.game.currentMode === 'mobile'
-          ? 'mobile'
-          : 'cursor';
+      // そのまま送る (サーバー側でバリデーションされる)
+      const modeForResult = this.game.currentMode;
       const playerName = nameInput?.value.trim() || 'ゲスト';
 
       // Turnstile 実行
@@ -3171,6 +3178,8 @@ class InputManager {
       if (gm.isFirstInteraction) {
         if (gm.currentMode === 'body') {
           gm.isFirstInteraction = false;
+          // アイドルタイマー解除
+          gm.timers.clearTimer(TIMER_KEYS.IdleTimeout);
           if (gm.isBodyWarningEnabled()) {
             gm.countdownOverlay.classList.remove('hidden');
             gm.countdownText.textContent = '全身が映るように調整してください';
@@ -3179,6 +3188,8 @@ class InputManager {
           }
           return;
         }
+      // アイドルタイマー解除
+      gm.timers.clearTimer(TIMER_KEYS.IdleTimeout);
         gm.playMusic();
         return;
       }

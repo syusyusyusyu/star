@@ -3016,7 +3016,11 @@ class InputManager {
     gm.restart.addEventListener('touchend', handleRestartClick, { passive: false });
 
     document.addEventListener('dblclick', (event) => {
-      if (gm.isMobile || event.sourceCapabilities?.firesTouchEvents) return;
+      const firesTouchEvents =
+        'sourceCapabilities' in event &&
+        (event as { sourceCapabilities?: { firesTouchEvents?: boolean } }).sourceCapabilities
+          ?.firesTouchEvents;
+      if (gm.isMobile || firesTouchEvents) return;
       if (!gm.isFirstInteraction && !gm.resultsDisplayed) {
         console.log('ダブルクリックによる結果表示');
         gm.showResults();

@@ -278,6 +278,7 @@ export default function IndexPage() {
                         <div className="text-left">
                             <p className="text-[10px] text-gray-500 tracking-widest">POWERED BY TEXTALIVE</p>
                             <p className="text-[10px] text-gray-500 tracking-widest">SONGLE</p>
+                            <p className="text-[10px] text-gray-500 mt-1">楽曲「ストリートライト」 / コンポーザー「加賀（ネギシャワーP）」</p>
                         </div>
                     </div>
 

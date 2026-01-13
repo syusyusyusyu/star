@@ -2519,7 +2519,7 @@ class LyricsRenderer {
     
     // フォントサイズ調整: モバイル時はサイズを統一
     const fontSize = isMobile 
-      ? '16px' 
+      ? '12px' 
       : screenWidth <= 768 
         ? (isLong ? '22px' : '26px') 
         : (isLong ? '28px' : '32px');

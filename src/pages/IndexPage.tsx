@@ -104,7 +104,7 @@ const HelpModal = memo(function HelpModal({
                 <ol className="list-decimal pl-5 space-y-2 marker:text-miku">
                   {isMobile ? (
                     <>
-                      <li>楽曲を選択して「START」をタップ</li>
+                      <li>「ゲームスタート」をタップ</li>
                       <li>歌詞バブルをタップ＆ホールド！</li>
                       <li>曲が終わるとリザルト画面へ</li>
                     </>
@@ -278,7 +278,8 @@ export default function IndexPage() {
                         <div className="text-left">
                             <p className="text-[10px] text-gray-500 tracking-widest">POWERED BY TEXTALIVE</p>
                             <p className="text-[10px] text-gray-500 tracking-widest">SONGLE</p>
-                            <p className="text-[10px] text-gray-500 mt-1">楽曲「ストリートライト」 / コンポーザー「ネギシャワーP」</p>
+                            <p className="text-[10px] text-gray-500 mt-1">「ストリートライト」 加賀（ネギシャワーP）<br>
+                            原曲：piapro（https://piapro.jp/t/ULcJ）｜許諾済 </br></p>
                         </div>
                     </div>
 

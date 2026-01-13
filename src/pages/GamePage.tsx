@@ -44,7 +44,7 @@ const ConfirmModal = ({ open, onClose, onConfirm, message }: { open: boolean; on
 
 function GamePage() {
   const normalizeMode = (mode: string | null | undefined): PlayMode | null =>
-    mode === 'cursor' || mode === 'body' || mode === 'mobile' || mode === 'hand' ? mode : null
+    mode === 'cursor' || mode === 'body' || mode === 'mobile' || mode === 'hand' || mode === 'face' ? mode : null
   const getInitialMode = useCallback((): PlayMode => {
     if (typeof window === 'undefined') return 'cursor'
     const params = new URLSearchParams(window.location.search)
@@ -55,12 +55,12 @@ function GamePage() {
       'ontouchstart' in window ||
       navigator.maxTouchPoints > 0
 
-    if (prefersTouch && urlMode === 'body') return 'mobile'
+    if (prefersTouch && (urlMode === 'body' || urlMode === 'hand')) return 'mobile'
     if (!prefersTouch && urlMode === 'mobile') return 'cursor'
     if (urlMode) return urlMode
     
-    // モバイル端末なら、localStorageに関わらずmobileモードをデフォルトにする
-    if (prefersTouch) return 'mobile'
+    // モバイル端末なら、localStorageに関わらずmobileモードをデフォルトにする（ただしfaceモードは許可）
+    if (prefersTouch && storedMode !== 'face') return 'mobile'
 
     if (!prefersTouch && storedMode === 'mobile') return 'cursor'
     if (storedMode) return storedMode

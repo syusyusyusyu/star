@@ -40,6 +40,7 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
     if (!mode) return '全モード'
     if (mode === 'cursor') return 'マウスモード'
     if (mode === 'mobile') return 'モバイルモード'
+    if (mode === 'face') return 'フェイスモード'
     return 'カメラモード'
   }, [mode])
 

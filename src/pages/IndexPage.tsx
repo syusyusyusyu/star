@@ -157,7 +157,7 @@ export default function IndexPage() {
   const detectPreferredMode = () => {
     if (typeof window === 'undefined') return 'cursor' as GameMode
     const normalize = (mode: string | null): PlayMode | null =>
-      mode === 'cursor' || mode === 'body' || mode === 'mobile' ? mode : null
+      mode === 'cursor' || mode === 'body' || mode === 'mobile' || mode === 'face' ? mode : null
     const stored = normalize(localStorage.getItem('gameMode'))
     const prefersTouch =
       window.matchMedia('(max-width: 820px)').matches ||
@@ -357,7 +357,7 @@ export default function IndexPage() {
                                           : mode === 'mobile'
                                             ? 'タッチで歌詞をキャッチ！画面に合わせて最適化'
                                             : mode === 'face'
-                                              ? '口を開けて歌詞をキャッチ！新感覚フェイスアクション！'
+                                              ? '口を開けて歌詞をキャッチ！'
                                               : '全身を使って歌詞をキャッチ！'}
                                     </p>
                                 </div>

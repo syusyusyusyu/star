@@ -12,7 +12,7 @@ export type SongConfig = Pick<SongData, 'apiToken' | 'songUrl'>
 const defaultSong: SongData = {
   id: 1,
   title: 'ストリートライト',
-  artist: '加賀(ネギシャワーP)',
+  artist: 'ネギシャワーP',
   apiToken: 'HmfsoBVch26BmLCm',
   songUrl: 'https://piapro.jp/t/ULcJ/20250205120202',
   difficulty: 'easy',

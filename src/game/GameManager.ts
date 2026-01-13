@@ -2367,16 +2367,59 @@ class LyricsRenderer {
 
   private placeBubble(bubble: HTMLElement, lyric: LyricData): void {
     const screenWidth = window.innerWidth;
+    const isMobile = screenWidth <= 480;
     const xPercent = this.game.getSafeBubbleXPercent();
-    const isLong = (lyric.text || '').length > 12;
-    const fontSize = screenWidth <= 480 ? '18px' : screenWidth <= 768 ? (isLong ? '22px' : '26px') : (isLong ? '28px' : '32px');
+    const isLong = (lyric.text || '').length > 10;
+    
+    // フォントサイズ調整: モバイル時はサイズを統一
+    const fontSize = isMobile 
+      ? '16px' 
+      : screenWidth <= 768 
+        ? (isLong ? '22px' : '26px') 
+        : (isLong ? '28px' : '32px');
+
     bubble.style.position = 'absolute';
     bubble.style.left = `${xPercent}%`;
     bubble.style.bottom = '-60px';
     bubble.style.transform = 'translateX(-50%)';
     bubble.style.color = '#39C5BB';
     bubble.style.fontSize = fontSize;
+    
+    // モバイル用: 折り返しを禁止しつつ、最大幅を設定（万が一用）
+    if (isMobile) {
+      bubble.style.whiteSpace = 'nowrap';
+      bubble.style.maxWidth = '95vw';
+    } else {
+      bubble.style.whiteSpace = '';
+      bubble.style.maxWidth = '';
+    }
+
     this.game.gamecontainer.appendChild(bubble);
+
+    // 位置補正: モバイル時は画面外にはみ出さないように強制補正
+    if (isMobile) {
+      const rect = bubble.getBoundingClientRect();
+      const containerRect = this.game.gamecontainer.getBoundingClientRect();
+      const bubbleHalfWidth = rect.width / 2;
+      const padding = 10; // 画面端からの余裕
+      
+      const currentLeftPx = (xPercent / 100) * containerRect.width;
+      let newLeftPx = currentLeftPx;
+
+      // 左端チェック
+      if (currentLeftPx - bubbleHalfWidth < padding) {
+        newLeftPx = bubbleHalfWidth + padding;
+      }
+      // 右端チェック
+      else if (currentLeftPx + bubbleHalfWidth > containerRect.width - padding) {
+        newLeftPx = containerRect.width - bubbleHalfWidth - padding;
+      }
+
+      if (Math.abs(newLeftPx - currentLeftPx) > 1) {
+        bubble.style.left = `${newLeftPx}px`;
+      }
+    }
+
     bubble.style.animation = 'none';
     void bubble.offsetWidth;
     bubble.style.animation = 'slotFloat var(--lyric-speed) linear forwards';

@@ -21,6 +21,7 @@ declare global {
   interface Window {
     Pose: any
     SelfieSegmentation: any
+    FaceMesh: any
     Camera: any
     drawConnectors: any
     drawLandmarks: any
@@ -28,7 +29,7 @@ declare global {
   }
 }
 
-const { Pose, SelfieSegmentation, Camera, drawConnectors, drawLandmarks, POSE_CONNECTIONS } = window as any
+const { Pose, SelfieSegmentation, FaceMesh, Camera, drawConnectors, drawLandmarks, POSE_CONNECTIONS } = window as any
 
 const TextAliveApp = { Player }
 const DEFAULT_SONG_ID = 'HmfsoBVch26BmLCm'
@@ -98,6 +99,7 @@ class GameManager {
   public enableBodyWarning: boolean
   private suppressBodyWarningForSong: boolean
   private bodyDetection!: BodyDetectionManager
+  private faceDetection!: FaceDetectionManager
   private visuals: LiveStageVisuals | null
   private gameLoop: GameLoop
   private playbackPosition: number
@@ -197,25 +199,29 @@ class GameManager {
     
     // モバイルデバイス検出
     this.isMobile = this.detectMobileDevice();
-    if (this.isMobile) {
-      console.log('モバイルデバイスを検出。カメラを無効化し、モバイル最適化モードを優先します。');
-    }
     
     // URLパラメータまたはlocalStorageからモードを読み込む（モバイルの場合はcursor限定）
     const urlParams = new URLSearchParams(window.location.search);
     const urlMode = urlParams.get('mode');
     const storedMode = localStorage.getItem('gameMode');
     const normalizeMode = (mode: string | null | undefined): PlayMode | null => {
-      if (mode === 'cursor' || mode === 'body' || mode === 'mobile' || mode === 'hand') return mode;
+      if (mode === 'cursor' || mode === 'body' || mode === 'mobile' || mode === 'hand' || mode === 'face') return mode;
       return null;
     };
     const requestedMode = normalizeMode(config.mode) ?? normalizeMode(urlMode) ?? normalizeMode(storedMode);
+
+    if (this.isMobile && requestedMode !== 'face') { // face mode can use camera on mobile
+      console.log('モバイルデバイスを検出。カメラを無効化し、モバイル最適化モードを優先します。');
+    }
+
     const prefersMobileMode = this.isMobile;
 
     if (prefersMobileMode) {
-      this.currentMode = requestedMode === 'body' ? 'mobile' : (requestedMode ?? 'mobile');
-      if (requestedMode === 'body') {
-        console.log(`モバイルデバイスのため、要求されたモード'${requestedMode}'からモバイルモードに変更しました。`);
+      if (requestedMode === 'body' || requestedMode === 'hand') {
+          console.log(`モバイルデバイスのため、要求されたモード'${requestedMode}'からモバイルモードに変更しました。`);
+          this.currentMode = 'mobile';
+      } else {
+          this.currentMode = requestedMode ?? 'mobile';
       }
     } else {
       this.currentMode = requestedMode === 'mobile' ? 'cursor' : (requestedMode ?? 'cursor');
@@ -283,6 +289,7 @@ class GameManager {
     this.countdownText = getEl('countdown-text') as HTMLElement
     this.lyricSyncText = getEl('lyric-sync-text')
     // SRP: ボディ検出に関する状態更新を専任マネージャーに委譲
+    this.faceDetection = new FaceDetectionManager(this)
     this.bodyDetection = new BodyDetectionManager({ game: this, timers: this.timers })
     
     // 初期状態ではすべてのボタンを読み込み中と表示
@@ -322,6 +329,10 @@ class GameManager {
   /**
    * モバイルデバイスかどうかを検出
    */
+  isFaceMode(): boolean {
+    return this.currentMode === 'face';
+  }
+
   detectMobileDevice(): boolean {
     // ユーザーエージェントによる検出
     const mobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -339,8 +350,8 @@ class GameManager {
   }
 
   initCamera(): void {
-    // モバイルデバイスの場合はカメラ機能を無効化
-    if (this.isMobile) {
+    // モバイルデバイスの場合はカメラ機能を無効化 (ただしfaceモードを除く)
+    if (this.isMobile && this.currentMode !== 'face') {
       console.log('モバイルデバイスが検出されました。カメラ機能は無効化されます。');
       return;
     }
@@ -357,11 +368,13 @@ class GameManager {
     const segmentationCtx = segmentationCanvas.getContext('2d');
     if (!segmentationCtx) return;
 
+    const useCamera = this.currentMode === 'body' || this.currentMode === 'hand' || this.currentMode === 'face';
+
     // カメラとキャンバスの表示/非表示をモードに応じて切り替える
-    if (this.currentMode === 'body') {
+    if (useCamera) {
         // videoElementは常にhiddenのまま
         segmentationCanvas.classList.remove('hidden');
-        if (!this.visuals) {
+        if (this.currentMode === 'body' && !this.visuals) {
             this.visuals = new LiveStageVisuals(this.gamecontainer);
         }
     } else {
@@ -372,6 +385,7 @@ class GameManager {
             this.pose.close();
             this.pose = null;
         }
+        this.faceDetection.close();
         return; // カメラが不要なモードではここで処理を終了
     }
 
@@ -409,6 +423,12 @@ class GameManager {
       this.pose = null;
     }
 
+    if (this.currentMode === 'face') {
+        this.faceDetection.init();
+    } else {
+        this.faceDetection.close();
+    }
+
     const camera = new Camera(videoElement, {
       onFrame: async () => {
         if (!canvasInitialized && videoElement.videoWidth > 0) {
@@ -420,9 +440,13 @@ class GameManager {
         if (now - lastProcessTime < processInterval) return;
         lastProcessTime = now;
         const frame = { image: videoElement };
+        
+        // FaceModeではsegmentationを使うか任意だが、一律で更新しておく
         await selfieSegmentation.send(frame);
+
         if (this.pose) await this.pose.send(frame);
         if (this.hands) await this.hands.send(frame);
+        await this.faceDetection.send(frame);
       },
       width: 320,
       height: 240,
@@ -2199,6 +2223,97 @@ type BodyDetectionDeps = {
  * 全身検出・カウントダウン・警告表示の責務をまとめて担当するクラス
  * GameManager本体は状態管理とモード切替に専念できるようになる
  */
+// SRP: フェイス検出の責務を担当するクラス
+class FaceDetectionManager {
+  private readonly game: GameManager
+  private faceMesh: any | null = null
+  private readonly input: InputManager
+
+  constructor(game: GameManager) {
+    this.game = game;
+    // InputManagerはGameManagerのpublicプロパティとしてアクセスできる想定だが、
+    // コンストラクタ呼び出し順序の関係で、ここではGameManagerインスタンス経由でアクセスする
+    // ただしInputManagerはGameManagerコンストラクタ内で生成されるため、このクラスのメソッド呼び出し時には存在するはず
+    this.input = game.input;
+  }
+
+  init(): void {
+    if (!this.game.isFaceMode()) return;
+
+    if (!window.FaceMesh) {
+      console.error('MediaPipe FaceMesh not loaded');
+      return;
+    }
+
+    this.faceMesh = new window.FaceMesh({
+      locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+
+    this.faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    this.faceMesh.onResults((results: any) => this.handleFaceResults(results));
+  }
+
+  close(): void {
+    if (this.faceMesh) {
+      this.faceMesh.close();
+      this.faceMesh = null;
+    }
+  }
+
+  async send(frame: any): Promise<void> {
+    if (this.faceMesh) {
+      await this.faceMesh.send(frame);
+    }
+  }
+
+  private handleFaceResults(results: any): void {
+    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+      return;
+    }
+
+    const landmarks = results.multiFaceLandmarks[0];
+    // 上唇: 13, 下唇: 14
+    // 基準とする顔の高さ: 10 (top) - 152 (chin)
+    // 座標は0.0-1.0で返ってくる
+
+    const upperLip = landmarks[13];
+    const lowerLip = landmarks[14];
+    const faceTop = landmarks[10];
+    const chin = landmarks[152];
+    const nose = landmarks[4]; // 鼻の頭をカーソル位置とする
+
+    if (!upperLip || !lowerLip || !faceTop || !chin || !nose) return;
+
+    // 開口率を計算
+    const mouthOpenDist = Math.abs(lowerLip.y - upperLip.y);
+    const faceHeight = Math.abs(chin.y - faceTop.y);
+    const openRatio = mouthOpenDist / faceHeight;
+    const isOpen = openRatio > 0.05;
+
+    // 口の中心座標を計算
+    const mouthX = (upperLip.x + lowerLip.x) / 2;
+    const mouthY = (upperLip.y + lowerLip.y) / 2;
+
+    // 座標を画面座標に変換 (左右反転を考慮)
+    const screenX = (1 - mouthX) * window.innerWidth;
+    const screenY = mouthY * window.innerHeight;
+
+    // カーソル位置を更新
+    this.game.lastMousePos = { x: screenX, y: screenY };
+
+    // フェイスモード改修: 「開いた口の位置」でホールド
+    if (isOpen) {
+      this.game.checkLyrics(screenX, screenY, 60);
+    }
+  }
+}
+
 class BodyDetectionManager {
   private readonly game: GameManager
   private readonly timers: TimerManager
@@ -2829,6 +2944,9 @@ class UIManager {
           break;
         case 'mobile':
           text = '歌詞フレーズを長押ししてゲージを満タンにしよう！';
+          break;
+        case 'face':
+          text = '口の位置を合わせて、口を大きく開けて歌詞バブルをキャッチしよう！';
           break;
       }
     }

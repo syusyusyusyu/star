@@ -69,6 +69,25 @@ const HelpModal = memo(function HelpModal({
                         <li>ゲージがMAXになるとコンボが繋がります。</li>
                     </ul>
                   </section>
+
+                  <section>
+                    <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
+                        <span className="w-1 h-6 bg-miku block"></span>
+                        フェイスモードの遊び方
+                    </h3>
+                    <p className="leading-relaxed">
+                        内カメラで顔の動きを認識するモードです。
+                        ターゲットサークル内に表示される歌詞バブルに口の位置を合わせ、口を大きく開けることでホールドします。
+                    </p>
+                  </section>
+                  <section className="bg-white/5 p-4 rounded border border-white/5">
+                    <h3 className="text-white font-bold mb-2">操作方法</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-sm">
+                        <li>歌詞バブルが表示されたら、顔を動かして口の位置を合わせます。</li>
+                        <li>位置が合ったら、口を「あ」と大きく開けてください（ホールド）。</li>
+                        <li>口を閉じるとホールドが解除されます。</li>
+                    </ul>
+                  </section>
                 </>
               ) : (
                 <>
@@ -162,8 +181,8 @@ export default function IndexPage() {
       navigator.maxTouchPoints > 0)
     : false
   const availableModes = useMemo(
-    () => (['cursor', 'body', 'mobile'] as const).filter((m) =>
-      isMobile ? m === 'mobile' : m !== 'mobile'
+    () => (['cursor', 'body', 'mobile', 'face'] as const).filter((m) =>
+      isMobile ? (m === 'mobile' || m === 'face') : (m !== 'mobile' && m !== 'face')
     ),
     [isMobile]
   )
@@ -330,14 +349,16 @@ export default function IndexPage() {
                             <div className="relative z-10 flex justify-between items-center">
                                 <div>
                                     <h3 className={`text-xl font-bold ${gameMode === mode ? 'text-white' : 'text-gray-300'}`}>
-                                        {mode === 'cursor' ? 'マウスモード' : mode === 'mobile' ? 'モバイルモード' : 'カメラモード'}
+                                        {mode === 'cursor' ? 'マウスモード' : mode === 'mobile' ? 'モバイルモード' : mode === 'face' ? 'フェイスモード' : 'カメラモード'}
                                     </h3>
                                     <p className="text-xs text-gray-400 mt-1">
                                         {mode === 'cursor'
                                           ? 'マウスで歌詞をキャッチ！'
                                           : mode === 'mobile'
                                             ? 'タッチで歌詞をキャッチ！画面に合わせて最適化'
-                                            : '全身を使って歌詞をキャッチ！'}
+                                            : mode === 'face'
+                                              ? '口を開けて歌詞をキャッチ！新感覚フェイスアクション！'
+                                              : '全身を使って歌詞をキャッチ！'}
                                     </p>
                                 </div>
                                 {gameMode === mode && <div className="text-2xl text-miku">●</div>}

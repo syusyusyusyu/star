@@ -5,7 +5,7 @@ import type { Player } from 'textalive-app-api'
 import type * as THREE from 'three'
 
 /** プレイモード */
-export type PlayMode = 'cursor' | 'body' | 'mobile' | 'hand'
+export type PlayMode = 'cursor' | 'body' | 'mobile' | 'hand' | 'face'
 
 /** ゲーム設定 */
 export interface GameConfig {

@@ -2325,7 +2325,7 @@ class FaceDetectionManager {
 
     // フェイスモード改修: 「開いた口の位置」でホールド
     if (isOpen) {
-      this.game.checkLyrics(screenX, screenY, 60);
+      this.game.checkLyrics(screenX, screenY, 40);
     } else {
       // 口を閉じている場合はホールド解除判定のために画面外の座標を渡す
       this.game.checkLyrics(-9999, -9999, 0);

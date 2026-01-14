@@ -138,7 +138,7 @@ stateDiagram-v2
   state "終了確認(モーダル)" as ExitConfirm
 
   [*] --> Index
-  Index --> Game: START
+  Index --> Game: ゲームスタート
   Index --> Ranking: ランキング表示
   Ranking --> Index: 閉じる
   Game --> Results: 曲終了/強制終了

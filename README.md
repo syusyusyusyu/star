@@ -151,7 +151,75 @@ stateDiagram-v2
   ExitConfirm --> Index: 終了
 ```
 
-### 5. API仕様
+### 5. 要件定義 (マインドマップ)
+```mermaid
+mindmap
+  root((Cross Stage))
+    機能要件
+      ゲームプレイ
+        リズムアクション
+          タップ判定
+          ホールド判定
+          コンボシステム
+        演出
+          歌詞バブル
+          3D背景
+          パーティクル
+      モード
+        Cursor Mode PC/Touch
+        Mobile Mode SP
+        Body Mode 全身検知
+        Face Mode 顔検知
+      外部連携
+        TextAlive 歌詞同期
+        MediaPipe 身体認識
+      データ管理
+        オンラインランキング
+        スコア登録API
+    非機能要件
+      パフォーマンス
+        60fps維持
+        低遅延処理
+        SPA遷移
+      セキュリティ
+        Bot対策 Turnstile
+        改ざん防止 HMAC
+        レート制限
+      ユーザビリティ
+        レスポンシブ
+        インストール不要 Web
+        アクセシビリティ
+```
+
+### 6. 開発スケジュール (ガントチャート)
+```mermaid
+gantt
+    title Cross Stage 開発ロードマップ (2025/10 - 2026/02)
+    dateFormat  YYYY-MM-DD
+    axisFormat %m/%d
+    
+    section 企画・要件定義
+    企画立案・技術選定       :done, a1, 2025-10-01, 14d
+    要件定義・仕様策定       :done, a2, after a1, 14d
+    UI/UXデザイン           :done, a3, after a1, 21d
+    
+    section 開発フェーズ1 (Core)
+    基本ゲームループ実装     :done, b1, 2025-11-01, 21d
+    TextAlive API連携       :done, b2, after b1, 14d
+    Cursor/Mobileモード実装 :done, b3, after b2, 14d
+    
+    section 開発フェーズ2 (Adv)
+    MediaPipe連携(Body/Face):done, c1, 2025-12-15, 21d
+    バックエンド構築(API/DB):done, c2, 2025-12-15, 21d
+    ランキング機能実装       :active, c3, after c2, 10d
+    
+    section テスト・調整
+    演出強化・エフェクト実装 :active, d1, 2026-01-15, 14d
+    テスト・バグ修正         :d2, 2026-01-20, 20d
+    デプロイ・最終調整       :d3, 2026-02-10, 10d
+```
+
+### 7. API仕様
 
 **API一覧**
 | Method | Path | 概要 | 認証/条件 |

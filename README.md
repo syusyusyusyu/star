@@ -214,9 +214,9 @@ gantt
     ランキング         :active, c3, after c2, 10d
     
     section テスト・調整
-    演出               :active, d1, 2026-01-25, 14d
-    テスト             :d2, after d1, 14d
-    公開               :d3, after d2, 7d
+    演出               :active, d1, 2026-01-16, 8d
+    テスト             :d2, after d1, 5d
+    公開               :d3, after d2, 2d
 ```
 
 ### 7. API仕様

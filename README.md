@@ -194,7 +194,7 @@ mindmap
 ### 6. 開発スケジュール (ガントチャート)
 ```mermaid
 gantt
-    title Cross Stage 開発ロードマップ (2025/10 - 2026/02)
+    title Cross Stage 開発ロードマップ (2025/10 - 2026/01)
     dateFormat  YYYY-MM-DD
     axisFormat %m/%d
     

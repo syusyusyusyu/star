@@ -358,3 +358,4 @@ star-5/
 - **License**: MIT
 - **Music & Lyrics**: Powered by [TextAlive App API](https://api.songle.jp/) (National Institute of Advanced Industrial Science and Technology - AIST).
 - **Vision AI**: MediaPipe by Google.
+- **Special Thanks**: 加賀（ネギシャワーP） ストリートライト piapro（https://piapro.jp/t/ULcJ）

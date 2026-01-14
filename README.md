@@ -211,12 +211,12 @@ gantt
     section 開発フェーズ2 (Adv)
     カメラ検知         :done, c1, after b3, 20d
     API構築            :done, c2, after b3, 14d
-    ランキング         :active, c3, after c2, 10d
+    ランキング         :done, c3, after c2, 10d
     
     section テスト・調整
-    演出               :active, d1, 2026-01-16, 8d
-    テスト             :d2, after d1, 5d
-    公開               :d3, after d2, 2d
+    演出               :done, d1, 2026-01-16, 8d
+    テスト             :done, d2, after d1, 5d
+    公開               :done, d3, after d2, 2d
 ```
 
 ### 7. API仕様

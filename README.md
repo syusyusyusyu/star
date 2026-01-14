@@ -189,7 +189,7 @@ flowchart TD
 
 ## 💾 データベース設計
 
-### ER図
+### ER図（単一テーブル）
 ```mermaid
 erDiagram
   SCORES {

@@ -199,24 +199,24 @@ gantt
     axisFormat %m/%d
     
     section 企画・要件定義
-    企画・技術選定       :done, a1, 2025-10-01, 14d
-    要件・仕様策定       :done, a2, after a1, 14d
-    UI/UXデザイン           :done, a3, after a1, 20d
+    企画               :done, a1, 2025-10-01, 14d
+    要件定義           :done, a2, after a1, 14d
+    デザイン           :done, a3, after a1, 20d
     
     section 開発フェーズ1 (Core)
-    基本ゲームループ実装     :done, b1, 2025-11-01, 20d
-    TextAlive API連携       :done, b2, after b1, 14d
-    Cursor/Mobile実装       :done, b3, after b2, 14d
+    ゲームループ       :done, b1, 2025-11-01, 20d
+    歌詞同期           :done, b2, after b1, 14d
+    基本モード         :done, b3, after b2, 14d
     
     section 開発フェーズ2 (Adv)
-    MediaPipe連携(Body/Face):done, c1, after b3, 20d
-    API/DB構築              :done, c2, after b3, 14d
-    ランキング実装           :active, c3, after c2, 10d
+    カメラ検知         :done, c1, after b3, 20d
+    API構築            :done, c2, after b3, 14d
+    ランキング         :active, c3, after c2, 10d
     
     section テスト・調整
-    演出・エフェクト         :active, d1, 2026-01-25, 14d
-    テスト・バグ修正         :d2, after d1, 14d
-    デプロイ           　　　:d3, after d2, 7d
+    演出               :active, d1, 2026-01-25, 14d
+    テスト             :d2, after d1, 14d
+    公開               :d3, after d2, 7d
 ```
 
 ### 7. API仕様

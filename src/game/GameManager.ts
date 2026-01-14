@@ -920,14 +920,14 @@ class GameManager {
         }
         
         // 一時停止時にタイマーを停止
-        this.clearestart) {
-          this.restart.disabled = true;
-          this.restart.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-        if (this.rResultTimers();
+        this.clearResultTimers();
         this.cancelFinishGuards();
       } else {
         // 再生処理
+        if (this.restart) {
+          this.restart.disabled = true;
+          this.restart.classList.add('opacity-50', 'cursor-not-allowed');
+        }
         if (this.player) {
           if (!this.player.isPlaying) {
             try {

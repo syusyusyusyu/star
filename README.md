@@ -201,22 +201,22 @@ gantt
     section 企画・要件定義
     企画立案・技術選定       :done, a1, 2025-10-01, 14d
     要件定義・仕様策定       :done, a2, after a1, 14d
-    UI/UXデザイン           :done, a3, after a1, 21d
+    UI/UXデザイン           :done, a3, after a1, 20d
     
     section 開発フェーズ1 (Core)
-    基本ゲームループ実装     :done, b1, 2025-11-01, 21d
+    基本ゲームループ実装     :done, b1, 2025-11-01, 20d
     TextAlive API連携       :done, b2, after b1, 14d
     Cursor/Mobileモード実装 :done, b3, after b2, 14d
     
     section 開発フェーズ2 (Adv)
-    MediaPipe連携(Body/Face):done, c1, 2025-12-15, 21d
-    バックエンド構築(API/DB):done, c2, 2025-12-15, 21d
+    MediaPipe連携(Body/Face):done, c1, after b3, 20d
+    バックエンド構築(API/DB):done, c2, after b3, 14d
     ランキング機能実装       :active, c3, after c2, 10d
     
     section テスト・調整
-    演出強化・エフェクト実装 :active, d1, 2026-01-15, 14d
-    テスト・バグ修正         :d2, 2026-01-20, 20d
-    デプロイ・最終調整       :d3, 2026-02-10, 10d
+    演出強化・エフェクト実装 :active, d1, 2026-01-25, 14d
+    テスト・バグ修正         :d2, after d1, 14d
+    デプロイ・最終調整       :d3, after d2, 7d
 ```
 
 ### 7. API仕様

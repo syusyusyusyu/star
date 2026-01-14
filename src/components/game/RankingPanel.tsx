@@ -38,10 +38,10 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
 
   const modeLabel = useMemo(() => {
     if (!mode) return '全モード'
-    if (mode === 'cursor') return 'マウスモード'
+    if (mode === 'cursor') return 'カーソルモード'
     if (mode === 'mobile') return 'モバイルモード'
     if (mode === 'face') return 'フェイスモード'
-    return 'カメラモード'
+    return 'ボディモード'
   }, [mode])
 
   const cacheKey = useMemo(() => `${songId}-${queryMode ?? 'all'}-${period}`, [songId, queryMode, period])

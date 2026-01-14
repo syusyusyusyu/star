@@ -104,11 +104,11 @@ const HelpModal = memo(function HelpModal({
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <section className="bg-white/5 p-4 rounded border border-white/5">
-                        <h3 className="text-white font-bold mb-2">マウスモード</h3>
+                        <h3 className="text-white font-bold mb-2">カーソルモード</h3>
                         <p className="text-sm">マウスカーソルを使って歌詞をクリックまたはホバーします。</p>
                       </section>
                       <section className="bg-white/5 p-4 rounded border border-white/5">
-                        <h3 className="text-white font-bold mb-2">カメラモード</h3>
+                        <h3 className="text-white font-bold mb-2">ボディモード</h3>
                         <p className="text-sm">Webカメラを使用し、体の動きで歌詞に触れます。</p>
                       </section>
                   </div>
@@ -129,7 +129,7 @@ const HelpModal = memo(function HelpModal({
                     </>
                   ) : (
                     <>
-                      <li>プレイモード（マウス / カメラ）を選択</li>
+                      <li>プレイモード（カーソル / ボディ）を選択</li>
                       <li>「ゲームスタート」ボタンをクリック</li>
                       <li>タイミングよく歌詞をキャッチ！</li>
                       <li>曲が終わるとリザルト画面へ</li>

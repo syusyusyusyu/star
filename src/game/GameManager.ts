@@ -906,6 +906,10 @@ class GameManager {
       
       if (this.isPaused) {
         // 一時停止処理
+        if (this.restart) {
+          this.restart.disabled = false;
+          this.restart.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
         if (this.player?.isPlaying) {
           try {
             // Promise形式ではなくtry-catch形式に変更
@@ -916,7 +920,11 @@ class GameManager {
         }
         
         // 一時停止時にタイマーを停止
-        this.clearResultTimers();
+        this.clearestart) {
+          this.restart.disabled = true;
+          this.restart.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        if (this.rResultTimers();
         this.cancelFinishGuards();
       } else {
         // 再生処理
@@ -1092,7 +1100,11 @@ class GameManager {
               const span = this.restart.querySelector('span');
               if (span) span.textContent = '最初から';
               else this.restart.textContent = '最初から';
-              this.restart.disabled = false;
+              // 準備完了時もリスタートボタンは無効のまま（再生開始まで待機、または一時停止時に有効化する方針ならここは無効でよい）
+              // 要望: 「一時停止ボタンが押されるまでずっと押せないように」
+              // → 初期状態は無効
+              this.restart.disabled = true;
+              this.restart.classList.add('opacity-50', 'cursor-not-allowed');
             }
             
             if (this.loading) this.loading.textContent = "準備完了-「再生」ボタンを押してね";
@@ -1111,6 +1123,10 @@ class GameManager {
             if (span) span.textContent = '一時停止';
             else this.playpause.textContent = '一時停止';
           }
+          if (this.restart) {
+            this.restart.disabled = true;
+            this.restart.classList.add('opacity-50', 'cursor-not-allowed');
+          }
           // 再生開始位置に歌詞インデックスを同期
           try {
             const pos = this.player?.timer?.position || 0;
@@ -1127,10 +1143,16 @@ class GameManager {
           const duration = this.player?.video?.duration;
           const isNearEnd = duration && this.lastPlayerPosition && (duration - this.lastPlayerPosition < 1500);
 
-          if (this.playpause && !isNearEnd) {
-            const span = this.playpause.querySelector('span');
-            if (span) span.textContent = '再生';
-            else this.playpause.textContent = '再生';
+          if (!isNearEnd) {
+            if (this.playpause) {
+              const span = this.playpause.querySelector('span');
+              if (span) span.textContent = '再生';
+              else this.playpause.textContent = '再生';
+            }
+            if (this.restart) {
+              this.restart.disabled = false;
+              this.restart.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
           }
           // 観客のランダムテキスト機能は削除
         },
@@ -1209,7 +1231,8 @@ class GameManager {
         else this.playpause.textContent = '再生';
         this.playpause.disabled = false;
       }
-      if (this.restart) {
+      if (this.restart) {true;
+        this.restart.classList.add('opacity-50', 'cursor-not-allowed')
         const span = this.restart.querySelector('span');
         if (span) span.textContent = '最初から';
         else this.restart.textContent = '最初から';
@@ -3189,6 +3212,7 @@ class InputManager {
           gm.timers.clearTimer(TIMER_KEYS.IdleTimeout);
           if (gm.isBodyWarningEnabled()) {
             gm.countdownOverlay.classList.remove('hidden');
+            gm.countdownText.style.whiteSpace = 'nowrap';
             gm.countdownText.textContent = '全身が映るように調整してください';
           } else {
             gm.countdownOverlay.classList.add('hidden');

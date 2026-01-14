@@ -199,8 +199,8 @@ gantt
     axisFormat %m/%d
     
     section 企画・要件定義
-    企画立案・技術選定       :done, a1, 2025-10-01, 14d
-    要件定義・仕様策定       :done, a2, after a1, 14d
+    企画・技術選定       :done, a1, 2025-10-01, 14d
+    要件・仕様策定       :done, a2, after a1, 14d
     UI/UXデザイン           :done, a3, after a1, 20d
     
     section 開発フェーズ1 (Core)
@@ -216,7 +216,7 @@ gantt
     section テスト・調整
     演出・エフェクト         :active, d1, 2026-01-25, 14d
     テスト・バグ修正         :d2, after d1, 14d
-    デプロイ・調整           :d3, after d2, 7d
+    デプロイ           　　　:d3, after d2, 7d
 ```
 
 ### 7. API仕様

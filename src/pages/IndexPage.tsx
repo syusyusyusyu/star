@@ -324,8 +324,6 @@ export default function IndexPage() {
                 <div className="flex flex-col gap-4">
                     <div className="flex justify-between items-center border-b border-white/10 pb-4">
                         <div className="text-left">
-                            <p className="text-[10px] text-gray-500 tracking-widest">POWERED BY TEXTALIVE</p>
-                            <p className="text-[10px] text-gray-500 tracking-widest">SONGLE</p>
                             <p className="text-[10px] text-gray-500 mt-1">「ストリートライト」 加賀（ネギシャワーP）<br />
                             原曲：piapro（https://piapro.jp/t/ULcJ）｜許諾済</p>
                         </div>

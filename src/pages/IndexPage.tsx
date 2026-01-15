@@ -376,7 +376,7 @@ export default function IndexPage() {
                             <div className="relative z-10 flex justify-between items-center">
                                 <div>
                                     <h3 className={`text-xl font-bold ${gameMode === mode ? 'text-white' : 'text-gray-300'}`}>
-                                        {mode === 'cursor' ? 'マウスモード' : mode === 'mobile' ? 'モバイルモード' : mode === 'face' ? 'フェイスモード' : 'カメラモード'}
+                                        {mode === 'cursor' ? 'カーソルモード' : mode === 'mobile' ? 'モバイルモード' : mode === 'face' ? 'フェイスモード' : 'ボディモード'}
                                     </h3>
                                     <p className="text-xs text-gray-400 mt-1">
                                         {mode === 'cursor'

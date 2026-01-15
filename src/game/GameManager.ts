@@ -362,11 +362,11 @@ class GameManager {
     return mobileUA || (hasTouch && smallScreen) || limitedCamera;
   }
 
-  async initCamera(): Promise<void> {
+  async initCamera(): Promise<boolean> {
     // モバイルデバイスの場合はカメラ機能を無効化 (ただしfaceモードを除く)
     if (this.isMobile && this.currentMode !== 'face') {
       console.log('モバイルデバイスが検出されました。カメラ機能は無効化されます。');
-      return;
+      return true;
     }
     
     let videoElement = document.getElementById('camera-video') as HTMLVideoElement | null;
@@ -390,9 +390,9 @@ class GameManager {
         document.body.appendChild(videoElement);
     }
     const segmentationCanvas = document.getElementById('segmentation-canvas') as HTMLCanvasElement | null;
-    if (!segmentationCanvas) return;
+    if (!segmentationCanvas) return false;
     const segmentationCtx = segmentationCanvas.getContext('2d');
-    if (!segmentationCtx) return;
+    if (!segmentationCtx) return false;
 
     const useCamera = this.currentMode === 'body' || this.currentMode === 'hand' || this.currentMode === 'face';
 
@@ -412,7 +412,7 @@ class GameManager {
             this.pose = null;
         }
         this.faceDetection.close();
-        return; // カメラが不要なモードではここで処理を終了
+        return true; // カメラが不要なモードではここで処理を終了
     }
 
     // 既存のカメラインスタンスがあれば停止
@@ -517,10 +517,12 @@ class GameManager {
                 if (stream) stream.getTracks().forEach(track => track.stop());
             }
         };
+        return true;
         
     } catch(e) {
         alert("カメラの使用が許可されませんでした。\nタイトルに戻ります。");
         window.location.href = '/'; 
+        return false;
     }
   }
 
@@ -1024,13 +1026,16 @@ class GameManager {
     if (this._operationInProgress) return; // 連打防止
     this._operationInProgress = true;
 
-    // Faceモード時はカメラ許可を再度確認するために一度ストリームを完全に停止して再初期化する
-    if (this.currentMode === 'face') {
+    // カメラを使用するモードでは、カメラ許可を再度確認するために一度ストリームを完全に停止して再初期化する
+    if (this.currentMode === 'face' || this.currentMode === 'body' || this.currentMode === 'hand') {
       // 既存のカメラを停止
       if (this.camera) {
          try {
              // @ts-ignore
-             if (typeof this.camera.stop === 'function') await this.camera.stop(); 
+             if (typeof this.camera.stop === 'function') {
+                 // @ts-ignore
+                 await this.camera.stop(); 
+             }
          } catch(e) { console.debug("Camera stop error", e); }
          this.camera = null;
       }
@@ -1048,7 +1053,7 @@ class GameManager {
         videoElement.remove();
       }
       // カメラ再初期化（これにより再度getUserMediaが呼ばれる）
-      this.initCamera();
+      await this.initCamera();
     }
     
     // 各種タイマーをクリア
@@ -3361,9 +3366,10 @@ class InputManager {
 
       if (!gm.apiLoaded) return;
       if (gm.isFirstInteraction) {
-        // カメラ権限と動作確認 (Body/Faceモード時)
-        if (gm.currentMode === 'body' || gm.currentMode === 'face') {
-            await gm.initCamera();
+        // カメラ権限と動作確認 (カメラを使用する全モード)
+        if (gm.currentMode === 'body' || gm.currentMode === 'face' || gm.currentMode === 'hand') {
+            const success = await gm.initCamera();
+            if (!success) return;
         }
 
         if (gm.currentMode === 'body') {

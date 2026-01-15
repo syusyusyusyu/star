@@ -467,37 +467,65 @@ class GameManager {
         this.faceDetection.close();
     }
 
-    const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        if (!canvasInitialized && videoElement.videoWidth > 0) {
-          segmentationCanvas.width = videoElement.videoWidth;
-          segmentationCanvas.height = videoElement.videoHeight;
-          canvasInitialized = true;
-        }
-        const now = performance.now();
-        if (now - lastProcessTime < processInterval) return;
-        lastProcessTime = now;
-        const frame = { image: videoElement };
-        
-        // FaceModeではsegmentationを使うか任意だが、一律で更新しておく
-        await selfieSegmentation.send(frame);
+    // Cameraクラス（MediaPipe utility）を使用せず、直接getUserMediaを使用して
+    // ライブラリ由来の"Failed to acquire camera feed"エラーを回避する
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 320, height: 240 }
+            });
+            
+            videoElement.srcObject = stream;
+            
+            // ビデオの再生開始を待つ
+            await new Promise<void>((resolve) => {
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play().then(() => resolve());
+                };
+            });
 
-        if (this.pose) await this.pose.send(frame);
-        if (this.hands) await this.hands.send(frame);
-        await this.faceDetection.send(frame);
-      },
-      width: 320,
-      height: 240,
-    });
-    
-    this.camera = camera;
-    
-    camera.start().catch(() => {
-        alert("カメラの使用が許可されませんでした。\nタイトルに戻ります。");
-        // カメラエラー時はSPA遷移ではなく、状態を完全にリセットするために意図的にリロードを行う
-        // これにより次回アクセス時にブラウザが再度権限チェックを行いやすくなる
-        window.location.href = '/'; 
-    });
+            // 処理ループの開始
+            let requestAnimId: number;
+            const tick = async () => {
+                if (videoElement.paused || videoElement.ended) return;
+
+                if (!canvasInitialized && videoElement.videoWidth > 0) {
+                    segmentationCanvas.width = videoElement.videoWidth;
+                    segmentationCanvas.height = videoElement.videoHeight;
+                    canvasInitialized = true;
+                }
+
+                const now = performance.now();
+                if (now - lastProcessTime >= processInterval) {
+                   lastProcessTime = now;
+                   const frame = { image: videoElement };
+                   
+                   // フレーム処理
+                   if (selfieSegmentation) await selfieSegmentation.send(frame);
+                   if (this.pose) await this.pose.send(frame);
+                   if (this.hands) await this.hands.send(frame);
+                   if (this.faceDetection) await this.faceDetection.send(frame);
+                }
+                
+                requestAnimId = requestAnimationFrame(tick);
+            };
+            tick();
+
+            // クリーンアップ用オブジェクトを設定
+            this.camera = {
+                stop: () => {
+                   if (requestAnimId) cancelAnimationFrame(requestAnimId);
+                   if (stream) stream.getTracks().forEach(track => track.stop());
+                }
+            };
+            
+        } catch(e) {
+            alert("カメラの使用が許可されませんでした。\nタイトルに戻ります。");
+            window.location.href = '/'; 
+        }
+    };
+
+    startCamera();
   }
 
   /**

@@ -66,6 +66,8 @@ function GamePage() {
     if (storedMode) return storedMode
     return 'cursor'
   }, [])
+
+
   const navigate = useNavigate()
   const { songData, accentColor } = useMemo(() => loadSongConfig(), [])
   const [rankingMode, setRankingMode] = useState<PlayMode>(getInitialMode)
@@ -78,6 +80,7 @@ function GamePage() {
   const lastSubmittedKeyRef = useRef<string | null>(null)
   const scoreTokenRef = useRef<string | null>(null)
   const managerRef = useRef<GameManager | null>(null)
+  const redirectOnReloadRef = useRef(false)
   const isNavigatingRef = useRef(false)
   const prefersTouch = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -87,6 +90,29 @@ function GamePage() {
       navigator.maxTouchPoints > 0
     )
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+    const navType = navEntry?.type
+    let reloadFlag: string | null = null
+    try {
+      reloadFlag = sessionStorage.getItem('returnToTitle')
+    } catch {}
+    const shouldRedirect =
+      navType === 'reload' ||
+      navType === 'back_forward' ||
+      reloadFlag === '1'
+
+    if (shouldRedirect) {
+      try {
+        sessionStorage.removeItem('returnToTitle')
+      } catch {}
+      redirectOnReloadRef.current = true
+      navigate('/', { replace: true })
+    }
+  }, [navigate])
+
 
   // デバッグ用キー入力監視
   useEffect(() => {
@@ -246,6 +272,7 @@ function GamePage() {
   }, [])
 
   useEffect(() => {
+    if (redirectOnReloadRef.current) return
     const bodyClass = "game-body"
     document.body.classList.add(bodyClass)
     document.documentElement.style.setProperty("--bg-accent-color", accentColor)
@@ -259,7 +286,12 @@ function GamePage() {
 
     const initialMode: PlayMode = getInitialMode()
 
-    const handleBeforeUnload = () => managerRef.current?.cleanup?.()
+    const handleBeforeUnload = () => {
+      try {
+        sessionStorage.setItem('returnToTitle', '1')
+      } catch {}
+      managerRef.current?.cleanup?.()
+    }
 
     const timer = setTimeout(() => {
       managerRef.current = new GameManager({

@@ -362,6 +362,23 @@ class GameManager {
     return mobileUA || (hasTouch && smallScreen) || limitedCamera;
   }
 
+  private isCameraMode(): boolean {
+    return this.currentMode === 'body' || this.currentMode === 'face' || this.currentMode === 'hand';
+  }
+
+  private hasActiveCameraStream(): boolean {
+    const videoElement = document.getElementById('camera-video') as HTMLVideoElement | null;
+    const stream = videoElement?.srcObject as MediaStream | null;
+    if (!stream) return false;
+    return stream.getTracks().some(track => track.readyState === 'live');
+  }
+
+  async ensureCameraReady(): Promise<boolean> {
+    if (!this.isCameraMode()) return true;
+    if (this.camera && this.hasActiveCameraStream()) return true;
+    return this.initCamera();
+  }
+
   async initCamera(): Promise<boolean> {
     // モバイルデバイスの場合はカメラ機能を無効化 (ただしfaceモードを除く)
     if (this.isMobile && this.currentMode !== 'face') {
@@ -3349,7 +3366,7 @@ class InputManager {
       if (gm.isFirstInteraction) {
         // カメラ権限と動作確認 (カメラを使用する全モード)
         if (gm.currentMode === 'body' || gm.currentMode === 'face' || gm.currentMode === 'hand') {
-            const success = await gm.initCamera();
+            const success = await gm.ensureCameraReady();
             if (!success) return;
         }
 

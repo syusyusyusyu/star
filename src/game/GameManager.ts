@@ -1712,6 +1712,16 @@ class GameManager {
     }
     if (this.currentMode === 'body') {
       this.bodyDetection.evaluateLandmarks(flippedLandmarks);
+      
+      // 警告表示中（全身未検出など）はホールド判定を行わない
+      if (!this.countdownOverlay.classList.contains('hidden')) {
+          // すべてのホールドを解除
+        for (const el of this.currentBodyHolds) {
+          this.stopBubbleHold(el, 'auto');
+        }
+        this.currentBodyHolds.clear();
+        return;
+      }
     }
 
     // 手の判定点 (右手、左手)
@@ -3160,6 +3170,9 @@ class InputManager {
     });
 
     const handleMove = (x: number, y: number, isTouch: boolean) => {
+      // 警告表示中は操作無効
+      if (!gm.countdownOverlay.classList.contains('hidden')) return;
+
       const now = Date.now();
       if (now - lastTime < 16) return;
       lastTime = now;
@@ -3204,6 +3217,15 @@ class InputManager {
 
     const handleButtonClick = (event: Event | null) => {
       if (event) event.preventDefault();
+
+      // 警告表示中は操作無効 (ただしFirstInteraction時の警告表示ロジックは通す必要があるため、
+      // 既に警告が出ている場合のみブロックする)
+      // 注意: 下記のbody mode logicで警告を出すので、その前段階ではまだhiddenの場合がある
+      if (!gm.countdownOverlay.classList.contains('hidden')) {
+          // Warning already visible
+          return;
+      }
+
       if (!gm.apiLoaded) return;
       if (gm.isFirstInteraction) {
         if (gm.currentMode === 'body') {
@@ -3232,6 +3254,10 @@ class InputManager {
 
     const handleRestartClick = (event: Event | null) => {
       if (event) event.preventDefault();
+      
+      // 警告表示中は操作無効
+      if (!gm.countdownOverlay.classList.contains('hidden')) return;
+
       if (!gm.apiLoaded) return;
       gm.restartGame();
     };

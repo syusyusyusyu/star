@@ -213,8 +213,8 @@ gantt
     
     section テスト・調整
     演出               :done, d1, 2026-01-16, 3d
-    テスト             :done, d2, after d1, 3d
-    公開               :done, d3, after d2, 2d
+    テスト             :done, d2, after d1, 5d
+    公開               :done, d3, after d2, 4d
 ```
 
 ### 7. API仕様

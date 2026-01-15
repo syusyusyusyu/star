@@ -8,6 +8,7 @@ import { cors } from 'hono/cors'
 import { serveStatic } from '@hono/node-server/serve-static'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import crypto from 'node:crypto'
 import scoreRoute from './routes/score'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -53,6 +54,26 @@ app.use('*', cors())
 
 // Health check
 app.get('/api/health', (c) => c.json({ status: 'ok' }))
+
+// Config (align with Workers shape)
+app.get('/api/config', (c) => {
+  return c.json({ data: { turnstileSiteKey: process.env.TURNSTILE_SITE_KEY ?? null } })
+})
+
+// Token generation (HMAC, align with Workers)
+app.get('/api/token', (c) => {
+  const secret = process.env.SCORE_SIGNING_SECRET
+  if (!secret) {
+    return c.json({ error: { code: 'CONFIG_ERROR', message: 'Signing secret not configured' } }, 500)
+  }
+
+  const nonce = crypto.randomUUID()
+  const timestamp = Date.now()
+  const data = `${nonce}:${timestamp}`
+  const signature = crypto.createHmac('sha256', secret).update(data).digest('hex')
+  const token = `${nonce}.${timestamp}.${signature}`
+  return c.json({ data: { token } })
+})
 
 // Example API: echo
 app.post('/api/echo', async (c) => {

@@ -169,7 +169,17 @@ app.get('*', async (c) => {
     // If 404 and not an API route, serve index.html (SPA fallback)
     if (response.status === 404 && !url.pathname.startsWith('/api')) {
       const indexUrl = new URL('/index.html', c.req.url)
-      response = await env.ASSETS.fetch(new Request(indexUrl, c.req.raw))
+      const indexResponse = await env.ASSETS.fetch(new Request(indexUrl, c.req.raw))
+      
+      // index.htmlが見つかった場合は、ステータスを200にして返す
+      if (indexResponse.status >= 200 && indexResponse.status < 300) {
+        return new Response(indexResponse.body, {
+          headers: indexResponse.headers,
+          status: 200
+        })
+      }
+      // index.html自体がない場合は元の404レスポンスを返す（無限ループ防止）
+      return response
     }
     return response
   }

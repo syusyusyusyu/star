@@ -197,7 +197,7 @@ gantt
     axisFormat %m/%d
     
     section 企画・要件定義
-    企画               :done, a1, 2025-10-01, 14d
+    企画               :done, a1, 2025-10-04, 10d
     要件定義           :done, a2, after a1, 14d
     デザイン           :done, a3, after a1, 20d
     

@@ -203,8 +203,8 @@ gantt
     
     section 開発フェーズ1 (Core)
     ゲーム機能       :done, b1, 2025-11-01, 20d
-    歌詞同期           :done, b2, after b1, 14d
-    基本モード         :done, b3, after b2, 14d
+    歌詞同期           :done, b2, after b1, 12d
+    基本モード         :done, b3, after b2, 12d
     
     section 開発フェーズ2 (Adv)
     カメラ検知         :done, c1, after b3, 20d

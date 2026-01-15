@@ -461,7 +461,11 @@ class GameManager {
       width: 320,
       height: 240,
     });
-    camera.start();
+    camera.start().catch((e: unknown) => {
+        console.error("Camera permission denied or error:", e);
+        alert("カメラの使用が許可されませんでした。タイトル画面に戻ります。");
+        window.dispatchEvent(new CustomEvent('game-navigate', { detail: { url: '/' } }));
+    });
   }
 
   /**

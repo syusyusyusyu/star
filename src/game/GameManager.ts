@@ -369,18 +369,33 @@ class GameManager {
       return true;
     }
     
+    // 既存のカメラインスタンスがあれば停止 (ループ処理の停止)
+    if (this.camera) {
+        try {
+            // @ts-ignore - Check if stop exists (depends on version)
+            if (typeof this.camera.stop === 'function') {
+                // @ts-ignore
+                this.camera.stop(); 
+            }
+        } catch(e) { console.debug("Camera stop error", e); }
+        this.camera = null;
+    }
+    
+    // 既存のvideoElementがある場合、残留ストリームを確実に停止し、要素も削除する
+    // これにより、毎回必ず新しい権限リクエスト/ストリーム取得が行われるようにする
     let videoElement = document.getElementById('camera-video') as HTMLVideoElement | null;
     
-    // 既存のvideoElementがある場合、残留ストリームを確実に停止してリセットする
-    // これにより、毎回必ず新しい権限リクエスト/ストリーム取得が行われるようにする
-    if (videoElement && videoElement.srcObject) {
-         try {
-             const stream = videoElement.srcObject as MediaStream;
-             stream.getTracks().forEach(track => track.stop());
-             videoElement.srcObject = null;
-         } catch (e) {
-             console.error("Error stopping existing video stream:", e);
+    if (videoElement) {
+         if (videoElement.srcObject) {
+             try {
+                 const stream = videoElement.srcObject as MediaStream;
+                 stream.getTracks().forEach(track => track.stop());
+             } catch (e) {
+                 console.error("Error stopping existing video stream:", e);
+             }
          }
+         videoElement.remove();
+         videoElement = null;
     }
 
     if (!videoElement) {
@@ -416,16 +431,8 @@ class GameManager {
     }
 
     // 既存のカメラインスタンスがあれば停止
-    if (this.camera) {
-        try {
-            // @ts-ignore - Check if stop exists (depends on version)
-            if (typeof this.camera.stop === 'function') {
-                // @ts-ignore
-                this.camera.stop(); 
-            }
-        } catch(e) { console.debug("Camera stop error", e); }
-        this.camera = null;
-    }
+    // (既に冒頭で停止しているはずだが、念のためnullチェック済み)
+
 
     let canvasInitialized = false;
     const processInterval = 33; // ~30FPS
@@ -1026,33 +1033,8 @@ class GameManager {
     if (this._operationInProgress) return; // 連打防止
     this._operationInProgress = true;
 
-    // カメラを使用するモードでは、カメラ許可を再度確認するために一度ストリームを完全に停止して再初期化する
+    // カメラを使用するモードでは、カメラ許可を再度確認するために再初期化する
     if (this.currentMode === 'face' || this.currentMode === 'body' || this.currentMode === 'hand') {
-      // 既存のカメラを停止
-      if (this.camera) {
-         try {
-             // @ts-ignore
-             if (typeof this.camera.stop === 'function') {
-                 // @ts-ignore
-                 await this.camera.stop(); 
-             }
-         } catch(e) { console.debug("Camera stop error", e); }
-         this.camera = null;
-      }
-      
-      const videoElement = document.getElementById('camera-video') as HTMLVideoElement;
-      if (videoElement) {
-        if (videoElement.srcObject) {
-            const stream = videoElement.srcObject as MediaStream;
-            stream.getTracks().forEach(track => {
-                track.stop();
-            });
-            videoElement.srcObject = null;
-        }
-        // 要素自体を再生成してブラウザのキャッシュされた権限状態をクリアしやすくする
-        videoElement.remove();
-      }
-      // カメラ再初期化（これにより再度getUserMediaが呼ばれる）
       await this.initCamera();
     }
     

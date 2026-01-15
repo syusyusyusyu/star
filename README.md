@@ -201,12 +201,12 @@ gantt
     要件定義           :done, a2, after a1, 14d
     デザイン           :done, a3, after a1, 20d
     
-    section 開発フェーズ (Core)
+    section 開発フェーズ(Core)
     ゲーム機能       :done, b1, 2025-11-01, 20d
     歌詞同期           :done, b2, after b1, 12d
     基本モード         :done, b3, after b2, 12d
     
-    section 開発フェーズ (Adv)
+    section 開発フェーズ(Adv)
     カメラ検知         :done, c1, after b3, 20d
     API構築            :done, c2, after b3, 14d
     ランキング         :done, c3, after c2, 10d

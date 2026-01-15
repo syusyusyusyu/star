@@ -493,16 +493,6 @@ class GameManager {
     this.camera = camera;
     
     camera.start().catch((e: unknown) => {
-        // NotAllowedErrorなどは想定内の動作なのでerrorログではなくlog/warnに留める
-        const errStr = String(e);
-        const isPermissionError = errStr.includes('NotAllowedError') || errStr.includes('permission denied') || errStr.includes('Permission denied');
-        
-        if (isPermissionError) {
-            console.log("Camera permission denied (handled):", errStr);
-        } else {
-            console.error("Camera start error:", e);
-        }
-
         // カメラエラー時はSPA遷移ではなく、状態を完全にリセットするために意図的にリロードを行う
         // これにより次回アクセス時にブラウザが再度権限チェックを行いやすくなる
         window.location.href = '/'; 

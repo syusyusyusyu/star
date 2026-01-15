@@ -163,6 +163,12 @@ app.get('*', async (c) => {
   const env = c.env
   if (env.ASSETS) {
     const url = new URL(c.req.url)
+    const accept = c.req.header('accept') || ''
+    const isHtmlRequest = accept.includes('text/html')
+    const isGameRoute = url.pathname === '/game' || url.pathname.startsWith('/game/')
+    if (isHtmlRequest && isGameRoute) {
+      return c.redirect('/', 302)
+    }
     // Try fetching the exact file
     let response = await env.ASSETS.fetch(c.req.raw)
     

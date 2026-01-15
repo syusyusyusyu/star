@@ -193,6 +193,12 @@ export default function IndexPage() {
     }
   }, [availableModes, gameMode, isMobile])
 
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem('returnToTitle')
+    } catch {}
+  }, [])
+
   const handleSongSelect = useCallback((song: Song) => {
     localStorage.setItem('selectedSong', JSON.stringify({
       ...song,

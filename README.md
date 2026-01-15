@@ -340,12 +340,10 @@ star/
 │   │   └── ...           
 │   ├── pages/            # ルーティングページ (Index, Game)
 │   └── styles.css        # グローバルスタイル・アニメーション定義
-├── worker/               # バックエンド・API (Cloudflare Workers)
-│   ├── index.ts          # Hono エントリーポイント
-│   ├── rateLimiter.ts    # レート制限 (Durable Object)
-│   └── ...
-├── supabase_scores.sql   # データベーススキーマ定義
-└── UI.md                 # UIデザイン詳細仕様書
+└── worker/               # バックエンド・API (Cloudflare Workers)
+    ├── index.ts          # Hono エントリーポイント
+    ├── rateLimiter.ts    # レート制限 (Durable Object)
+    └── ...
 ```
 
 ---

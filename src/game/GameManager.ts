@@ -492,7 +492,8 @@ class GameManager {
     
     this.camera = camera;
     
-    camera.start().catch((e: unknown) => {
+    camera.start().catch(() => {
+        alert("カメラの使用が許可されませんでした。\nタイトルに戻ります。");
         // カメラエラー時はSPA遷移ではなく、状態を完全にリセットするために意図的にリロードを行う
         // これにより次回アクセス時にブラウザが再度権限チェックを行いやすくなる
         window.location.href = '/'; 

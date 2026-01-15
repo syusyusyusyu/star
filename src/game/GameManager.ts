@@ -503,8 +503,9 @@ class GameManager {
             console.error("Camera start error:", e);
         }
 
-        // Alert削除：ユーザー体験向上のため静かにタイトルに戻る
-        window.dispatchEvent(new CustomEvent('game-navigate', { detail: { url: '/' } }));
+        // カメラエラー時はSPA遷移ではなく、状態を完全にリセットするために意図的にリロードを行う
+        // これにより次回アクセス時にブラウザが再度権限チェックを行いやすくなる
+        window.location.href = '/'; 
     });
   }
 
@@ -1010,13 +1011,26 @@ class GameManager {
 
     // Faceモード時はカメラ許可を再度確認するために一度ストリームを完全に停止して再初期化する
     if (this.currentMode === 'face') {
+      // 既存のカメラを停止
+      if (this.camera) {
+         try {
+             // @ts-ignore
+             if (typeof this.camera.stop === 'function') await this.camera.stop(); 
+         } catch(e) { console.debug("Camera stop error", e); }
+         this.camera = null;
+      }
+      
       const videoElement = document.getElementById('camera-video') as HTMLVideoElement;
-      if (videoElement && videoElement.srcObject) {
-        const stream = videoElement.srcObject as MediaStream;
-        stream.getTracks().forEach(track => {
-            track.stop();
-        });
-        videoElement.srcObject = null;
+      if (videoElement) {
+        if (videoElement.srcObject) {
+            const stream = videoElement.srcObject as MediaStream;
+            stream.getTracks().forEach(track => {
+                track.stop();
+            });
+            videoElement.srcObject = null;
+        }
+        // 要素自体を再生成してブラウザのキャッシュされた権限状態をクリアしやすくする
+        videoElement.remove();
       }
       // カメラ再初期化（これにより再度getUserMediaが呼ばれる）
       this.initCamera();

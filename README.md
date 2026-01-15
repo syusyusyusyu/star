@@ -42,7 +42,7 @@ Cross Stage は、TextAlive App API による歌詞同期技術と MediaPipe (Po
 ## 🚀 技術的な特徴
 
 ### Frontend (Modern Web)
-- **React 19 & Vite**: 高速なレンダリングと開発体験。
+- **React 18 & Vite**: 高速なレンダリングと開発体験。
 - **Architecture**: `GameManager` を中心とした厳格な責務分離（SRP）。ゲームループ、入力処理、描画、音声同期を独立管理。
 - **Performance**: パーティクルやバブルの描画に `will-change` 最適化やオブジェクトプーリングを採用し、Webブラウザ上で滑らかな60fps動作を実現。
 

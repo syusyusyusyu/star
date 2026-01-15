@@ -400,7 +400,7 @@ star/
    ```
 
 2. **環境変数の設定**
-   `.dev.vars` および `.env` ファイルを作成し、必要なAPIキーを設定します（`README_OLD.md` または `TROUBLESHOOTING.md` 参照）。
+    `.env` ファイルを作成し、必要なAPIキーを設定します
 
 3. **開発サーバー起動**
    ```bash

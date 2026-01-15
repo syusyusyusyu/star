@@ -1057,11 +1057,10 @@ class GameManager {
     this.resultsDisplayed = false; // リザルト表示フラグをリセット（重要）
     this.resultReported = false;
     
-    // ボディモードの場合は検出フラグをリセット（再度カウントダウンが必要）
-    if (this.currentMode === 'body') {
-      this.isFirstInteraction = true;
-      console.log("ボディモード: リスタート時に検出フラグをリセット");
-    }
+    // ボディモード以外もリスタート時はFirstInteractionに戻して再開処理を通す
+    // これにより次回再生時に必ずinitCamera(許可確認)が呼ばれるようになる
+    this.isFirstInteraction = true;
+    console.log("リスタート: FirstInteractionフラグをリセット");
     
     // 結果画面を非表示にする
     const resultsScreen = document.getElementById('results-screen');

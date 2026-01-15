@@ -362,7 +362,7 @@ class GameManager {
     return mobileUA || (hasTouch && smallScreen) || limitedCamera;
   }
 
-  initCamera(): void {
+  async initCamera(): Promise<void> {
     // モバイルデバイスの場合はカメラ機能を無効化 (ただしfaceモードを除く)
     if (this.isMobile && this.currentMode !== 'face') {
       console.log('モバイルデバイスが検出されました。カメラ機能は無効化されます。');
@@ -469,63 +469,59 @@ class GameManager {
 
     // Cameraクラス（MediaPipe utility）を使用せず、直接getUserMediaを使用して
     // ライブラリ由来の"Failed to acquire camera feed"エラーを回避する
-    const startCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 320, height: 240 }
-            });
-            
-            videoElement.srcObject = stream;
-            
-            // ビデオの再生開始を待つ
-            await new Promise<void>((resolve) => {
-                videoElement.onloadedmetadata = () => {
-                    videoElement.play().then(() => resolve());
-                };
-            });
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 320, height: 240 }
+        });
+        
+        videoElement.srcObject = stream;
+        
+        // ビデオの再生開始を待つ
+        await new Promise<void>((resolve) => {
+            videoElement.onloadedmetadata = () => {
+                videoElement.play().then(() => resolve());
+            };
+        });
 
-            // 処理ループの開始
-            let requestAnimId: number;
-            const tick = async () => {
-                if (videoElement.paused || videoElement.ended) return;
+        // 処理ループの開始
+        let requestAnimId: number;
+        const tick = async () => {
+            if (videoElement.paused || videoElement.ended) return;
 
-                if (!canvasInitialized && videoElement.videoWidth > 0) {
-                    segmentationCanvas.width = videoElement.videoWidth;
-                    segmentationCanvas.height = videoElement.videoHeight;
-                    canvasInitialized = true;
-                }
+            if (!canvasInitialized && videoElement.videoWidth > 0) {
+                segmentationCanvas.width = videoElement.videoWidth;
+                segmentationCanvas.height = videoElement.videoHeight;
+                canvasInitialized = true;
+            }
 
-                const now = performance.now();
-                if (now - lastProcessTime >= processInterval) {
-                   lastProcessTime = now;
-                   const frame = { image: videoElement };
-                   
-                   // フレーム処理
-                   if (selfieSegmentation) await selfieSegmentation.send(frame);
-                   if (this.pose) await this.pose.send(frame);
-                   if (this.hands) await this.hands.send(frame);
-                   if (this.faceDetection) await this.faceDetection.send(frame);
-                }
+            const now = performance.now();
+            if (now - lastProcessTime >= processInterval) {
+                lastProcessTime = now;
+                const frame = { image: videoElement };
                 
-                requestAnimId = requestAnimationFrame(tick);
-            };
-            tick();
-
-            // クリーンアップ用オブジェクトを設定
-            this.camera = {
-                stop: () => {
-                   if (requestAnimId) cancelAnimationFrame(requestAnimId);
-                   if (stream) stream.getTracks().forEach(track => track.stop());
-                }
-            };
+                // フレーム処理
+                if (selfieSegmentation) await selfieSegmentation.send(frame);
+                if (this.pose) await this.pose.send(frame);
+                if (this.hands) await this.hands.send(frame);
+                if (this.faceDetection) await this.faceDetection.send(frame);
+            }
             
-        } catch(e) {
-            alert("カメラの使用が許可されませんでした。\nタイトルに戻ります。");
-            window.location.href = '/'; 
-        }
-    };
+            requestAnimId = requestAnimationFrame(tick);
+        };
+        tick();
 
-    startCamera();
+        // クリーンアップ用オブジェクトを設定
+        this.camera = {
+            stop: () => {
+                if (requestAnimId) cancelAnimationFrame(requestAnimId);
+                if (stream) stream.getTracks().forEach(track => track.stop());
+            }
+        };
+        
+    } catch(e) {
+        alert("カメラの使用が許可されませんでした。\nタイトルに戻ります。");
+        window.location.href = '/'; 
+    }
   }
 
   /**
@@ -3352,7 +3348,7 @@ class InputManager {
     document.addEventListener('touchend', stopPointerHold);
     document.addEventListener('touchcancel', stopPointerHold);
 
-    const handleButtonClick = (event: Event | null) => {
+    const handleButtonClick = async (event: Event | null) => {
       if (event) event.preventDefault();
 
       // 警告表示中は操作無効 (ただしFirstInteraction時の警告表示ロジックは通す必要があるため、
@@ -3365,6 +3361,11 @@ class InputManager {
 
       if (!gm.apiLoaded) return;
       if (gm.isFirstInteraction) {
+        // カメラ権限と動作確認 (Body/Faceモード時)
+        if (gm.currentMode === 'body' || gm.currentMode === 'face') {
+            await gm.initCamera();
+        }
+
         if (gm.currentMode === 'body') {
           gm.isFirstInteraction = false;
           // アイドルタイマー解除

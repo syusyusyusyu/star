@@ -3099,8 +3099,22 @@ class EffectsManager {
     const pointDisplay = document.createElement('div');
     pointDisplay.className = 'score-popup';
     pointDisplay.textContent = `+${Math.round(this.game.scorePerHit)}`;
-    pointDisplay.style.left = `${x}px`;
-    pointDisplay.style.top = `${y}px`;
+    
+    // 位置調整（モバイル時は画面内に収まるように補正）
+    let popupX = x;
+    let popupY = y;
+    if (this.game.isMobile) {
+      const marginX = 80; // 左右マージン
+      const marginY = 60; // 上下マージン
+      popupX = Math.max(marginX, Math.min(window.innerWidth - marginX, popupX));
+      popupY = Math.max(marginY, Math.min(window.innerHeight - marginY, popupY));
+      
+      // 中央揃えのためにtransformを追加
+      pointDisplay.style.transform = 'translate(-50%, -50%)';
+    }
+
+    pointDisplay.style.left = `${popupX}px`;
+    pointDisplay.style.top = `${popupY}px`;
     pointDisplay.style.opacity = '1';
     pointDisplay.style.pointerEvents = 'none';
     this.game.gamecontainer.appendChild(pointDisplay);
@@ -3110,7 +3124,8 @@ class EffectsManager {
     const drift = this.game.isMobile ? 20 : 28;
     const animate = (now: number) => {
       const progress = Math.min(1, (now - start) / duration);
-      pointDisplay.style.top = `${y - drift * progress}px`;
+      // アニメーション基準点も補正後の位置を使う
+      pointDisplay.style.top = `${popupY - drift * progress}px`;
       pointDisplay.style.opacity = String(1 - progress);
       if (progress < 1) {
         requestAnimationFrame(animate);

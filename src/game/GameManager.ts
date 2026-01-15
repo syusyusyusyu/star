@@ -123,6 +123,9 @@ class GameManager {
   private _waveThreshold: number
   private _waveTimeWindow: number
   
+  // カメラ制御
+  private camera: { start(): Promise<void>; stop(): void } | any | null = null; // MediaPipe Camera instance
+
   // マネージャー
   public ui: UIManager
   public effects: EffectsManager
@@ -367,6 +370,19 @@ class GameManager {
     }
     
     let videoElement = document.getElementById('camera-video') as HTMLVideoElement | null;
+    
+    // 既存のvideoElementがある場合、残留ストリームを確実に停止してリセットする
+    // これにより、毎回必ず新しい権限リクエスト/ストリーム取得が行われるようにする
+    if (videoElement && videoElement.srcObject) {
+         try {
+             const stream = videoElement.srcObject as MediaStream;
+             stream.getTracks().forEach(track => track.stop());
+             videoElement.srcObject = null;
+         } catch (e) {
+             console.error("Error stopping existing video stream:", e);
+         }
+    }
+
     if (!videoElement) {
         videoElement = document.createElement('video');
         videoElement.id = 'camera-video';
@@ -397,6 +413,18 @@ class GameManager {
         }
         this.faceDetection.close();
         return; // カメラが不要なモードではここで処理を終了
+    }
+
+    // 既存のカメラインスタンスがあれば停止
+    if (this.camera) {
+        try {
+            // @ts-ignore - Check if stop exists (depends on version)
+            if (typeof this.camera.stop === 'function') {
+                // @ts-ignore
+                this.camera.stop(); 
+            }
+        } catch(e) { console.debug("Camera stop error", e); }
+        this.camera = null;
     }
 
     let canvasInitialized = false;
@@ -461,8 +489,20 @@ class GameManager {
       width: 320,
       height: 240,
     });
+    
+    this.camera = camera;
+    
     camera.start().catch((e: unknown) => {
-        console.error("Camera permission denied or error:", e);
+        // NotAllowedErrorなどは想定内の動作なのでerrorログではなくlog/warnに留める
+        const errStr = String(e);
+        const isPermissionError = errStr.includes('NotAllowedError') || errStr.includes('permission denied') || errStr.includes('Permission denied');
+        
+        if (isPermissionError) {
+            console.log("Camera permission denied (handled):", errStr);
+        } else {
+            console.error("Camera start error:", e);
+        }
+
         // Alert削除：ユーザー体験向上のため静かにタイトルに戻る
         window.dispatchEvent(new CustomEvent('game-navigate', { detail: { url: '/' } }));
     });
@@ -2010,6 +2050,14 @@ class GameManager {
    */
   cleanup(): void {
     // MediaPipeとカメラリソースのクリーンアップ
+    if (this.camera) {
+        try {
+            // @ts-ignore
+            if (typeof this.camera.stop === 'function') this.camera.stop(); 
+        } catch {}
+        this.camera = null;
+    }
+
     if (this.pose) {
         this.pose.close();
         this.pose = null;

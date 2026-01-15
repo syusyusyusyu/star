@@ -116,7 +116,7 @@ class GameManager {
   private lyricSyncTimer: number | null
   
   // ハンド検出
-  private hands: { send(options: { image: HTMLVideoElement }): Promise<void> } | null
+  private hands: { send(options: { image: HTMLVideoElement }): Promise<void>; close(): Promise<void> } | null
   // 以下は将来のhand mode実装用に保持
   private _handHistory: Array<{ x: number; y: number }>
   private _lastWaveTime: number
@@ -463,7 +463,7 @@ class GameManager {
     });
     camera.start().catch((e: unknown) => {
         console.error("Camera permission denied or error:", e);
-        alert("カメラの使用が許可されませんでした。タイトル画面に戻ります。");
+        // Alert削除：ユーザー体験向上のため静かにタイトルに戻る
         window.dispatchEvent(new CustomEvent('game-navigate', { detail: { url: '/' } }));
     });
   }
@@ -967,6 +967,20 @@ class GameManager {
   async restartGame(): Promise<void> {
     if (this._operationInProgress) return; // 連打防止
     this._operationInProgress = true;
+
+    // Faceモード時はカメラ許可を再度確認するために一度ストリームを完全に停止して再初期化する
+    if (this.currentMode === 'face') {
+      const videoElement = document.getElementById('camera-video') as HTMLVideoElement;
+      if (videoElement && videoElement.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        stream.getTracks().forEach(track => {
+            track.stop();
+        });
+        videoElement.srcObject = null;
+      }
+      // カメラ再初期化（これにより再度getUserMediaが呼ばれる）
+      this.initCamera();
+    }
     
     // 各種タイマーをクリア
     this.clearResultTimers();
@@ -1995,7 +2009,30 @@ class GameManager {
    * ゲーム終了時に呼び出す
    */
   cleanup(): void {
-  // 観客のランダムテキスト機能は削除
+    // MediaPipeとカメラリソースのクリーンアップ
+    if (this.pose) {
+        this.pose.close();
+        this.pose = null;
+    }
+    if (this.hands) {
+        this.hands.close();
+        this.hands = null;
+    }
+    if (this.faceDetection) {
+        this.faceDetection.close();
+    }
+    
+    // カメラのストリーム停止と要素削除
+    const videoElement = document.getElementById('camera-video') as HTMLVideoElement;
+    if (videoElement) {
+        if (videoElement.srcObject) {
+            const stream = videoElement.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+        videoElement.remove();
+    }
+    
+    // 観客のランダムテキスト機能は削除
     this.timers.clearAll();
     this.gameLoop.stop();
     

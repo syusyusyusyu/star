@@ -5,7 +5,8 @@
   "main": "worker/index.ts",
   // 静的ファイル（docs/）を配信する場合
   "assets": {
-    "directory": "./docs"
+    "directory": "./docs",
+    "binding": "ASSETS"
   },
   // 環境変数（Supabase接続情報など）
   // Cloudflareダッシュボードまたは wrangler secret で設定してください

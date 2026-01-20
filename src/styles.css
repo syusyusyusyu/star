@@ -307,18 +307,53 @@ html {
 .silver-tape {
     position: absolute;
     top: -120px;
-    width: 10px;
-    height: 60px;
+    width: 12px;
+    height: 80px;
     border-radius: 2px;
-    background: linear-gradient(180deg, #ffffff, #cfcfcf 35%, #f8f8f8 60%, #bfbfbf);
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
-    opacity: 0.9;
+    background: linear-gradient(135deg, #fff 0%, #e0e0e0 50%, #fff 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0.95;
     pointer-events: none;
-    z-index: 2;
-    animation-name: silverTapeFall, silverTapeSway;
-    animation-timing-function: ease-in, ease-in-out;
-    animation-iteration-count: 1, infinite;
-    animation-fill-mode: forwards, none;
+    z-index: 999;
+    transform-style: preserve-3d;
+    backface-visibility: visible;
+    will-change: transform, top;
+    animation-name: silverTapeFall, silverTapeSway, silverTapeSpin;
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94), ease-in-out, linear;
+    animation-iteration-count: 1, infinite, infinite;
+    animation-fill-mode: forwards, none, none;
+}
+
+@keyframes silverTapeSpin {
+  0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  100% { transform: rotateX(720deg) rotateY(360deg) rotateZ(180deg); }
+}
+
+.confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: #f0f;
+    opacity: 0;
+    z-index: 2100; /* results-screenより手前 */
+    pointer-events: none;
+    animation: confettiFall linear forwards;
+}
+
+@keyframes confettiFall {
+  0% { opacity: 1; transform: translateY(-10vh) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(110vh) rotate(720deg); }
+}
+
+.firework-particle {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    box-shadow: 0 0 6px currentColor;
+    pointer-events: none;
+    z-index: 2100;
+    opacity: 0;
 }
 
 /* コントロール */

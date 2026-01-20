@@ -68,6 +68,22 @@ export class ResultsManager {
       if (isPerfect) {
         perfectBanner.classList.remove('hidden');
         perfectBanner.classList.add('is-visible');
+        
+        // 華やかな演出を追加
+        if (this.game.effects) {
+          // 紙吹雪
+          this.game.effects.createConfettiShower();
+          
+          // 花火を連発
+          let fireworkCount = 0;
+          const launchFirework = () => {
+            if (fireworkCount >= 5) return;
+            this.game.effects.createFirework();
+            fireworkCount++;
+            setTimeout(launchFirework, 400 + Math.random() * 400);
+          };
+          launchFirework();
+        }
       } else {
         perfectBanner.classList.add('hidden');
         perfectBanner.classList.remove('is-visible');

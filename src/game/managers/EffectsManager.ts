@@ -143,7 +143,7 @@ export class EffectsManager {
     // アニメーション (出現 -> 拡大 -> フェードアウト)
     textEl.animate([
         { transform: 'scale(0.8)', opacity: 0 },
-        { transform: 'scale(1.2)', opacity: 0.4, offset: 0.2 }, // 一瞬強調
+        { transform: 'scale(1.2)', opacity: 0.8, offset: 0.4 }, // 一瞬強調
         { transform: 'scale(1.5)', opacity: 0 }
     ], {
         duration: 3000,

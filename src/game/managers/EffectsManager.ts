@@ -98,7 +98,7 @@ export class EffectsManager {
   }
 
   private createComboBackgroundText(combo: number): void {
-    // 背景レイヤーを取得または作成（gamecontainerの最背面に追加）
+    // コンボ表示用レイヤーを取得または作成（最前面に配置）
     let bgLayer = document.getElementById('combo-bg-layer');
     if (!bgLayer) {
         bgLayer = document.createElement('div');
@@ -108,19 +108,18 @@ export class EffectsManager {
         bgLayer.style.left = '0';
         bgLayer.style.width = '100%';
         bgLayer.style.height = '100%';
-        bgLayer.style.pointerEvents = 'none'; // ノーツ処理を阻害しない
-        bgLayer.style.zIndex = '0'; // gamecontainer内で最背面（ノーツより後ろ）
+        bgLayer.style.pointerEvents = 'none'; // 重要：クリックを透過させる（ノーツ処理を阻害しない）
+        bgLayer.style.zIndex = '2000'; // ノーツより手前、ポーズ画面などのモーダルよりは奥
         bgLayer.style.display = 'flex';
         bgLayer.style.alignItems = 'center';
         bgLayer.style.justifyContent = 'center';
         bgLayer.style.overflow = 'hidden';
         
-        // gamecontainerの最初の子要素として挿入（確実に背景にするため）
-        if (this.game.gamecontainer.firstChild) {
-            this.game.gamecontainer.insertBefore(bgLayer, this.game.gamecontainer.firstChild);
-        } else {
-            this.game.gamecontainer.appendChild(bgLayer);
-        }
+        // gamecontainerに追加
+        this.game.gamecontainer.appendChild(bgLayer);
+    } else {
+        // 念のためスタイルを強制更新（開発中のホットリロード対策）
+        bgLayer.style.zIndex = '2000';
     }
 
     const textEl = document.createElement('div');

@@ -146,7 +146,7 @@ export class EffectsManager {
         { transform: 'scale(1.2)', opacity: 0.4, offset: 0.2 }, // 一瞬強調
         { transform: 'scale(1.5)', opacity: 0 }
     ], {
-        duration: 1500,
+        duration: 3000,
         easing: 'ease-out',
         fill: 'forwards'
     });
@@ -156,7 +156,7 @@ export class EffectsManager {
     // 掃除
     setTimeout(() => {
         textEl.remove();
-    }, 1500);
+    }, 3000);
   }
 
   createSilverTapeBurst(): void {

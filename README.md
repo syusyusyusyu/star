@@ -61,15 +61,111 @@ Cross Stage は、TextAlive App API による歌詞同期技術と MediaPipe (Po
 ### 1. システム構成図
 
 ```mermaid
-flowchart LR
-  Player[プレイヤー] -->|操作| FE["Frontend (React/Vite)"]
-  FE -->|歌詞同期| TextAlive["TextAlive App API"]
-  FE -->|姿勢/顔/人物抽出| MediaPipe["MediaPipe Pose/FaceMesh/SelfieSegmentation"]
-  FE -->|スコア/ランキング| API["Cloudflare Workers + Hono"]
-  FE -->|静的配信| Assets["Workers Assets (docs)"]
-  API -->|Insert/Select| DB["Supabase Postgres"]
-  API -->|Bot対策| Turnstile["Cloudflare Turnstile"]
-  API -->|レート制限/Nonce| DO["Durable Object RateLimiter"]
+classDiagram
+  class App
+  class IndexPage
+  class GamePage
+  class RankingModal
+  class RankingPanel
+  class ModeTabs
+  class Slot
+
+  class GameManager {
+    +playMusic()
+    +togglePlay()
+    +restartGame()
+    +showResults()
+  }
+  class GameLoop {
+    +start()
+    +stop()
+  }
+  class TimerManager {
+    +setTimeout()
+    +setInterval()
+    +clearTimer()
+    +clearAll()
+  }
+  class BubblePool {
+    +acquire()
+    +release()
+    +releaseAll()
+  }
+  class LyricsRenderer
+  class InputManager {
+    +setupEvents()
+  }
+  class UIManager {
+    +updateInstructions()
+  }
+  class EffectsManager {
+    +createClickEffect()
+  }
+  class ResultsManager {
+    +showResults()
+  }
+  class FaceDetectionManager {
+    +init()
+  }
+  class BodyDetectionManager {
+    +isReady()
+    +isCountdownActive()
+  }
+  class ViewportManager {
+    +updateViewportHeight()
+  }
+  class LiveStageVisuals
+
+  class WorkerIndexApp
+  class WorkerScoreRoute
+  class WorkerAdminRoute
+  class RequestIdMiddleware
+  class SessionMiddleware
+  class AdminAuthMiddleware
+  class RateLimiter
+  class WorkerSupabaseClient
+
+  class ServerIndexApp
+  class ServerScoreRoute
+  class ServerSupabaseClient
+
+  App --> IndexPage : route
+  App --> GamePage : route
+  GamePage --> GameManager : owns
+  GamePage --> RankingModal : uses
+  GamePage --> RankingPanel : uses
+  GamePage --> ModeTabs : uses
+  GamePage --> Slot : uses
+  RankingModal --> RankingPanel : contains
+
+  GameManager --> GameLoop : frame loop
+  GameManager --> TimerManager : timeouts/intervals
+  GameManager --> BubblePool : lyric bubble reuse
+  GameManager --> LyricsRenderer : spawn/animate lyrics
+  GameManager --> InputManager : pointer/gesture
+  GameManager --> UIManager : HUD updates
+  GameManager --> EffectsManager : particles
+  GameManager --> ResultsManager : result flow
+  GameManager --> ViewportManager : resize
+  GameManager --> FaceDetectionManager : face mode
+  GameManager --> BodyDetectionManager : body mode
+  GameManager --> LiveStageVisuals : 3D stage
+  GameManager ..> WorkerIndexApp : HTTP /api/*
+  GameManager ..> ServerIndexApp : HTTP /api/* (dev)
+  BodyDetectionManager --> TimerManager : countdown timers
+
+  WorkerIndexApp --> WorkerScoreRoute : /api/score
+  WorkerIndexApp --> WorkerAdminRoute : /admin/scores
+  WorkerIndexApp --> RequestIdMiddleware : requestId
+  WorkerIndexApp --> SessionMiddleware : sessionId
+  WorkerAdminRoute --> AdminAuthMiddleware : adminAuth
+  WorkerScoreRoute --> RateLimiter : IP/nonce
+  WorkerScoreRoute --> WorkerSupabaseClient : insert scores
+  WorkerAdminRoute --> WorkerSupabaseClient : delete scores
+  WorkerIndexApp --> WorkerSupabaseClient : client init
+
+  ServerIndexApp --> ServerScoreRoute : /api/*
+  ServerScoreRoute --> ServerSupabaseClient : insert/query
 ```
 
 ### 2. 機能階層図
@@ -326,7 +422,7 @@ graph TD
 | Workers API | スコア登録/ランキング取得/管理 | worker/index.ts, worker/routes/score.ts |
 | レート制限 | Durable Object による制限/Nonce | worker/rateLimiter.ts |
 
-### 簡易クラス図
+### クラス図
 ```mermaid
 classDiagram
   class App
@@ -383,6 +479,19 @@ classDiagram
   }
   class LiveStageVisuals
 
+  class WorkerIndexApp
+  class WorkerScoreRoute
+  class WorkerAdminRoute
+  class RequestIdMiddleware
+  class SessionMiddleware
+  class AdminAuthMiddleware
+  class RateLimiter
+  class WorkerSupabaseClient
+
+  class ServerIndexApp
+  class ServerScoreRoute
+  class ServerSupabaseClient
+
   App --> IndexPage : route
   App --> GamePage : route
   GamePage --> GameManager : owns
@@ -392,19 +501,34 @@ classDiagram
   GamePage --> Slot : uses
   RankingModal --> RankingPanel : contains
 
-  GameManager --> GameLoop : controls
-  GameManager --> TimerManager : uses
-  GameManager --> BubblePool : uses
-  GameManager --> LyricsRenderer : uses
-  GameManager --> InputManager : uses
-  GameManager --> UIManager : uses
-  GameManager --> EffectsManager : uses
-  GameManager --> ResultsManager : uses
-  GameManager --> ViewportManager : uses
-  GameManager --> FaceDetectionManager : uses
-  GameManager --> BodyDetectionManager : uses
-  GameManager --> LiveStageVisuals : uses
-  BodyDetectionManager --> TimerManager : uses
+  GameManager --> GameLoop : frame loop
+  GameManager --> TimerManager : timeouts/intervals
+  GameManager --> BubblePool : lyric bubble reuse
+  GameManager --> LyricsRenderer : spawn/animate lyrics
+  GameManager --> InputManager : pointer/gesture
+  GameManager --> UIManager : HUD updates
+  GameManager --> EffectsManager : particles
+  GameManager --> ResultsManager : result flow
+  GameManager --> ViewportManager : resize
+  GameManager --> FaceDetectionManager : face mode
+  GameManager --> BodyDetectionManager : body mode
+  GameManager --> LiveStageVisuals : 3D stage
+  GameManager ..> WorkerIndexApp : HTTP /api/*
+  GameManager ..> ServerIndexApp : HTTP /api/* (dev)
+  BodyDetectionManager --> TimerManager : countdown timers
+
+  WorkerIndexApp --> WorkerScoreRoute : /api/score
+  WorkerIndexApp --> WorkerAdminRoute : /admin/scores
+  WorkerIndexApp --> RequestIdMiddleware : requestId
+  WorkerIndexApp --> SessionMiddleware : sessionId
+  WorkerAdminRoute --> AdminAuthMiddleware : adminAuth
+  WorkerScoreRoute --> RateLimiter : IP/nonce
+  WorkerScoreRoute --> WorkerSupabaseClient : insert scores
+  WorkerAdminRoute --> WorkerSupabaseClient : delete scores
+  WorkerIndexApp --> WorkerSupabaseClient : client init
+
+  ServerIndexApp --> ServerScoreRoute : /api/*
+  ServerScoreRoute --> ServerSupabaseClient : insert/query
 ```
 
 ---

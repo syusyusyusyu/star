@@ -1978,7 +1978,7 @@ class GameManager {
     this.combo++;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
     if (this.combo % 10 === 0) {
-      this.createSilverTapeBurst();
+      this.triggerComboEffect();
     }
     
     // 最終ノーツ（フルコンボ）の場合は誤差補正して確実に1,000,000点にする
@@ -2039,9 +2039,9 @@ class GameManager {
     return this.effects.createHitEffect(x, y);
   }
 
-  createSilverTapeBurst(): void {
+  triggerComboEffect(): void {
     // SRP: EffectsManagerに委譲
-    return this.effects.createSilverTapeBurst();
+    return this.effects.triggerComboEffect(this.combo);
   }
 
   /**

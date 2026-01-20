@@ -74,85 +74,97 @@ export class EffectsManager {
     setTimeout(() => ripple.remove(), 500);
   }
 
-  createSilverTapeBurst(): void {
-    // 背景レイヤーに確実に描画されるよう専用レイヤーを用意
-    let layer = document.getElementById('silver-tape-layer');
-    if (!layer) {
-      layer = document.createElement('div');
-      layer.id = 'silver-tape-layer';
-      layer.style.position = 'fixed';
-      layer.style.left = '0';
-      layer.style.top = '0';
-      layer.style.width = '100%';
-      layer.style.height = '100%';
-      layer.style.pointerEvents = 'none';
-      layer.style.overflow = 'hidden';
-      layer.style.zIndex = '5';
-      document.body.appendChild(layer);
+  /**
+   * 10コンボごとの特別演出
+   * 銀テープの代わりにUIに合わせた花火と背景テキストを表示
+   */
+  triggerComboEffect(combo: number): void {
+    // 花火演出（UIスタイルに合わせる）
+    this.createMikuFirework(combo);
+    
+    // 背景テキスト演出（PC/スマホ両対応、ノーツの邪魔にならないよう背景配置）
+    this.createComboBackgroundText(combo);
+  }
+
+  private createMikuFirework(combo: number): void {
+    const isBig = combo >= 50;
+    const count = isBig ? 3 : 1;
+    
+    for(let i=0; i<count; i++) {
+        setTimeout(() => {
+            this.createFirework(); // 既存の花火メソッドを再利用（色は既にミクカラー対応済み）
+        }, i * 300);
     }
-    
-    // コンボ数に応じて演出を強化
-    const combo = this.game.combo;
-    const isBigCombo = combo >= 50;
-    const isSuperCombo = combo >= 100;
-    
-    const count = (this.game.isMobile ? 12 : 20) * (isSuperCombo ? 1.5 : 1);
-    const baseDuration = this.game.isMobile ? 1500 : 2000;
-    
-    // テープの色セット - ゲームのUIテーマ(ミクカラー、サイバーパンク)に合わせる
-    const colors = [
-      // Miku Green / White Gradient (Default)
-      'linear-gradient(135deg, #39C5BB 0%, #E0FFFF 50%, #39C5BB 100%)', 
-    ];
-    
-    if (isBigCombo) {
-      // Cyber Blue
-      colors.push('linear-gradient(135deg, #00FFFF 0%, #87CEFA 50%, #00BFFF 100%)'); 
-      // Digital Pink
-      colors.push('linear-gradient(135deg, #FF69B4 0%, #FFB6C1 50%, #FF1493 100%)'); 
-    }
-    
-    if (isSuperCombo) {
-      // Neon Gold
-      colors.push('linear-gradient(135deg, #FFD700 0%, #FFFFE0 50%, #FFA500 100%)'); 
-      // Holographic Rainbow (High Tech)
-      colors.push('linear-gradient(135deg, #39C5BB 0%, #FF69B4 33%, #00FFFF 66%, #39C5BB 100%)'); 
+  }
+
+  private createComboBackgroundText(combo: number): void {
+    // 背景レイヤーを取得または作成（gamecontainerの最背面に追加）
+    let bgLayer = document.getElementById('combo-bg-layer');
+    if (!bgLayer) {
+        bgLayer = document.createElement('div');
+        bgLayer.id = 'combo-bg-layer';
+        bgLayer.style.position = 'absolute';
+        bgLayer.style.top = '0';
+        bgLayer.style.left = '0';
+        bgLayer.style.width = '100%';
+        bgLayer.style.height = '100%';
+        bgLayer.style.pointerEvents = 'none'; // ノーツ処理を阻害しない
+        bgLayer.style.zIndex = '0'; // gamecontainer内で最背面（ノーツより後ろ）
+        bgLayer.style.display = 'flex';
+        bgLayer.style.alignItems = 'center';
+        bgLayer.style.justifyContent = 'center';
+        bgLayer.style.overflow = 'hidden';
+        
+        // gamecontainerの最初の子要素として挿入（確実に背景にするため）
+        if (this.game.gamecontainer.firstChild) {
+            this.game.gamecontainer.insertBefore(bgLayer, this.game.gamecontainer.firstChild);
+        } else {
+            this.game.gamecontainer.appendChild(bgLayer);
+        }
     }
 
-    for (let i = 0; i < count; i++) {
-      const tape = document.createElement('div');
-      tape.className = 'silver-tape';
-      
-      // 色をランダム適用
-      tape.style.background = colors[Math.floor(Math.random() * colors.length)];
-      
-      const duration = baseDuration + Math.random() * 800;
-      const swayDuration = 800 + Math.random() * 500;
-      const drift = (Math.random() - 0.5) * (this.game.isMobile ? 80 : 150);
-      
-      // テープの幅や長さもランダムに
-      if (isSuperCombo && Math.random() > 0.7) {
-        tape.style.width = '14px';
-        tape.style.height = '120px';
-        tape.style.zIndex = '1000';
-      }
-      
-      const startX = Math.random() * 100;
-      tape.style.left = `${startX}%`;
-      // gamecontainer基準なので top: -120px は見えなくなる可能性があるが、overflowがvisibleなら見える。
-      // ですが、念のため top: 0 からスタートして translateY で隠すアプローチの方が安全かもしれません。
-      // CSS側で top: -120px となっているので、ここではCSSに従います。
-      
-      tape.style.setProperty('--tape-drift', `${drift}px`);
-      
-      // 3D回転アニメーション用の変数をセット（CSS側でアニメーション定義済み）
-      tape.style.animationDuration = `${duration}ms, ${swayDuration}ms`;
-      tape.style.animationDelay = `${Math.random() * 200}ms, 0ms`;
-      tape.style.pointerEvents = 'none'; // ノーツ処理を阻害しないように
-      
-      layer.appendChild(tape);
-      setTimeout(() => tape.remove(), duration + 500);
-    }
+    const textEl = document.createElement('div');
+    textEl.className = 'combo-bg-text';
+    textEl.innerHTML = `${combo}<div style="font-size: 0.5em; margin-top: -10px">COMBO</div>`;
+    
+    // スタイル設定（ミクカラー、レスポンシブ）
+    textEl.style.position = 'absolute'; // 中央配置のため
+    textEl.style.color = 'rgba(57, 197, 187, 0.2)'; // 薄いミクカラー（邪魔にならないように）
+    textEl.style.fontFamily = "'Segoe UI', sans-serif";
+    textEl.style.fontWeight = '900';
+    textEl.style.textAlign = 'center';
+    textEl.style.lineHeight = '0.9';
+    textEl.style.whiteSpace = 'nowrap';
+    textEl.style.textShadow = '0 0 20px rgba(57, 197, 187, 0.3)';
+    
+    // レスポンシブサイズ (vw基準)
+    const baseSize = this.game.isMobile ? 15 : 20; // vw
+    textEl.style.fontSize = `${baseSize}vw`;
+    
+    // アニメーション (出現 -> 拡大 -> フェードアウト)
+    textEl.animate([
+        { transform: 'scale(0.8)', opacity: 0 },
+        { transform: 'scale(1.2)', opacity: 0.4, offset: 0.2 }, // 一瞬強調
+        { transform: 'scale(1.5)', opacity: 0 }
+    ], {
+        duration: 1500,
+        easing: 'ease-out',
+        fill: 'forwards'
+    });
+
+    bgLayer.appendChild(textEl);
+    
+    // 掃除
+    setTimeout(() => {
+        textEl.remove();
+    }, 1500);
+  }
+
+  createSilverTapeBurst(): void {
+    // 互換性のために残すが、中身は新演出に転送、または非推奨とする
+    // 今回はGameManager側も更新するので、ここは削除してもよいが、
+    // まだ呼び出し元が残っている過渡期のために新しい演出を呼ぶようにしておく
+    this.triggerComboEffect(this.game.combo); 
   }
 
   createConfettiShower(): void {

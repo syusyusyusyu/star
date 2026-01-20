@@ -275,29 +275,6 @@ gantt
 | GET | /api/ranking | ランキング取得 | songId 必須 |
 | DELETE | /admin/scores | スコア削除 | x-admin-token 必須 |
 
-**スコア登録フロー**
-```mermaid
-flowchart TD
-  A[リザルト画面で登録] --> B[Client: POST /api/score]
-  B --> C{Origin OK?}
-  C -- No --> E[403 Forbidden]
-  C -- Yes --> D[Rate limit check]
-  D -- Exceed --> E2[429 Too Many Requests]
-  D -- OK --> F{SCORE_SIGNING_SECRET?}
-  F -- Yes --> G[HMAC token verify + nonce]
-  G -- Fail --> E3[401/403/409]
-  G -- OK --> H{Turnstile enabled?}
-  F -- No --> H
-  H -- Yes --> I[Turnstile verify]
-  I -- Fail --> E4[403 Invalid Token]
-  H -- No --> J[Supabase insert]
-  I -- OK --> J
-  J --> K{DB OK?}
-  K -- No --> E5[500 DB Error]
-  K -- Yes --> L[200 OK]
-```
-
----
 
 ## データベース設計
 

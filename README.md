@@ -530,6 +530,28 @@ classDiagram
   note for ServerIndexApp "server/index.ts"
 ```
 
+### クラス設計
+| クラス | 役割 | 主な責務 |
+| --- | --- | --- |
+| GameManager | ゲーム進行の中枢 | モード制御、スコア/コンボ、ループ更新、各マネージャ統合 |
+| GameLoop | ループ実行 | `requestAnimationFrame` による更新コールバック |
+| TimerManager | タイマー管理 | `setTimeout`/`setInterval` の一元管理とクリア |
+| BubblePool | DOM再利用 | 歌詞バブルの生成/再利用/破棄 |
+| LyricsRenderer | 歌詞描画 | バブル生成、配置、表示/非表示制御 |
+| InputManager | 入力統合 | マウス/タッチ/キー入力のイベント配線 |
+| UIManager | HUD更新 | 指示文やUI表示の更新 |
+| EffectsManager | 演出 | クリック時エフェクト生成 |
+| ResultsManager | リザルト | 結果表示、登録UI、送信ボタン制御 |
+| FaceDetectionManager | 顔検出 | FaceMesh 解析、口開閉判定と入力反映 |
+| BodyDetectionManager | 全身検出 | Pose 判定、カウントダウン/警告制御 |
+| ViewportManager | 表示最適化 | `--vh` 更新など表示領域調整 |
+| LiveStageVisuals | 3D描画 | Three.js によるステージ/ランドマーク描画 |
+| ScoreService | API送信 | スコア送信、成功時フック |
+| TokenService | トークン取得 | 署名トークンの取得/更新 |
+| WorkerScoreService | Workers処理 | スコア投稿の検証/保存 |
+| WorkerAdminService | Workers管理 | 管理APIでの削除処理 |
+| ServerScoreService | Server処理 | スコア保存/ランキング取得 |
+
 ---
 
 ## 📦 ディレクトリ構成

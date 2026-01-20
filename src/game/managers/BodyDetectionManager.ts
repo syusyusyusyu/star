@@ -64,7 +64,7 @@ export class BodyDetectionManager {
     }
 
     if (this.isCountdownActive()) {
-      this.cancelCountdown('全身が映るように調整してください');
+      this.cancelCountdown('<span style="font-size: 0.6em">全身が映るように調整してください</span>');
     }
 
     if (

@@ -491,6 +491,8 @@ classDiagram
   class ServerIndexApp
   class ServerScoreRoute
   class ServerSupabaseClient
+  class ServerTokenService
+  class ServerRankingCache
 
   App --> IndexPage : route
   App --> GamePage : route
@@ -528,7 +530,35 @@ classDiagram
   WorkerIndexApp --> WorkerSupabaseClient : client init
 
   ServerIndexApp --> ServerScoreRoute : /api/*
+  ServerIndexApp --> ServerTokenService : /api/token
   ServerScoreRoute --> ServerSupabaseClient : insert/query
+  ServerScoreRoute --> ServerRankingCache : in-memory cache
+
+  note for App "src/App.tsx"
+  note for IndexPage "src/pages/IndexPage.tsx"
+  note for GamePage "src/pages/GamePage.tsx"
+  note for RankingModal "src/components/game/RankingModal.tsx"
+  note for RankingPanel "src/components/game/RankingPanel.tsx"
+  note for ModeTabs "src/components/game/ModeTabs.tsx"
+  note for Slot "src/components/game/Slot.tsx"
+
+  note for GameManager "src/game/GameManager.ts"
+  note for GameLoop "src/game/GameLoop.ts"
+  note for TimerManager "src/game/TimerManager.ts"
+  note for BubblePool "src/game/BubblePool.ts"
+
+  note for WorkerIndexApp "worker/index.ts"
+  note for WorkerScoreRoute "worker/routes/score.ts"
+  note for WorkerAdminRoute "worker/routes/admin.ts"
+  note for RequestIdMiddleware "worker/middleware/requestId.ts"
+  note for SessionMiddleware "worker/middleware/session.ts"
+  note for AdminAuthMiddleware "worker/middleware/admin.ts"
+  note for RateLimiter "worker/rateLimiter.ts"
+  note for WorkerSupabaseClient "worker/supabaseClient.ts"
+
+  note for ServerIndexApp "server/index.ts"
+  note for ServerScoreRoute "server/routes/score.ts"
+  note for ServerSupabaseClient "server/supabaseClient.ts"
 ```
 
 ---

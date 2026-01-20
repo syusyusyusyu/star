@@ -75,7 +75,8 @@ export class EffectsManager {
   }
 
   createSilverTapeBurst(): void {
-    const container = document.getElementById('live-background') || this.game.gamecontainer;
+    // ゲームプレイ中のコンテナに追加することで確実に表示させる
+    const container = this.game.gamecontainer;
     if (!container) return;
     
     // コンボ数に応じて演出を強化
@@ -126,11 +127,16 @@ export class EffectsManager {
       
       const startX = Math.random() * 100;
       tape.style.left = `${startX}%`;
+      // gamecontainer基準なので top: -120px は見えなくなる可能性があるが、overflowがvisibleなら見える。
+      // ですが、念のため top: 0 からスタートして translateY で隠すアプローチの方が安全かもしれません。
+      // CSS側で top: -120px となっているので、ここではCSSに従います。
+      
       tape.style.setProperty('--tape-drift', `${drift}px`);
       
       // 3D回転アニメーション用の変数をセット（CSS側でアニメーション定義済み）
       tape.style.animationDuration = `${duration}ms, ${swayDuration}ms, ${duration * 0.8}ms`;
       tape.style.animationDelay = `${Math.random() * 200}ms, 0ms, 0ms`;
+      tape.style.pointerEvents = 'none'; // ノーツ処理を阻害しないように
       
       container.appendChild(tape);
       setTimeout(() => tape.remove(), duration + 500);
@@ -146,11 +152,14 @@ export class EffectsManager {
     for (let i = 0; i < count; i++) {
       const particle = document.createElement('div');
       particle.className = 'confetti';
+      particle.style.position = 'fixed'; // fixedにしてウィンドウ基準に
+      particle.style.zIndex = '9999';    // 最前面に
+      particle.style.pointerEvents = 'none'; // 操作阻害防止
       particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
       particle.style.left = `${Math.random() * 100}%`;
       particle.style.top = `-20px`;
       
-      // グロー効果を追加（CSS変数経由または直接styleで）
+      // グロー効果を追加
       particle.style.boxShadow = `0 0 6px ${particle.style.backgroundColor}`;
       
       const speed = 1500 + Math.random() * 2000;
@@ -178,6 +187,9 @@ export class EffectsManager {
     for (let i = 0; i < count; i++) {
       const p = document.createElement('div');
       p.className = 'firework-particle';
+      p.style.position = 'fixed'; // fixedにしてウィンドウ基準に
+      p.style.zIndex = '9999';    // 最前面に
+      p.style.pointerEvents = 'none'; // 操作阻害防止
       p.style.backgroundColor = color;
       p.style.boxShadow = `0 0 8px ${color}`; // Stronger glow
       p.style.left = `${x}%`;

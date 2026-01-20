@@ -73,6 +73,28 @@ export class EffectsManager {
     this.game.gamecontainer.appendChild(ripple);
     setTimeout(() => ripple.remove(), 500);
   }
+
+  createSilverTapeBurst(): void {
+    const container = document.getElementById('live-background') || this.game.gamecontainer;
+    if (!container) return;
+    const count = this.game.isMobile ? 10 : 16;
+    const baseDuration = this.game.isMobile ? 1400 : 1800;
+    for (let i = 0; i < count; i++) {
+      const tape = document.createElement('div');
+      tape.className = 'silver-tape';
+      const duration = baseDuration + Math.random() * 700;
+      const swayDuration = 800 + Math.random() * 500;
+      const drift = (Math.random() - 0.5) * (this.game.isMobile ? 60 : 120);
+      const rotate = (Math.random() * 60 - 30).toFixed(1);
+      tape.style.left = `${Math.random() * 100}%`;
+      tape.style.setProperty('--tape-drift', `${drift}px`);
+      tape.style.setProperty('--tape-rotate', `${rotate}deg`);
+      tape.style.animationDuration = `${duration}ms, ${swayDuration}ms`;
+      tape.style.animationDelay = `${Math.random() * 150}ms, 0ms`;
+      container.appendChild(tape);
+      setTimeout(() => tape.remove(), duration + 500);
+    }
+  }
 }
 
 // SRP: 入力/イベント配線の責務

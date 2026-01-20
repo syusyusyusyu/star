@@ -1977,6 +1977,9 @@ class GameManager {
     // スコアとコンボを更新
     this.combo++;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
+    if (this.combo % 10 === 0) {
+      this.createSilverTapeBurst();
+    }
     
     // 最終ノーツ（フルコンボ）の場合は誤差補正して確実に1,000,000点にする
     if (this.lyricsData && this.combo === this.lyricsData.length) {
@@ -2032,8 +2035,13 @@ class GameManager {
    * @param {number} y - Y座標
    */
   createHitEffect(x: number, y: number): void {
-  // SRP: EffectsManagerに委譲
-  return this.effects.createHitEffect(x, y);
+    // SRP: EffectsManagerに委譲
+    return this.effects.createHitEffect(x, y);
+  }
+
+  createSilverTapeBurst(): void {
+    // SRP: EffectsManagerに委譲
+    return this.effects.createSilverTapeBurst();
   }
 
   /**

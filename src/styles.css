@@ -13,6 +13,23 @@
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+@keyframes silverTapeFall {
+    0% {
+        transform: translate3d(0, -140px, 0) rotate(var(--tape-rotate, 0deg));
+        opacity: 0;
+    }
+    10% { opacity: 0.95; }
+    100% {
+        transform: translate3d(var(--tape-drift, 0px), calc(100vh + 140px), 0) rotate(calc(var(--tape-rotate, 0deg) + 60deg));
+        opacity: 0;
+    }
+}
+
+@keyframes silverTapeSway {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.3); }
+}
+
 /* 基本スタイル */
 html {
     height: -webkit-fill-available;
@@ -280,6 +297,23 @@ html {
     will-change: transform, opacity;
     contain: layout paint style;
     transform: translateZ(0);
+}
+
+.silver-tape {
+    position: absolute;
+    top: -120px;
+    width: 10px;
+    height: 60px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #ffffff, #cfcfcf 35%, #f8f8f8 60%, #bfbfbf);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+    opacity: 0.9;
+    pointer-events: none;
+    z-index: 2;
+    animation-name: silverTapeFall, silverTapeSway;
+    animation-timing-function: ease-in, ease-in-out;
+    animation-iteration-count: 1, infinite;
+    animation-fill-mode: forwards, none;
 }
 
 /* コントロール */

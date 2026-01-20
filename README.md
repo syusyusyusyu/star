@@ -1,9 +1,9 @@
 # クロステ ～Cross Stage～
 
-**音楽と身体が交差する、次世代Webリズムアクション。**
+**音楽と身体が交差するWebリズムゲーム**
 
-Cross Stage は、TextAlive App API による歌詞同期技術と MediaPipe (Pose / FaceMesh) による動作検知AIを融合させた、没入型Webリズムゲームです。
-近未来的なライブステージを舞台に、流れてくる歌詞を「掴み」「奏でる」ような体験を提供します。
+Cross Stage は、TextAlive App API による歌詞同期技術と MediaPipe (Pose / FaceMesh) による動作検知AIを融合させた、Webリズムゲームです。
+ライブステージを舞台に、流れてくる歌詞を「掴み」「奏でる」ような体験を提供します。
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)

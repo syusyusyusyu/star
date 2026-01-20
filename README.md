@@ -326,7 +326,7 @@ graph TD
 | Workers API | スコア登録/ランキング取得/管理 | worker/index.ts, worker/routes/score.ts |
 | レート制限 | Durable Object による制限/Nonce | worker/rateLimiter.ts |
 
-### クラス図（学内展示用）
+### クラス図
 ```mermaid
 classDiagram
   direction LR

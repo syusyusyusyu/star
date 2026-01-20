@@ -154,7 +154,7 @@ A. TextAlive App APIの利用規約に準拠し、ピアプロ等のライセン
 A. 「没入感」をテーマに、ネオン調の配色とグラスモーフィズムを採用しました。プレイを阻害しない視認性の確保にも注力しました。
 
 **Q48. コードの品質管理（設計）で意識したことは？**
-A. 「単一責任の原則（SRP）」と「ゲームコアの独立」です。GameManagerをオーケストレーターにして、Input/Effects/Viewport/Timerなどの責務を分割し、Reactは画面構成に限定する設計にしました。
+A. 「単一責任の原則（SRP）」と「ゲームコアの独立」です。GameManagerはオーケストレーターに留め、`src/game/managers/` にInput/Effects/Resultsなどを分割し、API通信は `ScoreService/TokenService` に切り出しています。Reactは画面構成に限定しています。
 
 **Q49. プレゼンテーションとしての魅力はどう演出しましたか？**
 A. ボディモードなど「見ている人も楽しい」画面作りを意識しました。展示会場で通りがかった人が足を止めるようなデザインにしています。
@@ -232,7 +232,7 @@ A. 低遅延で動作し、スコア送信のレスポンスを速くできる�
 A. Cloudflare Workers上で最速クラスのパフォーマンスが出せる点と、Web標準API準拠で軽量、かつTypeScriptの型定義が強力で開発体験が良いためです。
 
 **Q71. 描画ループの実装はどうなっていますか？**
-A. `requestAnimationFrame` のメインループで更新と描画をまとめ、Reactのレンダリングとは分離しています。高頻度更新はクラス内の状態で持ち、DOMのstyle直接操作で60fpsを維持する設計です。
+A. `GameLoop` クラスで `requestAnimationFrame` を管理し、更新と描画をまとめています。Reactのレンダリングとは分離し、高頻度更新はクラス内状態で保持、DOMのstyle直接操作で60fpsを維持しています。
 
 **Q72. Reactの状態管理とゲームループの同期はどう取っていますか？**
 A. 進行に必要な状態はGameManager側に保持し、React側は画面遷移やモーダル表示に限定しています。UI反映が必要な部分のみ `useState` を更新して再レンダリングを抑える設計です。
@@ -250,7 +250,7 @@ A. コンポーネントファイル内でスタイルが完結するColocation�
 A. `onVideoReady`で歌詞データを取得し、再生位置はTextAliveの`timer.position`を参照して同期しています。
 
 **Q77. スコア登録APIのセキュリティ対策（チート対策）は？**
-A. クライアントは署名済みトークンを取得して送信し、Workers側でHMAC検証とNonceチェックを行う方式です。
+A. クライアントは `TokenService` で署名トークンを取得して送信し、Workers側でHMAC検証とNonceチェックを行う方式です。
 
 **Q78. Bot対策は導入していますか？**
 A. Cloudflare Turnstileを導入し、人間による操作であることを検証した上でAPIリクエストを受け付けるようにしています。
@@ -286,7 +286,7 @@ A. バンドルサイズ測定ツール（visualizer）を使い、Tree Shaking�
 A. iOS Safariの100vh問題に対して、JSで`--vh`を設定する方式を採用しています。
 
 **Q89. コードのディレクトリ構成の意図は？**
-A. `src/game`にゲームコア、`src/components`にUI、`src/pages`に画面遷移を分け、責務が混ざらないようにしています。バックエンドは`worker/`と`server/`で用途を分け、設計上の境界を明確にしています。
+A. `src/game`にゲームコア、`src/game/managers`に機能別マネージャ、`src/services`にAPI通信を分けています。UIは`src/components`、画面遷移は`src/pages`です。バックエンドは`worker/`（本番）と`server/`（開発）に分け、`services/schemas`で責務を明確にしています。
 
 **Q90. エラーハンドリングの設計方針は？**
 A. 主要な処理はtry/catchで保護し、ユーザーには失敗メッセージを表示します。全体のError Boundaryは今後の課題です。
@@ -313,8 +313,7 @@ A. `.env` ファイルでのローカル管理と、Cloudflare Dashboard上で�
 A. Reactの再レンダリング回数の削減です。`React.memo` や `useCallback` の適切な使用と、頻繁に変わる値をStateからRefへ移行したことが効きました。
 
 **Q98. 今後リファクタリングするならどこから手をつける？**
-A. `GameManager.ts` がやや肥大化（God Class化）気味なので、Stateパターンなどを用いて状態ごとのクラスに分割したいです。
+A. 入力モードごとの処理をStrategy化し、`InputManager` から差し替えられる構造にしたいです。さらに描画系の依存を薄くしてテスト容易性を高めたいです。
 
 **Q99. 最後に、一番技術的に「こだわった」部分は？**
 A. 「Web技術だけでネイティブアプリ並みの体験を作る」ことです。モダンブラウザのAPI（MediaPipe, Web Audio, Workers）をフル活用して実現しました。
-

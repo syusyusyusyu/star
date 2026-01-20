@@ -42,17 +42,21 @@ Cross Stage は、TextAlive App API による歌詞同期技術と MediaPipe (Po
 ## 🚀 技術的な特徴
 
 ### Frontend (Modern Web)
-- **React 18 & Vite**: 高速なレンダリングと開発体験。
-- **Architecture**: `GameManager` を中心とした厳格な責務分離（SRP）。ゲームループ、入力処理、描画、音声同期を独立管理。
-- **Performance**: パーティクルやバブルの描画に `will-change` 最適化やオブジェクトプーリングを採用し、Webブラウザ上で滑らかな60fps動作を実現。
+- **React 18 & Vite**: SPA構成で高速遷移、HMRで開発体験を最適化。
+- **Game Core Architecture**: `GameManager` を中枢に `GameLoop` と各Manager（Input/Lyrics/Results/Visuals/Detectors/UI/Effects）を分離。
+- **MediaPipe統合**: Pose/FaceMesh/SelfieSegmentation を並列利用し、Body/Face各モードの入力パイプラインを最適化。
+- **Rendering/UX最適化**: バブルはDOMプール、UIは差分更新、`requestAnimationFrame` で安定した60fps志向。
+- **サービス境界**: `ScoreService`/`TokenService` でAPI呼び出しを集約し、画面ロジックと通信を分離。
 
 ### Backend (Robust & Secure)
-- **Cloudflare Workers & Hono**: エッジでの高速なAPI処理。
-- **Supabase (PostgreSQL)**: RLS (Row Level Security) を活用した堅牢なデータ管理。
-- **Security First**:
-  - **Turnstile**: CloudflareのスマートCAPTCHAによるボット排除。
-  - **HMAC署名**: スコア送信時の改ざん防止。
-  - **Idempotency**: 冪等性を担保し、ネットワーク不安定時の二重投稿を防止。
+- **Cloudflare Workers & Hono**: エッジ実行で低レイテンシなスコア登録/取得。
+- **Supabase (PostgreSQL)**: RLSとスキーマ検証でデータ整合性を担保。
+- **Multi-layer Security**:
+  - **Turnstile**: Bot対策。
+  - **HMAC署名 + Nonce**: 改ざん防止とリプレイ対策。
+  - **RateLimiter (Durable Object)**: IP単位のレート制限。
+  - **Origin検証**: 正規フロント以外からの投稿を遮断。
+- **Service分割**: Workers/Serverで`scoreService`/`adminService`を分離し、ルート層を薄く保守性を向上。
 
 ---
 

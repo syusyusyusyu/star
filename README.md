@@ -326,6 +326,87 @@ graph TD
 | Workers API | スコア登録/ランキング取得/管理 | worker/index.ts, worker/routes/score.ts |
 | レート制限 | Durable Object による制限/Nonce | worker/rateLimiter.ts |
 
+### 簡易クラス図
+```mermaid
+classDiagram
+  class App
+  class IndexPage
+  class GamePage
+  class RankingModal
+  class RankingPanel
+  class ModeTabs
+  class Slot
+
+  class GameManager {
+    +playMusic()
+    +togglePlay()
+    +restartGame()
+    +showResults()
+  }
+  class GameLoop {
+    +start()
+    +stop()
+  }
+  class TimerManager {
+    +setTimeout()
+    +setInterval()
+    +clearTimer()
+    +clearAll()
+  }
+  class BubblePool {
+    +acquire()
+    +release()
+    +releaseAll()
+  }
+  class LyricsRenderer
+  class InputManager {
+    +setupEvents()
+  }
+  class UIManager {
+    +updateInstructions()
+  }
+  class EffectsManager {
+    +createClickEffect()
+  }
+  class ResultsManager {
+    +showResults()
+  }
+  class FaceDetectionManager {
+    +init()
+  }
+  class BodyDetectionManager {
+    +isReady()
+    +isCountdownActive()
+  }
+  class ViewportManager {
+    +updateViewportHeight()
+  }
+  class LiveStageVisuals
+
+  App --> IndexPage : route
+  App --> GamePage : route
+  GamePage --> GameManager : owns
+  GamePage --> RankingModal : uses
+  GamePage --> RankingPanel : uses
+  GamePage --> ModeTabs : uses
+  GamePage --> Slot : uses
+  RankingModal --> RankingPanel : contains
+
+  GameManager --> GameLoop : controls
+  GameManager --> TimerManager : uses
+  GameManager --> BubblePool : uses
+  GameManager --> LyricsRenderer : uses
+  GameManager --> InputManager : uses
+  GameManager --> UIManager : uses
+  GameManager --> EffectsManager : uses
+  GameManager --> ResultsManager : uses
+  GameManager --> ViewportManager : uses
+  GameManager --> FaceDetectionManager : uses
+  GameManager --> BodyDetectionManager : uses
+  GameManager --> LiveStageVisuals : uses
+  BodyDetectionManager --> TimerManager : uses
+```
+
 ---
 
 ## 📦 ディレクトリ構成

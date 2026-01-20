@@ -425,6 +425,8 @@ graph TD
 ### クラス図
 ```mermaid
 classDiagram
+  direction LR
+
   class App
   class IndexPage
   class GamePage
@@ -433,50 +435,18 @@ classDiagram
   class ModeTabs
   class Slot
 
-  class GameManager {
-    +playMusic()
-    +togglePlay()
-    +restartGame()
-    +showResults()
-  }
-  class GameLoop {
-    +start()
-    +stop()
-  }
-  class TimerManager {
-    +setTimeout()
-    +setInterval()
-    +clearTimer()
-    +clearAll()
-  }
-  class BubblePool {
-    +acquire()
-    +release()
-    +releaseAll()
-  }
+  class GameManager
+  class GameLoop
+  class TimerManager
+  class BubblePool
   class LyricsRenderer
-  class InputManager {
-    +setupEvents()
-  }
-  class UIManager {
-    +updateInstructions()
-  }
-  class EffectsManager {
-    +createClickEffect()
-  }
-  class ResultsManager {
-    +showResults()
-  }
-  class FaceDetectionManager {
-    +init()
-  }
-  class BodyDetectionManager {
-    +isReady()
-    +isCountdownActive()
-  }
-  class ViewportManager {
-    +updateViewportHeight()
-  }
+  class InputManager
+  class UIManager
+  class EffectsManager
+  class ResultsManager
+  class FaceDetectionManager
+  class BodyDetectionManager
+  class ViewportManager
   class LiveStageVisuals
 
   class ScoreService
@@ -509,92 +479,55 @@ classDiagram
   GamePage --> RankingPanel : uses
   GamePage --> ModeTabs : uses
   GamePage --> Slot : uses
-  GamePage --> ScoreService : submit score
-  GamePage --> TokenService : fetch token
+  GamePage --> ScoreService : submit
+  GamePage --> TokenService : token
   RankingModal --> RankingPanel : contains
 
-  GameManager --> GameLoop : frame loop
-  GameManager --> TimerManager : timeouts/intervals
-  GameManager --> BubblePool : lyric bubble reuse
-  GameManager --> LyricsRenderer : spawn/animate lyrics
-  GameManager --> InputManager : pointer/gesture
-  GameManager --> UIManager : HUD updates
-  GameManager --> EffectsManager : particles
-  GameManager --> ResultsManager : result flow
+  GameManager --> GameLoop : loop
+  GameManager --> TimerManager : time
+  GameManager --> BubblePool : pool
+  GameManager --> LyricsRenderer : lyrics
+  GameManager --> InputManager : input
+  GameManager --> UIManager : hud
+  GameManager --> EffectsManager : effects
+  GameManager --> ResultsManager : results
   GameManager --> ViewportManager : resize
-  GameManager --> FaceDetectionManager : face mode
-  GameManager --> BodyDetectionManager : body mode
-  GameManager --> LiveStageVisuals : 3D stage
-  BodyDetectionManager --> TimerManager : countdown timers
+  GameManager --> FaceDetectionManager : face
+  GameManager --> BodyDetectionManager : body
+  GameManager --> LiveStageVisuals : stage
+  BodyDetectionManager --> TimerManager : countdown
 
-  ScoreService ..> WorkerIndexApp : HTTP /api/score
-  ScoreService ..> ServerIndexApp : HTTP /api/score (dev)
-  TokenService ..> WorkerIndexApp : HTTP /api/token
-  TokenService ..> ServerIndexApp : HTTP /api/token (dev)
+  ScoreService ..> WorkerIndexApp : /api/score
+  ScoreService ..> ServerIndexApp : /api/score (dev)
+  TokenService ..> WorkerIndexApp : /api/token
+  TokenService ..> ServerIndexApp : /api/token (dev)
 
   WorkerIndexApp --> WorkerScoreRoute : /api/score
   WorkerIndexApp --> WorkerAdminRoute : /admin/scores
   WorkerIndexApp --> RequestIdMiddleware : requestId
   WorkerIndexApp --> SessionMiddleware : sessionId
-  WorkerAdminRoute --> AdminAuthMiddleware : adminAuth
+  WorkerAdminRoute --> AdminAuthMiddleware : admin
   WorkerScoreRoute --> WorkerScoreSchemas : validate
   WorkerScoreRoute --> WorkerScoreService : handle
   WorkerAdminRoute --> WorkerAdminService : handle
   WorkerScoreService --> RateLimiter : IP/nonce
-  WorkerScoreService --> WorkerSupabaseClient : insert/select
-  WorkerAdminService --> WorkerSupabaseClient : delete
-  WorkerIndexApp --> WorkerSupabaseClient : client init
+  WorkerScoreService --> WorkerSupabaseClient : db
+  WorkerAdminService --> WorkerSupabaseClient : db
+  WorkerIndexApp --> WorkerSupabaseClient : init
 
   ServerIndexApp --> ServerScoreRoute : /api/*
-  ServerScoreRoute --> ServerRateLimiter : rate limit
+  ServerScoreRoute --> ServerRateLimiter : limit
   ServerScoreRoute --> ServerScoreValidation : validate
   ServerScoreRoute --> ServerRankingCache : cache
-  ServerScoreRoute --> ServerScoreService : persist/query
+  ServerScoreRoute --> ServerScoreService : service
   ServerScoreService --> ServerSupabaseClient : db
 
   note for App "src/App.tsx"
-  note for IndexPage "src/pages/IndexPage.tsx"
   note for GamePage "src/pages/GamePage.tsx"
-  note for RankingModal "src/components/game/RankingModal.tsx"
-  note for RankingPanel "src/components/game/RankingPanel.tsx"
-  note for ModeTabs "src/components/game/ModeTabs.tsx"
-  note for Slot "src/components/game/Slot.tsx"
-  note for ScoreService "src/services/scoreService.ts"
-  note for TokenService "src/services/tokenService.ts"
-
   note for GameManager "src/game/GameManager.ts"
-  note for GameLoop "src/game/GameLoop.ts"
-  note for TimerManager "src/game/TimerManager.ts"
-  note for BubblePool "src/game/BubblePool.ts"
-  note for LyricsRenderer "src/game/managers/LyricsRenderer.ts"
-  note for InputManager "src/game/managers/InputManager.ts"
-  note for UIManager "src/game/managers/UIManager.ts"
-  note for EffectsManager "src/game/managers/EffectsManager.ts"
-  note for ResultsManager "src/game/managers/ResultsManager.ts"
-  note for FaceDetectionManager "src/game/managers/FaceDetectionManager.ts"
-  note for BodyDetectionManager "src/game/managers/BodyDetectionManager.ts"
-  note for ViewportManager "src/game/managers/ViewportManager.ts"
-  note for LiveStageVisuals "src/game/managers/LiveStageVisuals.ts"
-
+  note for ScoreService "src/services/scoreService.ts"
   note for WorkerIndexApp "worker/index.ts"
-  note for WorkerScoreRoute "worker/routes/score.ts"
-  note for WorkerAdminRoute "worker/routes/admin.ts"
-  note for WorkerScoreService "worker/services/scoreService.ts"
-  note for WorkerAdminService "worker/services/adminService.ts"
-  note for WorkerScoreSchemas "worker/schemas/scoreSchemas.ts"
-  note for RequestIdMiddleware "worker/middleware/requestId.ts"
-  note for SessionMiddleware "worker/middleware/session.ts"
-  note for AdminAuthMiddleware "worker/middleware/admin.ts"
-  note for RateLimiter "worker/rateLimiter.ts"
-  note for WorkerSupabaseClient "worker/supabaseClient.ts"
-
   note for ServerIndexApp "server/index.ts"
-  note for ServerScoreRoute "server/routes/score.ts"
-  note for ServerScoreService "server/services/scoreService.ts"
-  note for ServerRateLimiter "server/services/rateLimiter.ts"
-  note for ServerRankingCache "server/services/rankingCache.ts"
-  note for ServerScoreValidation "server/services/scoreValidation.ts"
-  note for ServerSupabaseClient "server/supabaseClient.ts"
 ```
 
 ---

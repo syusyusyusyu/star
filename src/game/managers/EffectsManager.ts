@@ -75,9 +75,21 @@ export class EffectsManager {
   }
 
   createSilverTapeBurst(): void {
-    // ゲームプレイ中のコンテナに追加することで確実に表示させる
-    const container = this.game.gamecontainer;
-    if (!container) return;
+    // 背景レイヤーに確実に描画されるよう専用レイヤーを用意
+    let layer = document.getElementById('silver-tape-layer');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.id = 'silver-tape-layer';
+      layer.style.position = 'fixed';
+      layer.style.left = '0';
+      layer.style.top = '0';
+      layer.style.width = '100%';
+      layer.style.height = '100%';
+      layer.style.pointerEvents = 'none';
+      layer.style.overflow = 'hidden';
+      layer.style.zIndex = '5';
+      document.body.appendChild(layer);
+    }
     
     // コンボ数に応じて演出を強化
     const combo = this.game.combo;
@@ -138,7 +150,7 @@ export class EffectsManager {
       tape.style.animationDelay = `${Math.random() * 200}ms, 0ms, 0ms`;
       tape.style.pointerEvents = 'none'; // ノーツ処理を阻害しないように
       
-      container.appendChild(tape);
+      layer.appendChild(tape);
       setTimeout(() => tape.remove(), duration + 500);
     }
   }

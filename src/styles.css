@@ -319,15 +319,10 @@ html {
     transform-style: preserve-3d;
     backface-visibility: visible;
     will-change: transform, top;
-    animation-name: silverTapeFall, silverTapeSway, silverTapeSpin;
-    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94), ease-in-out, linear;
-    animation-iteration-count: 1, infinite, infinite;
-    animation-fill-mode: forwards, none, none;
-}
-
-@keyframes silverTapeSpin {
-  0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
-  100% { transform: rotateX(720deg) rotateY(360deg) rotateZ(180deg); }
+    animation-name: silverTapeFall, silverTapeSway;
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94), ease-in-out;
+    animation-iteration-count: 1, infinite;
+    animation-fill-mode: forwards, none;
 }
 
 .confetti {

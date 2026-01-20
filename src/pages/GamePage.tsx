@@ -93,27 +93,20 @@ function GamePage() {
     )
   }, [])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
-    const navType = navEntry?.type
-    let reloadFlag: string | null = null
-    try {
-      reloadFlag = sessionStorage.getItem('returnToTitle')
-    } catch {}
-    const shouldRedirect =
-      navType === 'reload' ||
-      navType === 'back_forward' ||
-      reloadFlag === '1'
-
-    if (shouldRedirect) {
+    useEffect(() => {
+      if (typeof window === 'undefined') return
+      let reloadFlag: string | null = null
       try {
-        sessionStorage.removeItem('returnToTitle')
+        reloadFlag = sessionStorage.getItem('returnToTitle')
       } catch {}
-      redirectOnReloadRef.current = true
-      navigate('/', { replace: true })
-    }
-  }, [navigate])
+      if (reloadFlag === '1') {
+        try {
+          sessionStorage.removeItem('returnToTitle')
+        } catch {}
+        redirectOnReloadRef.current = true
+        navigate('/', { replace: true })
+      }
+    }, [navigate])
 
 
   // デバッグ用キー入力監視

@@ -146,8 +146,8 @@ export class EffectsManager {
       tape.style.setProperty('--tape-drift', `${drift}px`);
       
       // 3D回転アニメーション用の変数をセット（CSS側でアニメーション定義済み）
-      tape.style.animationDuration = `${duration}ms, ${swayDuration}ms, ${duration * 0.8}ms`;
-      tape.style.animationDelay = `${Math.random() * 200}ms, 0ms, 0ms`;
+      tape.style.animationDuration = `${duration}ms, ${swayDuration}ms`;
+      tape.style.animationDelay = `${Math.random() * 200}ms, 0ms`;
       tape.style.pointerEvents = 'none'; // ノーツ処理を阻害しないように
       
       layer.appendChild(tape);

@@ -6,6 +6,8 @@ import { initLiveParticles, loadSongConfig } from "../game/gameLoader"
 import RankingModal from "../components/game/RankingModal"
 import { clearRankingCache } from "../components/game/RankingPanel"
 import { type GameResult, type PlayMode } from "../types/game"
+import { submitScore } from "../services/scoreService"
+import { fetchScoreToken } from "../services/tokenService"
 import "../styles.css"
 
 const SONG_ID = "HmfsoBVch26BmLCm"
@@ -136,53 +138,28 @@ function GamePage() {
 
   // Fetch score signing token
   useEffect(() => {
-    const fetchToken = () => {
-      fetch('/api/token')
-        .then(res => res.json())
-        .then(data => {
-          if (data.data?.token) {
-            scoreTokenRef.current = data.data.token
-          }
-        })
-        .catch(err => console.error('Failed to fetch token:', err))
+    const fetchToken = async () => {
+      scoreTokenRef.current = await fetchScoreToken()
     }
 
-    fetchToken()
+    void fetchToken()
     // Refresh token every 4 minutes to prevent expiration
-    const interval = setInterval(fetchToken, 4 * 60 * 1000)
+    const interval = setInterval(() => void fetchToken(), 4 * 60 * 1000)
     return () => clearInterval(interval)
   }, [])
 
-  const submitScore = useCallback(async (gameResult: GameResult): Promise<boolean> => {
+  const submitScoreRequest = useCallback(async (gameResult: GameResult): Promise<boolean> => {
     const key = `${gameResult.songId}-${gameResult.mode}-${gameResult.score}-${gameResult.maxCombo}-${gameResult.rank}`
     if (lastSubmittedKeyRef.current === key) return true
     lastSubmittedKeyRef.current = key
 
     setIsSubmitting(true)
     try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" }
-      if (scoreTokenRef.current) {
-        headers["x-score-token"] = scoreTokenRef.current
-      }
-
-      const res = await fetch("/api/score", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(gameResult),
+      return await submitScore({
+        gameResult,
+        token: scoreTokenRef.current,
+        onSuccess: () => clearRankingCache()
       })
-      
-      if (!res.ok) {
-        const payload = await res.json().catch(() => null)
-        console.error("Score submit failed", payload?.error?.message ?? res.statusText)
-        return false
-      } else {
-        // スコア送信成功時にランキングキャッシュをクリア
-        clearRankingCache()
-        return true
-      }
-    } catch (error) {
-      console.error("Score submit error", error)
-      return false
     } finally {
       setIsSubmitting(false)
     }
@@ -191,9 +168,9 @@ function GamePage() {
   const handleGameEnd = useCallback(
     async (gameResult: GameResult) => {
       setRankingMode(gameResult.mode)
-      return await submitScore(gameResult)
+      return await submitScoreRequest(gameResult)
     },
-    [submitScore]
+    [submitScoreRequest]
   )
 
   const handleCloseRanking = useCallback(() => setShowRanking(false), [])

@@ -13,6 +13,11 @@
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+@keyframes perfectPulse {
+    0%, 100% { box-shadow: 0 10px 30px rgba(255, 255, 255, 0.08), 0 0 20px rgba(57, 197, 187, 0.2); }
+    50% { box-shadow: 0 14px 36px rgba(255, 255, 255, 0.16), 0 0 28px rgba(57, 197, 187, 0.35); }
+}
+
 @keyframes silverTapeFall {
     0% {
         transform: translate3d(0, -140px, 0) rotate(var(--tape-rotate, 0deg));
@@ -534,6 +539,41 @@ html {
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
     padding-bottom: 16px;
     width: 100%;
+}
+
+.perfect-banner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 22px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+    box-shadow: 0 10px 30px rgba(255, 255, 255, 0.08), 0 0 20px rgba(57, 197, 187, 0.2);
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.perfect-banner.is-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    animation: perfectPulse 1.4s ease-in-out infinite;
+}
+
+.perfect-title {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 0.22em;
+    color: #fff;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+}
+
+.perfect-subtitle {
+    font-size: 12px;
+    letter-spacing: 0.4em;
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .results-content {

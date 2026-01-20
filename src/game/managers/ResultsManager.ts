@@ -56,12 +56,23 @@ export class ResultsManager {
     const finalScoreDisplay = document.getElementById('final-score-display');
     const finalComboDisplay = document.getElementById('final-combo-display');
     const rankDisplay = document.getElementById('rank-display');
+    const perfectBanner = document.getElementById('perfect-banner');
     const registerScoreBtn = document.getElementById('register-score') as HTMLButtonElement;
     const nameInput = document.getElementById('player-name-input') as HTMLInputElement;
 
     if (finalScoreDisplay) finalScoreDisplay.textContent = String(Math.round(this.game.score));
     if (finalComboDisplay) finalComboDisplay.textContent = `最大コンボ: ${this.game.maxCombo}`;
     if (rankDisplay) rankDisplay.textContent = `ランク: ${rank}`;
+    if (perfectBanner) {
+      const isPerfect = this.game.lyricsData.length > 0 && this.game.maxCombo >= this.game.lyricsData.length;
+      if (isPerfect) {
+        perfectBanner.classList.remove('hidden');
+        perfectBanner.classList.add('is-visible');
+      } else {
+        perfectBanner.classList.add('hidden');
+        perfectBanner.classList.remove('is-visible');
+      }
+    }
     
     // Reset input and button state
     if (nameInput) nameInput.value = '';

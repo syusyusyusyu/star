@@ -407,6 +407,10 @@ function GamePage() {
         <div id="results-screen" className="hidden">
           <div className="results-container">
             <h2>リザルト</h2>
+            <div id="perfect-banner" className="perfect-banner hidden" aria-live="polite">
+              <div className="perfect-title">PERFECT</div>
+              <div className="perfect-subtitle">FULL COMBO</div>
+            </div>
             <div className="results-content">
               <div className="results-score-section">
                 <div id="final-score-display">0</div>

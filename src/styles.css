@@ -309,9 +309,10 @@ html {
     top: -120px;
     width: 12px;
     height: 80px;
-    border-radius: 2px;
-    background: linear-gradient(135deg, #fff 0%, #e0e0e0 50%, #fff 100%);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 0; /* シャープに */
+    /* 背景色はJSで制御されるが、フォールバックとして */
+    background: linear-gradient(135deg, #39C5BB 0%, #E0FFFF 50%, #39C5BB 100%);
+    box-shadow: 0 0 10px rgba(57, 197, 187, 0.5); /* Miku Green Glow */
     opacity: 0.95;
     pointer-events: none;
     z-index: 999;
@@ -331,29 +332,32 @@ html {
 
 .confetti {
     position: absolute;
-    width: 10px;
-    height: 10px;
-    background-color: #f0f;
+    width: 8px;
+    height: 8px;
+    background-color: #39C5BB;
     opacity: 0;
-    z-index: 2100; /* results-screenより手前 */
+    z-index: 2100;
     pointer-events: none;
     animation: confettiFall linear forwards;
+    /* デジタル感のある形状に */
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); /* ひし形 */
 }
 
 @keyframes confettiFall {
-  0% { opacity: 1; transform: translateY(-10vh) rotate(0deg); }
-  100% { opacity: 0; transform: translateY(110vh) rotate(720deg); }
+  0% { opacity: 1; transform: translateY(-10vh) rotate(0deg) scale(1); }
+  100% { opacity: 0; transform: translateY(110vh) rotate(720deg) scale(0.5); }
 }
 
 .firework-particle {
     position: absolute;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    box-shadow: 0 0 6px currentColor;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%; /* 光の点なので丸でOK */
+    /* box-shadow はJSで設定 */
     pointer-events: none;
     z-index: 2100;
     opacity: 0;
+    filter: blur(0.5px); /* 少しぼかして光ってる感を出す */
 }
 
 /* コントロール */

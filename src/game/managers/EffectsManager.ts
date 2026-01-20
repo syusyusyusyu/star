@@ -86,19 +86,24 @@ export class EffectsManager {
     const count = (this.game.isMobile ? 12 : 20) * (isSuperCombo ? 1.5 : 1);
     const baseDuration = this.game.isMobile ? 1500 : 2000;
     
-    // テープの色セット
+    // テープの色セット - ゲームのUIテーマ(ミクカラー、サイバーパンク)に合わせる
     const colors = [
-      'linear-gradient(135deg, #fff 0%, #e0e0e0 50%, #fff 100%)', // Silver
+      // Miku Green / White Gradient (Default)
+      'linear-gradient(135deg, #39C5BB 0%, #E0FFFF 50%, #39C5BB 100%)', 
     ];
     
     if (isBigCombo) {
-      colors.push('linear-gradient(135deg, #87cefa 0%, #00bfff 50%, #87cefa 100%)'); // Blue
-      colors.push('linear-gradient(135deg, #ff69b4 0%, #ff1493 50%, #ff69b4 100%)'); // Pink
+      // Cyber Blue
+      colors.push('linear-gradient(135deg, #00FFFF 0%, #87CEFA 50%, #00BFFF 100%)'); 
+      // Digital Pink
+      colors.push('linear-gradient(135deg, #FF69B4 0%, #FFB6C1 50%, #FF1493 100%)'); 
     }
     
     if (isSuperCombo) {
-      colors.push('linear-gradient(135deg, #ffd700 0%, #fdb931 50%, #ffd700 100%)'); // Gold
-      colors.push('linear-gradient(135deg, #ff0000 0%, #00ff00 25%, #0000ff 50%, #ff00ff 75%, #ff0000 100%)'); // Rainbow
+      // Neon Gold
+      colors.push('linear-gradient(135deg, #FFD700 0%, #FFFFE0 50%, #FFA500 100%)'); 
+      // Holographic Rainbow (High Tech)
+      colors.push('linear-gradient(135deg, #39C5BB 0%, #FF69B4 33%, #00FFFF 66%, #39C5BB 100%)'); 
     }
 
     for (let i = 0; i < count; i++) {
@@ -114,8 +119,8 @@ export class EffectsManager {
       
       // テープの幅や長さもランダムに
       if (isSuperCombo && Math.random() > 0.7) {
-        tape.style.width = '16px';
-        tape.style.height = '100px';
+        tape.style.width = '14px';
+        tape.style.height = '120px';
         tape.style.zIndex = '1000';
       }
       
@@ -135,7 +140,8 @@ export class EffectsManager {
   createConfettiShower(): void {
     const container = document.body; // 画面全体
     const count = this.game.isMobile ? 80 : 150;
-    const colors = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff', '#fff', '#ffd700'];
+    // Cyber / Miku Color Palette
+    const colors = ['#39C5BB', '#E0FFFF', '#FF69B4', '#FFFFFF', '#00FFFF'];
 
     for (let i = 0; i < count; i++) {
       const particle = document.createElement('div');
@@ -144,10 +150,13 @@ export class EffectsManager {
       particle.style.left = `${Math.random() * 100}%`;
       particle.style.top = `-20px`;
       
+      // グロー効果を追加（CSS変数経由または直接styleで）
+      particle.style.boxShadow = `0 0 6px ${particle.style.backgroundColor}`;
+      
       const speed = 1500 + Math.random() * 2000;
       particle.style.animationDuration = `${speed}ms`;
-      particle.style.width = `${6 + Math.random() * 8}px`;
-      particle.style.height = `${8 + Math.random() * 12}px`;
+      particle.style.width = `${6 + Math.random() * 6}px`;
+      particle.style.height = `${8 + Math.random() * 8}px`;
       
       // ランダムな遅延で自然に
       particle.style.animationDelay = `${Math.random() * 1000}ms`;
@@ -162,13 +171,15 @@ export class EffectsManager {
     const x = 20 + Math.random() * 60; // 画面幅の20%~80%
     const y = 20 + Math.random() * 40; // 画面高さの20%~60%
     const count = this.game.isMobile ? 30 : 50;
-    const colors = ['#ff0', '#f0f', '#0ff', '#f00', '#0f0'];
+    // Neon colors
+    const colors = ['#39C5BB', '#FF69B4', '#00FFFF', '#FFFFFF'];
     const color = colors[Math.floor(Math.random() * colors.length)];
 
     for (let i = 0; i < count; i++) {
       const p = document.createElement('div');
       p.className = 'firework-particle';
       p.style.backgroundColor = color;
+      p.style.boxShadow = `0 0 8px ${color}`; // Stronger glow
       p.style.left = `${x}%`;
       p.style.top = `${y}%`;
 

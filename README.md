@@ -275,7 +275,6 @@ gantt
 | GET | /api/ranking | ランキング取得 | songId 必須 |
 | DELETE | /admin/scores | スコア削除 | x-admin-token 必須 |
 
-
 ## データベース設計
 
 ### ER図（単一テーブル）

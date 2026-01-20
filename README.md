@@ -326,113 +326,80 @@ graph TD
 | Workers API | スコア登録/ランキング取得/管理 | worker/index.ts, worker/routes/score.ts |
 | レート制限 | Durable Object による制限/Nonce | worker/rateLimiter.ts |
 
-### クラス図
+### クラス図（学内展示用）
 ```mermaid
 classDiagram
   direction LR
 
   class App
-  class IndexPage
   class GamePage
-  class RankingModal
-  class RankingPanel
-  class ModeTabs
-  class Slot
-
   class GameManager
   class GameLoop
-  class TimerManager
-  class BubblePool
-  class LyricsRenderer
   class InputManager
-  class UIManager
-  class EffectsManager
+  class LyricsRenderer
   class ResultsManager
-  class FaceDetectionManager
-  class BodyDetectionManager
-  class ViewportManager
   class LiveStageVisuals
-
   class ScoreService
   class TokenService
 
+  App --> GamePage : route
+  GamePage --> GameManager : owns
+  GamePage --> ScoreService : submit
+  GamePage --> TokenService : token
+
+  GameManager --> GameLoop : loop
+  GameManager --> InputManager : input
+  GameManager --> LyricsRenderer : lyrics
+  GameManager --> ResultsManager : results
+  GameManager --> LiveStageVisuals : 3D
+```
+
+```mermaid
+classDiagram
+  direction LR
+
   class WorkerIndexApp
   class WorkerScoreRoute
-  class WorkerAdminRoute
   class WorkerScoreService
-  class WorkerAdminService
   class WorkerScoreSchemas
-  class RequestIdMiddleware
-  class SessionMiddleware
-  class AdminAuthMiddleware
   class RateLimiter
   class WorkerSupabaseClient
 
-  class ServerIndexApp
-  class ServerScoreRoute
-  class ServerScoreService
-  class ServerRateLimiter
-  class ServerRankingCache
-  class ServerScoreValidation
-  class ServerSupabaseClient
-
-  App --> IndexPage : route
-  App --> GamePage : route
-  GamePage --> GameManager : owns
-  GamePage --> RankingModal : uses
-  GamePage --> RankingPanel : uses
-  GamePage --> ModeTabs : uses
-  GamePage --> Slot : uses
-  GamePage --> ScoreService : submit
-  GamePage --> TokenService : token
-  RankingModal --> RankingPanel : contains
-
-  GameManager --> GameLoop : loop
-  GameManager --> TimerManager : time
-  GameManager --> BubblePool : pool
-  GameManager --> LyricsRenderer : lyrics
-  GameManager --> InputManager : input
-  GameManager --> UIManager : hud
-  GameManager --> EffectsManager : effects
-  GameManager --> ResultsManager : results
-  GameManager --> ViewportManager : resize
-  GameManager --> FaceDetectionManager : face
-  GameManager --> BodyDetectionManager : body
-  GameManager --> LiveStageVisuals : stage
-  BodyDetectionManager --> TimerManager : countdown
-
-  ScoreService ..> WorkerIndexApp : /api/score
-  ScoreService ..> ServerIndexApp : /api/score (dev)
-  TokenService ..> WorkerIndexApp : /api/token
-  TokenService ..> ServerIndexApp : /api/token (dev)
-
   WorkerIndexApp --> WorkerScoreRoute : /api/score
-  WorkerIndexApp --> WorkerAdminRoute : /admin/scores
-  WorkerIndexApp --> RequestIdMiddleware : requestId
-  WorkerIndexApp --> SessionMiddleware : sessionId
-  WorkerAdminRoute --> AdminAuthMiddleware : admin
   WorkerScoreRoute --> WorkerScoreSchemas : validate
   WorkerScoreRoute --> WorkerScoreService : handle
-  WorkerAdminRoute --> WorkerAdminService : handle
   WorkerScoreService --> RateLimiter : IP/nonce
   WorkerScoreService --> WorkerSupabaseClient : db
-  WorkerAdminService --> WorkerSupabaseClient : db
-  WorkerIndexApp --> WorkerSupabaseClient : init
-
-  ServerIndexApp --> ServerScoreRoute : /api/*
-  ServerScoreRoute --> ServerRateLimiter : limit
-  ServerScoreRoute --> ServerScoreValidation : validate
-  ServerScoreRoute --> ServerRankingCache : cache
-  ServerScoreRoute --> ServerScoreService : service
-  ServerScoreService --> ServerSupabaseClient : db
-
-  note for App "src/App.tsx"
-  note for GamePage "src/pages/GamePage.tsx"
-  note for GameManager "src/game/GameManager.ts"
-  note for ScoreService "src/services/scoreService.ts"
-  note for WorkerIndexApp "worker/index.ts"
-  note for ServerIndexApp "server/index.ts"
 ```
+
+### 設計の前提
+- フロント: 入力/描画/判定/結果を同一セッションで完結
+- バックエンド: スコア登録とランキング取得に責務を限定
+- 外部連携: TextAlive/MediaPipe はUIと分離して利用
+
+### 境界定義
+- UI層: ページ/モーダル/ランキング表示
+- ドメイン層: GameManager + 各Manager + ループ/タイマー
+- サービス層: ScoreService/TokenService でAPI境界を固定
+- インフラ層: Workers/Supabase/RateLimiter
+
+### データフロー（スコア登録）
+```mermaid
+flowchart LR
+  Input[入力/カメラ] --> GM[GameManager]
+  GM --> Score[ScoreService]
+  Score --> API[Workers /api/score]
+  API --> DB[Supabase]
+  DB --> API
+  API --> Score
+  Score --> GM
+```
+
+### 非機能設計（要点）
+- 性能: ループはGameLoopに集約、DOM再利用でGC圧を抑制
+- 信頼性: タイマーをTimerManagerで一元管理
+- セキュリティ: RateLimiter + HMAC/Turnstile + Origin検証
+- 運用: requestId/sessionIdでログ追跡可能
 
 ### クラス設計
 | クラス | 役割 | 主な責務 |

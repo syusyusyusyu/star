@@ -454,7 +454,7 @@ class GameManager {
     let lastProcessTime = 0;
 
     const selfieSegmentation = new SelfieSegmentation({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
-    selfieSegmentation.setOptions({ modelSelection: 0, selfieMode: false });
+    selfieSegmentation.setOptions({ modelSelection: 1, selfieMode: false });
     selfieSegmentation.onResults((results: any) => {
       segmentationCtx.save();
       segmentationCtx.clearRect(0, 0, segmentationCanvas.width, segmentationCanvas.height);
@@ -470,12 +470,12 @@ class GameManager {
       if (!this.pose) {
         this.pose = new Pose({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
         this.pose.setOptions({
-          modelComplexity: 0,
-          smoothLandmarks: true,
-          enableSegmentation: false,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-        });
+            modelComplexity: 2,
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7,
+          });
         this.pose.onResults((results: any) => this.handlePoseResults(results?.poseLandmarks));
       }
     } else if (this.pose) {
@@ -493,7 +493,7 @@ class GameManager {
     // ライブラリ由来の"Failed to acquire camera feed"エラーを回避する
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 320, height: 240 }
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         
         videoElement.srcObject = stream;

@@ -28,8 +28,8 @@ export class FaceDetectionManager {
     this.faceMesh.setOptions({
       maxNumFaces: 1,
       refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.7
     });
 
     this.faceMesh.onResults((results: any) => this.handleFaceResults(results));

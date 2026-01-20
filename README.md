@@ -395,7 +395,7 @@ flowchart LR
   Score --> GM
 ```
 
-### 非機能設計（要点）
+### 非機能設計
 - 性能: ループはGameLoopに集約、DOM再利用でGC圧を抑制
 - 信頼性: タイマーをTimerManagerで一元管理
 - セキュリティ: RateLimiter + HMAC/Turnstile + Origin検証

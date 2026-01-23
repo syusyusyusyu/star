@@ -108,7 +108,7 @@ export class InputManager {
           if (gm.isBodyWarningEnabled()) {
             gm.countdownOverlay.classList.remove('hidden');
             gm.countdownText.style.whiteSpace = 'nowrap';
-            gm.countdownText.textContent = '全身が映るように調整してください';
+            gm.countdownText.innerHTML = '<span style="font-size: 60%">全身が映るように調整してください</span>';
           } else {
             gm.countdownOverlay.classList.add('hidden');
           }

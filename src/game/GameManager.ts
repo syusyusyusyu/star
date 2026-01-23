@@ -297,14 +297,6 @@ class GameManager {
     // 初期状態ではすべてのボタンを読み込み中と表示
     this.isPaused = true;
     
-    // 30秒間ボタン操作がなければ強制リザルト画面へ (ゲーム開始前のみ)
-    this.timers.setTimeout(TIMER_KEYS.IdleTimeout, () => {
-      if (!this.isPlaying && !this.resultsDisplayed) {
-        console.log('Idle timeout: Force show results');
-        this.showResults();
-      }
-    }, 30000);
-
     // ゲームの基本セットアップ
     this.setupEvents();
     this.initGame();

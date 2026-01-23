@@ -103,8 +103,6 @@ export class InputManager {
 
         if (gm.currentMode === 'body') {
           gm.isFirstInteraction = false;
-          // アイドルタイマー解除
-          gm.timers.clearTimer(TIMER_KEYS.IdleTimeout);
           if (gm.isBodyWarningEnabled()) {
             gm.countdownOverlay.classList.remove('hidden');
             gm.countdownText.style.whiteSpace = 'nowrap';
@@ -114,8 +112,6 @@ export class InputManager {
           }
           return;
         }
-      // アイドルタイマー解除
-      gm.timers.clearTimer(TIMER_KEYS.IdleTimeout);
         gm.playMusic();
         return;
       }

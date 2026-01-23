@@ -41,7 +41,7 @@ export class BodyDetectionManager {
       return;
     }
     this.game.countdownOverlay.classList.remove('hidden');
-    this.game.countdownText.textContent = '全身が映るように調整してください';
+    this.game.countdownText.innerHTML = '<span style="font-size: 60%">全身が映るように調整してください</span>';
   }
 
   /** MediaPipeのランドマークを評価し、全身検出の状態を更新 */
@@ -74,7 +74,7 @@ export class BodyDetectionManager {
     ) {
       this.timers.setTimeout(TIMER_KEYS.FullBodyLost, () => {
         this.game.countdownOverlay.classList.remove('hidden');
-        this.game.countdownText.textContent = '全身が画面から外れています！';
+        this.game.countdownText.innerHTML = '<span style="font-size: 60%">全身が画面から外れています！</span>';
       }, 3000);
     }
   }
@@ -103,7 +103,7 @@ export class BodyDetectionManager {
     this.timers.clearTimer(TIMER_KEYS.BodyCountdown);
     if (message && this.game.isBodyWarningEnabled()) {
       this.game.countdownOverlay.classList.remove('hidden');
-      this.game.countdownText.textContent = message;
+      this.game.countdownText.innerHTML = message;
     } else {
       this.hideCountdownOverlay();
     }

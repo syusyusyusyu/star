@@ -82,13 +82,13 @@ export class BodyDetectionManager {
   private startCountdown(): void {
     let count = 5;
     this.game.countdownOverlay.classList.remove('hidden');
-    this.game.countdownText.textContent = String(count);
+    this.game.countdownText.innerHTML = String(count);
     this.game.isPaused = true;
     this.game.isFirstInteraction = true;
     this.timers.setInterval(TIMER_KEYS.BodyCountdown, () => {
       count--;
       if (count > 0) {
-        this.game.countdownText.textContent = String(count);
+        this.game.countdownText.innerHTML = String(count);
         return;
       }
       this.timers.clearTimer(TIMER_KEYS.BodyCountdown);
@@ -116,7 +116,7 @@ export class BodyDetectionManager {
   }
 
   private hideCountdownOverlay(): void {
-    this.game.countdownText.textContent = '';
+    this.game.countdownText.innerHTML = '';
     this.game.countdownOverlay.classList.add('hidden');
   }
 }

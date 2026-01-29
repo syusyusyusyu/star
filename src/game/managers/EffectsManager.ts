@@ -150,16 +150,16 @@ export class EffectsManager {
     textEl.animate([
       { transform: 'translateY(-6px) scale(0.98)', opacity: 0 },
       { transform: 'translateY(0) scale(1)', opacity: 1, offset: 0.2 },
-      { transform: 'translateY(0) scale(1)', opacity: 1, offset: 0.7 },
+      { transform: 'translateY(0) scale(1)', opacity: 1, offset: 0.78 },
       { transform: 'translateY(8px) scale(0.98)', opacity: 0 }
     ], {
-      duration: 2200,
+      duration: 2600,
       easing: 'ease-out',
       fill: 'forwards'
     });
 
     bgLayer.appendChild(textEl);
-    setTimeout(() => textEl.remove(), 2400);
+    setTimeout(() => textEl.remove(), 2800);
   }
 
   createSilverTapeBurst(): void {

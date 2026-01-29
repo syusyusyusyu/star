@@ -1022,16 +1022,26 @@ html {
 }
 
 @media (min-width: 1024px) {
+    #score-container {
+        top: 36px;
+        right: 50px;
+        padding: 18px 40px;
+    }
     #score {
-        font-size: 104px;
+        font-size: 156px;
     }
     #combo {
-        font-size: 40px;
+        font-size: 60px;
     }
     #song-title {
-        font-size: clamp(32px, 6vw, 40px);
+        font-size: clamp(48px, 9vw, 60px);
     }
     #song-artist {
-        font-size: clamp(24px, 5.2vw, 28px);
+        font-size: clamp(36px, 7.8vw, 42px);
+    }
+    #song-info {
+        padding: 22px 36px;
+        max-width: min(78vw, 860px);
+        max-width: calc(100vw - 440px);
     }
 }

@@ -140,7 +140,11 @@ export class EffectsManager {
     textEl.style.border = '1px solid rgba(57, 197, 187, 0.35)';
     textEl.style.borderRadius = '6px';
 
-    const fontSize = this.game.isMobile ? 14 : 18;
+    const scoreEl = document.getElementById('score');
+    const scoreFontSize = scoreEl ? parseFloat(getComputedStyle(scoreEl).fontSize) : NaN;
+    const fontSize = Number.isFinite(scoreFontSize)
+      ? Math.max(16, scoreFontSize)
+      : (this.game.isMobile ? 18 : 24);
     textEl.style.fontSize = `${fontSize}px`;
 
     textEl.animate([

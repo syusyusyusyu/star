@@ -252,6 +252,31 @@
     margin-top: 2px;
 }
 
+@media (min-width: 1024px) {
+    .theme-scoreSheetSynth #score-container {
+        padding: 12px 24px;
+        min-height: 81px;
+    }
+    .theme-scoreSheetSynth #score {
+        font-size: 2.7rem;
+    }
+    .theme-scoreSheetSynth #combo {
+        font-size: 1.125rem;
+    }
+    .theme-scoreSheetSynth #song-info {
+        padding: 12px 24px;
+        min-height: 81px;
+        max-width: min(78vw, 860px);
+        max-width: calc(100vw - 440px);
+    }
+    .theme-scoreSheetSynth #song-title {
+        font-size: 1.65rem;
+    }
+    .theme-scoreSheetSynth #song-artist {
+        font-size: 1.125rem;
+    }
+}
+
 /* =========================================
    Results Screen
    ========================================= */
@@ -307,4 +332,3 @@
         font-size: 0.9rem !important;
     }
 }
-

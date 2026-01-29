@@ -1020,3 +1020,18 @@ html {
         opacity: 0.8;
     }
 }
+
+@media (min-width: 1024px) {
+    #score {
+        font-size: 104px;
+    }
+    #combo {
+        font-size: 40px;
+    }
+    #song-title {
+        font-size: clamp(32px, 6vw, 40px);
+    }
+    #song-artist {
+        font-size: clamp(24px, 5.2vw, 28px);
+    }
+}

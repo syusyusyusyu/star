@@ -94,65 +94,61 @@ export class EffectsManager {
   }
   private createComboBackgroundText(combo: number): void {
     const scoreContainer = document.getElementById('score-container');
-    let anchor: HTMLElement | null = null;
-    if (scoreContainer) {
-      anchor = scoreContainer;
-    } else if (this.game.gamecontainer) {
-      anchor = this.game.gamecontainer;
-    }
+    const rect = scoreContainer?.getBoundingClientRect();
+    const host = rect ? document.body : this.game.gamecontainer;
+    if (!host) return;
 
-    if (!anchor) return;
-
-    let bgLayer = anchor.querySelector<HTMLElement>('#combo-bg-layer');
+    let bgLayer = host.querySelector<HTMLElement>('#combo-bg-layer');
     if (!bgLayer) {
       bgLayer = document.createElement('div');
       bgLayer.id = 'combo-bg-layer';
-      bgLayer.style.position = 'absolute';
+      bgLayer.style.position = rect ? 'fixed' : 'absolute';
       bgLayer.style.pointerEvents = 'none';
       bgLayer.style.zIndex = '2000';
       bgLayer.style.display = 'flex';
       bgLayer.style.alignItems = 'center';
       bgLayer.style.justifyContent = 'flex-end';
       bgLayer.style.gap = '6px';
+      host.appendChild(bgLayer);
+    }
 
-      if (anchor === scoreContainer) {
-        bgLayer.style.right = '0';
-        bgLayer.style.top = '100%';
-        bgLayer.style.marginTop = '6px';
-        bgLayer.style.width = '100%';
-      } else {
-        bgLayer.style.top = '90px';
-        bgLayer.style.right = '40px';
-      }
-
-      anchor.appendChild(bgLayer);
+    if (rect) {
+      bgLayer.style.left = `${rect.right}px`;
+      bgLayer.style.top = `${rect.bottom + 6}px`;
+      bgLayer.style.transform = 'translateX(-100%)';
+      bgLayer.style.right = '';
+    } else {
+      bgLayer.style.top = '90px';
+      bgLayer.style.right = '40px';
+      bgLayer.style.left = '';
+      bgLayer.style.transform = '';
     }
 
     const textEl = document.createElement('div');
     textEl.className = 'combo-bg-text';
-    textEl.innerHTML = `${combo}<div style="font-size: 0.55em; margin-top: -2px">COMBO</div>`;
+    textEl.innerHTML = `${combo}<span style="font-size: 0.6em; margin-left: 6px">COMBO!</span>`;
     textEl.style.position = 'relative';
-    textEl.style.color = 'rgba(57, 197, 187, 0.9)';
+    textEl.style.color = 'rgba(57, 197, 187, 0.95)';
     textEl.style.fontFamily = "'Segoe UI', sans-serif";
     textEl.style.fontWeight = '800';
     textEl.style.textAlign = 'right';
     textEl.style.lineHeight = '1';
     textEl.style.whiteSpace = 'nowrap';
-    textEl.style.textShadow = '0 0 12px rgba(57, 197, 187, 0.35)';
+    textEl.style.textShadow = '0 0 10px rgba(57, 197, 187, 0.35)';
     textEl.style.padding = '4px 10px';
     textEl.style.background = 'rgba(10, 14, 18, 0.45)';
     textEl.style.border = '1px solid rgba(57, 197, 187, 0.35)';
     textEl.style.borderRadius = '6px';
 
-    const fontSize = this.game.isMobile ? 16 : 22;
+    const fontSize = this.game.isMobile ? 14 : 18;
     textEl.style.fontSize = `${fontSize}px`;
 
     textEl.animate([
-      { transform: 'translateY(-6px) scale(0.98)', opacity: 0 },
+      { transform: 'translateY(-4px) scale(0.98)', opacity: 0 },
       { transform: 'translateY(0) scale(1)', opacity: 1, offset: 0.2 },
-      { transform: 'translateY(6px) scale(0.98)', opacity: 0 }
+      { transform: 'translateY(4px) scale(0.98)', opacity: 0 }
     ], {
-      duration: 1400,
+      duration: 1200,
       easing: 'ease-out',
       fill: 'forwards'
     });

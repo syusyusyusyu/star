@@ -79,10 +79,6 @@ export class EffectsManager {
    * 銀テープの代わりにUIに合わせた花火と背景テキストを表示
    */
   triggerComboEffect(combo: number): void {
-    // 花火演出（UIスタイルに合わせる）
-    this.createMikuFirework(combo);
-    
-    // 背景テキスト演出（PC/スマホ両対応、ノーツの邪魔にならないよう背景配置）
     this.createComboBackgroundText(combo);
   }
 
@@ -96,67 +92,73 @@ export class EffectsManager {
         }, i * 300);
     }
   }
-
   private createComboBackgroundText(combo: number): void {
-    // コンボ表示用レイヤーを取得または作成（最前面に配置）
-    let bgLayer = document.getElementById('combo-bg-layer');
+    const scoreContainer = document.getElementById('score-container');
+    let anchor: HTMLElement | null = null;
+    if (scoreContainer) {
+      anchor = scoreContainer;
+    } else if (this.game.gamecontainer) {
+      anchor = this.game.gamecontainer;
+    }
+
+    if (!anchor) return;
+
+    let bgLayer = anchor.querySelector<HTMLElement>('#combo-bg-layer');
     if (!bgLayer) {
-        bgLayer = document.createElement('div');
-        bgLayer.id = 'combo-bg-layer';
-        bgLayer.style.position = 'absolute';
-        bgLayer.style.top = '0';
-        bgLayer.style.left = '0';
+      bgLayer = document.createElement('div');
+      bgLayer.id = 'combo-bg-layer';
+      bgLayer.style.position = 'absolute';
+      bgLayer.style.pointerEvents = 'none';
+      bgLayer.style.zIndex = '2000';
+      bgLayer.style.display = 'flex';
+      bgLayer.style.alignItems = 'center';
+      bgLayer.style.justifyContent = 'flex-end';
+      bgLayer.style.gap = '6px';
+
+      if (anchor === scoreContainer) {
+        bgLayer.style.right = '0';
+        bgLayer.style.top = '100%';
+        bgLayer.style.marginTop = '6px';
         bgLayer.style.width = '100%';
-        bgLayer.style.height = '100%';
-        bgLayer.style.pointerEvents = 'none'; // 重要：クリックを透過させる（ノーツ処理を阻害しない）
-        bgLayer.style.zIndex = '2000'; // ノーツより手前、ポーズ画面などのモーダルよりは奥
-        bgLayer.style.display = 'flex';
-        bgLayer.style.alignItems = 'center';
-        bgLayer.style.justifyContent = 'center';
-        bgLayer.style.overflow = 'hidden';
-        
-        // gamecontainerに追加
-        this.game.gamecontainer.appendChild(bgLayer);
-    } else {
-        // 念のためスタイルを強制更新（開発中のホットリロード対策）
-        bgLayer.style.zIndex = '2000';
+      } else {
+        bgLayer.style.top = '90px';
+        bgLayer.style.right = '40px';
+      }
+
+      anchor.appendChild(bgLayer);
     }
 
     const textEl = document.createElement('div');
     textEl.className = 'combo-bg-text';
-    textEl.innerHTML = `${combo}<div style="font-size: 0.5em; margin-top: -10px">COMBO</div>`;
-    
-    // スタイル設定（ミクカラー、レスポンシブ）
-    textEl.style.position = 'absolute'; // 中央配置のため
-    textEl.style.color = 'rgba(57, 197, 187, 0.2)'; // 薄いミクカラー（邪魔にならないように）
+    textEl.innerHTML = `${combo}<div style="font-size: 0.55em; margin-top: -2px">COMBO</div>`;
+    textEl.style.position = 'relative';
+    textEl.style.color = 'rgba(57, 197, 187, 0.9)';
     textEl.style.fontFamily = "'Segoe UI', sans-serif";
-    textEl.style.fontWeight = '900';
-    textEl.style.textAlign = 'center';
-    textEl.style.lineHeight = '0.9';
+    textEl.style.fontWeight = '800';
+    textEl.style.textAlign = 'right';
+    textEl.style.lineHeight = '1';
     textEl.style.whiteSpace = 'nowrap';
-    textEl.style.textShadow = '0 0 20px rgba(57, 197, 187, 0.3)';
-    
-    // レスポンシブサイズ (vw基準)
-    const baseSize = this.game.isMobile ? 15 : 20; // vw
-    textEl.style.fontSize = `${baseSize}vw`;
-    
-    // アニメーション (出現 -> 拡大 -> フェードアウト)
+    textEl.style.textShadow = '0 0 12px rgba(57, 197, 187, 0.35)';
+    textEl.style.padding = '4px 10px';
+    textEl.style.background = 'rgba(10, 14, 18, 0.45)';
+    textEl.style.border = '1px solid rgba(57, 197, 187, 0.35)';
+    textEl.style.borderRadius = '6px';
+
+    const fontSize = this.game.isMobile ? 16 : 22;
+    textEl.style.fontSize = `${fontSize}px`;
+
     textEl.animate([
-        { transform: 'scale(0.8)', opacity: 0 },
-        { transform: 'scale(1.2)', opacity: 1, offset: 0.2 }, // 一瞬強調
-        { transform: 'scale(1.5)', opacity: 0 }
+      { transform: 'translateY(-6px) scale(0.98)', opacity: 0 },
+      { transform: 'translateY(0) scale(1)', opacity: 1, offset: 0.2 },
+      { transform: 'translateY(6px) scale(0.98)', opacity: 0 }
     ], {
-        duration: 3000,
-        easing: 'ease-out',
-        fill: 'forwards'
+      duration: 1400,
+      easing: 'ease-out',
+      fill: 'forwards'
     });
 
     bgLayer.appendChild(textEl);
-    
-    // 掃除
-    setTimeout(() => {
-        textEl.remove();
-    }, 3000);
+    setTimeout(() => textEl.remove(), 1500);
   }
 
   createSilverTapeBurst(): void {

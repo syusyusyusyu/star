@@ -318,10 +318,15 @@ erDiagram
 ```mermaid
 graph TD
   subgraph Frontend
-    UI[Pages/Components]
+    Pages[Pages/Components]
     Core[Game Core]
-    Input[Input/Camera]
-    Visuals[Effects/3D]
+    Managers[Managers]
+    Services[API Services]
+  end
+  subgraph External
+    TextAlive[TextAlive App API]
+    MediaPipe[MediaPipe (Pose/FaceMesh/Segmentation)]
+    ThreeJS[Three.js]
   end
   subgraph Backend
     Worker[Workers API]
@@ -329,10 +334,13 @@ graph TD
   end
   DB[(Supabase)]
 
-  UI --> Core
-  Core --> Input
-  Core --> Visuals
-  Core --> Worker
+  Pages --> Core
+  Pages --> Services
+  Core --> Managers
+  Core --> TextAlive
+  Managers --> MediaPipe
+  Managers --> ThreeJS
+  Services --> Worker
   Worker --> Rate
   Worker --> DB
 ```
@@ -342,89 +350,136 @@ graph TD
 | --- | --- | --- |
 | ルーティング/ページ | SPAルーティング、画面遷移 | src/App.tsx, src/pages/IndexPage.tsx, src/pages/GamePage.tsx |
 | UIコンポーネント | ランキング表示、モード切替 | src/components/game/RankingModal.tsx, src/components/game/ModeTabs.tsx |
-| ゲームコア | ゲーム進行、スコア、リザルト | src/game/GameManager.ts, src/game/GameLoop.ts |
-| 歌詞描画 | バブル生成、表示、判定補助 | src/game/GameManager.ts (LyricsRenderer) |
-| 入力/カメラ | マウス/タッチ/カメラ入力、Pose/Face 判定 | src/game/GameManager.ts (InputManager, Detectors) |
-| Workers API | スコア登録/ランキング取得/管理 | worker/index.ts, worker/routes/score.ts |
+| ゲームコア | ゲーム進行、ループ、タイマー | src/game/GameManager.ts, src/game/GameLoop.ts, src/game/TimerManager.ts |
+| マネージャ群 | 入力/描画/演出/リザルト/表示最適化 | src/game/managers/*, src/game/BubblePool.ts |
+| サービス層 | API呼び出しの集約 | src/services/scoreService.ts, src/services/tokenService.ts |
+| Workers API | スコア登録/ランキング取得/管理 | worker/index.ts, worker/routes/*, worker/services/* |
+| 検証/スキーマ | APIバリデーション | worker/schemas/* |
 | レート制限 | Durable Object による制限/Nonce | worker/rateLimiter.ts |
+| ローカルServer | Workers互換の開発用API | server/index.ts, server/routes/*, server/services/* |
 
-### クラス図
+### クラス図（Frontend）
 ```mermaid
 classDiagram
   direction LR
 
   class App
+  class IndexPage
   class GamePage
+  class RankingModal <<component>>
   class GameManager
   class GameLoop
+  class TimerManager
+  class BubblePool
   class InputManager
   class LyricsRenderer
   class ResultsManager
+  class UIManager
+  class EffectsManager
+  class ViewportManager
+  class FaceDetectionManager
+  class BodyDetectionManager
   class LiveStageVisuals
-  class ScoreService
-  class TokenService
+  class ScoreService <<module>>
+  class TokenService <<module>>
+  class TextAlivePlayer <<external>>
+  class MediaPipe <<external>>
+  class ThreeJS <<external>>
 
+  App --> IndexPage : route
   App --> GamePage : route
-  GamePage --> GameManager : owns
-  GamePage --> ScoreService : submit
-  GamePage --> TokenService : token
+  GamePage o--> GameManager : owns
+  GamePage ..> RankingModal : modal
+  GamePage ..> ScoreService : submit
+  GamePage ..> TokenService : token
 
-  GameManager --> GameLoop : loop
-  GameManager --> InputManager : input
-  GameManager --> LyricsRenderer : lyrics
-  GameManager --> ResultsManager : results
-  GameManager --> LiveStageVisuals : 3D
+  GameManager *-- GameLoop : loop
+  GameManager *-- TimerManager : timers
+  GameManager *-- BubblePool : pool
+  GameManager *-- InputManager : input
+  GameManager *-- LyricsRenderer : lyrics
+  GameManager *-- ResultsManager : results
+  GameManager *-- UIManager : HUD
+  GameManager *-- EffectsManager : effects
+  GameManager *-- ViewportManager : viewport
+  GameManager *-- FaceDetectionManager : face
+  GameManager *-- BodyDetectionManager : body
+  GameManager o-- LiveStageVisuals : 3D
+
+  GameManager ..> TextAlivePlayer : lyrics sync
+  FaceDetectionManager ..> MediaPipe : FaceMesh
+  BodyDetectionManager ..> MediaPipe : Pose
+  LiveStageVisuals ..> ThreeJS : render
 ```
 
+### クラス図（Backend）
 ```mermaid
 classDiagram
   direction LR
 
-  class WorkerIndexApp
-  class WorkerScoreRoute
-  class WorkerScoreService
-  class WorkerScoreSchemas
-  class RateLimiter
-  class WorkerSupabaseClient
+  class WorkerApp <<Hono>>
+  class ScoreRoute
+  class AdminRoute
+  class ScoreSchemas <<schema>>
+  class ScoreService <<service>>
+  class AdminService <<service>>
+  class RateLimiter <<DurableObject>>
+  class SupabaseClient <<external>>
+  class RequestIdMiddleware <<middleware>>
+  class SessionMiddleware <<middleware>>
+  class AdminAuth <<middleware>>
 
-  WorkerIndexApp --> WorkerScoreRoute : /api/score
-  WorkerScoreRoute --> WorkerScoreSchemas : validate
-  WorkerScoreRoute --> WorkerScoreService : handle
-  WorkerScoreService --> RateLimiter : IP/nonce
-  WorkerScoreService --> WorkerSupabaseClient : db
+  WorkerApp --> RequestIdMiddleware
+  WorkerApp --> SessionMiddleware
+  WorkerApp --> ScoreRoute
+  WorkerApp --> AdminRoute
+  AdminRoute ..> AdminAuth : auth
+  ScoreRoute ..> ScoreSchemas : validate
+  ScoreRoute ..> ScoreService : handle
+  AdminRoute ..> AdminService : handle
+  ScoreService ..> RateLimiter : IP/nonce
+  ScoreService ..> SupabaseClient : db
+  AdminService ..> SupabaseClient : db
 ```
 
 ### 設計の前提
 - フロント: 入力/描画/判定/結果を同一セッションで完結
-- バックエンド: スコア登録とランキング取得に責務を限定
-- 外部連携: TextAlive/MediaPipe はUIと分離して利用
+- バックエンド: スコア登録/ランキング取得/管理APIに責務を限定
+- Workers が本番基盤、`server/` は開発用の互換実装
+- 外部連携: TextAlive/MediaPipe/Three.js はゲームコア側から直接利用
 
 ### 境界定義
 - UI層: ページ/モーダル/ランキング表示
-- ドメイン層: GameManager + 各Manager + ループ/タイマー
-- サービス層: ScoreService/TokenService でAPI境界を固定
-- インフラ層: Workers/Supabase/RateLimiter
+- ドメイン層: GameManager + 各Manager + GameLoop + TimerManager + BubblePool
+- サービス層: scoreService/tokenService でAPI境界を固定
+- インフラ層: Workers/Supabase/RateLimiter/Turnstile
+- 開発支援: server (ローカルのみ)
 
 ### データフロー（スコア登録）
 ```mermaid
 flowchart LR
   Input[入力/カメラ] --> GM[GameManager]
-  GM --> Score[ScoreService]
+  GM --> GP[GamePage]
+  GP --> Token[TokenService]
+  GP --> Score[ScoreService]
+  Token --> Score
   Score --> API[Workers /api/score]
+  API --> Rate[RateLimiter DO]
   API --> DB[Supabase]
   DB --> API
   API --> Score
-  Score --> GM
+  Score --> GP
+  GP --> GM
 ```
 
 ### 非機能設計
-- 性能: ループはGameLoopに集約、DOM再利用でGC圧を抑制
-- 信頼性: タイマーをTimerManagerで一元管理
-- セキュリティ: RateLimiter + HMAC/Turnstile + Origin検証
-- 運用: requestId/sessionIdでログ追跡可能
+- 性能: GameLoop + BubblePool + DOM再利用でGC圧を抑制
+- 信頼性: TimerManager でタイマーを集中管理、cleanup で資源解放
+- セキュリティ: RateLimiter + HMAC + Turnstile + Origin検証
+- 運用: requestId/sessionId でログ追跡可能
 
 ### クラス設計
-| クラス | 役割 | 主な責務 |
+| クラス/モジュール | 役割 | 主な責務 |
 | --- | --- | --- |
 | GameManager | ゲーム進行の中枢 | モード制御、スコア/コンボ、ループ更新、各マネージャ統合 |
 | GameLoop | ループ実行 | `requestAnimationFrame` による更新コールバック |
@@ -439,13 +494,13 @@ flowchart LR
 | BodyDetectionManager | 全身検出 | Pose 判定、カウントダウン/警告制御 |
 | ViewportManager | 表示最適化 | `--vh` 更新など表示領域調整 |
 | LiveStageVisuals | 3D描画 | Three.js によるステージ/ランドマーク描画 |
-| ScoreService | API送信 | スコア送信、成功時フック |
-| TokenService | トークン取得 | 署名トークンの取得/更新 |
-| WorkerScoreService | Workers処理 | スコア投稿の検証/保存 |
-| WorkerAdminService | Workers管理 | 管理APIでの削除処理 |
-| ServerScoreService | Server処理 | スコア保存/ランキング取得 |
-
----
+| GameEventEmitter | イベントバス | ゲーム内イベントの配信（拡張用） |
+| scoreService (frontend) | API送信 | スコア送信、成功時フック |
+| tokenService (frontend) | トークン取得 | 署名トークンの取得/更新 |
+| scoreService (Workers) | Workers処理 | スコア投稿の検証/保存、ランキング取得 |
+| adminService (Workers) | Workers管理 | 管理APIでの削除処理 |
+| scoreService (Server) | Server処理 | スコア保存/ランキング取得 |
+| RateLimiter | レート制限 | IP制限/Nonce管理 |
 
 ## ディレクトリ構成
 
@@ -549,6 +604,7 @@ star/
 - **Music & Lyrics**: Powered by [TextAlive App API](https://api.songle.jp/) (National Institute of Advanced Industrial Science and Technology - AIST).
 - **Vision AI**: MediaPipe by Google.
 - **Special Thanks**: 加賀（ネギシャワーP） ストリートライト piapro（https://piapro.jp/t/ULcJ）
+
 
 
 

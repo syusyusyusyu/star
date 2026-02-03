@@ -119,7 +119,7 @@
 
 ## 技術的な特徴
 
-### Frontend (Modern Web)
+### Frontend 
 
 | カテゴリ | 内容 |
 |:---|:---|
@@ -129,7 +129,7 @@
 | **Rendering/UX最適化** | バブルはDOMプール、UIは差分更新、`requestAnimationFrame` で安定した60fps志向 |
 | **サービス境界** | `ScoreService`/`TokenService` でAPI呼び出しを集約し、画面ロジックと通信を分離 |
 
-### Backend (Robust & Secure)
+### Backend 
 
 | カテゴリ | 内容 |
 |:---|:---|

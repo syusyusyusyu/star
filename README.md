@@ -325,7 +325,7 @@ graph TD
   end
   subgraph External
     TextAlive[TextAlive App API]
-    MediaPipe[MediaPipe (Pose/FaceMesh/Segmentation)]
+    MediaPipe["MediaPipe (Pose/FaceMesh/Segmentation)"]
     ThreeJS[Three.js]
   end
   subgraph Backend
@@ -366,7 +366,8 @@ classDiagram
   class App
   class IndexPage
   class GamePage
-  class RankingModal <<component>>
+  class RankingModal
+  <<component>> RankingModal
   class GameManager
   class GameLoop
   class TimerManager
@@ -380,11 +381,16 @@ classDiagram
   class FaceDetectionManager
   class BodyDetectionManager
   class LiveStageVisuals
-  class ScoreService <<module>>
-  class TokenService <<module>>
-  class TextAlivePlayer <<external>>
-  class MediaPipe <<external>>
-  class ThreeJS <<external>>
+  class ScoreService
+  <<module>> ScoreService
+  class TokenService
+  <<module>> TokenService
+  class TextAlivePlayer
+  <<external>> TextAlivePlayer
+  class MediaPipe
+  <<external>> MediaPipe
+  class ThreeJS
+  <<external>> ThreeJS
 
   App --> IndexPage : route
   App --> GamePage : route
@@ -417,17 +423,26 @@ classDiagram
 classDiagram
   direction LR
 
-  class WorkerApp <<Hono>>
+  class WorkerApp
+  <<Hono>> WorkerApp
   class ScoreRoute
   class AdminRoute
-  class ScoreSchemas <<schema>>
-  class ScoreService <<service>>
-  class AdminService <<service>>
-  class RateLimiter <<DurableObject>>
-  class SupabaseClient <<external>>
-  class RequestIdMiddleware <<middleware>>
-  class SessionMiddleware <<middleware>>
-  class AdminAuth <<middleware>>
+  class ScoreSchemas
+  <<schema>> ScoreSchemas
+  class ScoreService
+  <<service>> ScoreService
+  class AdminService
+  <<service>> AdminService
+  class RateLimiter
+  <<DurableObject>> RateLimiter
+  class SupabaseClient
+  <<external>> SupabaseClient
+  class RequestIdMiddleware
+  <<middleware>> RequestIdMiddleware
+  class SessionMiddleware
+  <<middleware>> SessionMiddleware
+  class AdminAuth
+  <<middleware>> AdminAuth
 
   WorkerApp --> RequestIdMiddleware
   WorkerApp --> SessionMiddleware

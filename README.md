@@ -1,27 +1,46 @@
-﻿# クロステ ～Cross Stage～
+﻿<div align="center">
 
-**音楽と身体が交差するWebリズムゲーム**
+# クロステ ～Cross Stage～
+
+### 音楽と身体が交差するWebリズムゲーム
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Hono](https://img.shields.io/badge/Hono-Workers-E36002?logo=hono&logoColor=white)](https://hono.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+
+**TextAlive App API** による歌詞同期技術と **MediaPipe** による動作検知AIを融合させた、  
+ライブステージを舞台に歌詞を「摑み」「奏でる」体験を提供するWebリズムゲームです。
 
 > メディアフロンティアのプレゼンテーション兼READMEとして、短時間で作品を伝えられる構成にしています。
 
-クロステ は、TextAlive App API による歌詞同期技術と MediaPipe (Pose / FaceMesh) による動作検知AIを融合させた、Webリズムゲームです。
-ライブステージを舞台に、流れてくる歌詞を「掴み」「奏でる」ような体験を提供します。
-
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
-![Hono](https://img.shields.io/badge/Hono-Workers-E36002?logo=hono&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)
+</div>
 
 ---
 
 ## 目次
-- 1分でわかる クロステ / 展示ポイント / デモの流れ
-- ゲーム概要 / プレイモード
-- 技術的な特徴 / 技術の見せ場 / システム仕様詳細
-- 設計・DB・API・モジュール
-- テスト仕様 / 展示チェックリスト / 開発・デプロイ / ライセンス
+
+<details open>
+<summary><b>クリックして展開/折りたたみ</b></summary>
+
+- [1分でわかる クロステ](#1分でわかる-クロステ)
+- [展示ポイント](#展示ポイント見どころ)
+- [ゲーム概要](#ゲーム概要)
+- [プレイモード](#プレイモード)
+- [デモの流れ](#デモの流れ展示用)
+- [技術的な特徴](#技術的な特徴)
+- [技術の見せ場](#技術の見せ場展示で説明するポイント)
+- [システム仕様詳細](#システム仕様詳細)
+- [データベース設計](#データベース設計)
+- [モジュール設計](#モジュール設計)
+- [テスト仕様](#テスト仕様ユーザビリティ視点)
+- [展示チェックリスト](#展示チェックリスト)
+- [開発・デプロイ](#開発デプロイ)
+- [ライセンス & クレジット](#ライセンス--クレジット)
+
+</details>
 
 ---
 
@@ -35,8 +54,9 @@
 ---
 
 ## 展示ポイント（見どころ）
+
 - **動きがそのまま入力になる**: Pose/Faceによる直感的な体験
-- **歌詞と演出の同期**: TextAliveとゲーム判定が噛み合う快感
+- **歌詞と演出の同期**: TextAliveとゲーム判定が噏み合う快感
 - **誰でも遊べる**: デバイス/環境に合わせた4モード設計
 
 ---
@@ -47,9 +67,12 @@
 プレイ結果はオンラインランキングに登録されます。
 
 ### Immersive Live Experience
-- **ネオン×グラスモーフィズム**: ネオンライトと透き通るようなUIデザイン。
-- **3Dステージ演出**: Three.js と CSS Animation を組み合わせた、軽量なライティング演出。
-- **レスポンシブデザイン**: PCの大画面からスマートフォンプレイまで、デバイスに対応したUI。
+
+| 特徴 | 説明 |
+|:---|:---|
+| **ネオン×グラスモーフィズム** | ネオンライトと透き通るようなUIデザイン |
+| **3Dステージ演出** | Three.js と CSS Animation を組み合わせた軽量なライティング演出 |
+| **レスポンシブデザイン** | PCの大画面からスマートフォンまで対応 |
 
 ---
 
@@ -58,53 +81,92 @@
 デバイスや環境に合わせて、4つの操作モードを搭載しています。
 
 | モード | 対象デバイス | 操作方法 | 特徴 |
-| :--- | :--- | :--- | :--- |
-| **Cursor Mode** | PC / タブレット | マウス / タッチ | マウスカーソルやタッチ操作で歌詞をホールド。手軽に楽しめる基本モード。 |
-| **Mobile Mode** | スマートフォン | タップ & ホールド | スマホ操作に特化。画面下部の歌詞表示を排除し、プレイ領域を最大化。親指一つで遊べる直感的な操作感。 |
-| **Body Mode** | PC (Webカメラ) | 全身アクション | Webカメラでプレイヤーの動きを検知。手や体を歌詞に重ねて「触れる」ことで入力する、全身を使ったモード。 |
-| **Face Mode** | スマートフォン / PC (カメラ付) | 顔移動 & 口パク | カメラで顔を認識。顔を動かして位置を合わせ、口を「パクッ」と開けることで歌詞をキャッチするモード。 |
+|:---:|:---|:---|:---|
+| **Cursor** | PC / タブレット | マウス / タッチ | マウスカーソルやタッチ操作で歌詞をホールド。手軽に楽しめる基本モード。 |
+| **Mobile** | スマートフォン | タップ & ホールド | スマホ操作に特化。画面下部の歌詞表示を排除し、プレイ領域を最大化。 |
+| **Body** | PC (Webカメラ) | 全身アクション | Webカメラで動きを検知。手や体を歌詞に重ねて「触れる」全身モード。 |
+| **Face** | スマホ / PC (カメラ付) | 顔移動 & 口パク | 顔を動かして位置を合わせ、口を「パクッ」と開けて歌詞をキャッチ。 |
 
 ---
 
 ## デモの流れ（展示用）
-1. **タイトルでモード選択**（Cursor / Mobile / Body / Face）
-2. **楽曲開始** → 歌詞が流れてくる
-3. **ホールドでスコア獲得** → コンボと演出が強化
-4. **リザルト & ランキング** → その場で順位を確認
+
+```
+[1] タイトルでモード選択（Cursor / Mobile / Body / Face）
+     ↓
+[2] 楽曲開始 → 歌詞が流れてくる
+     ↓
+[3] ホールドでスコア獲得 → コンボと演出が強化
+     ↓
+[4] リザルト & ランキング → その場で順位を確認
+```
 
 ---
 
 ## 技術的な特徴
 
+<table>
+<tr>
+<td width="50%" valign="top">
+
 ### Frontend (Modern Web)
-- **React 18 & Vite**: SPA構成で高速遷移、HMRで開発体験を最適化。
-- **Game Core Architecture**: `GameManager` を中枢に `GameLoop` と各Manager（Input/Lyrics/Results/Visuals/Detectors/UI/Effects）を分離。
-- **MediaPipe統合**: Pose/FaceMesh/SelfieSegmentation を並列利用し、Body/Face各モードの入力パイプラインを最適化。
-- **Rendering/UX最適化**: バブルはDOMプール、UIは差分更新、`requestAnimationFrame` で安定した60fps志向。
-- **サービス境界**: `ScoreService`/`TokenService` でAPI呼び出しを集約し、画面ロジックと通信を分離。
+
+- **React 18 & Vite**  
+  SPA構成で高速遷移、HMRで開発体験を最適化
+  
+- **Game Core Architecture**  
+  `GameManager` を中枢に `GameLoop` と各Managerを分離
+  
+- **MediaPipe統合**  
+  Pose/FaceMesh/SelfieSegmentation を並列利用
+  
+- **Rendering/UX最適化**  
+  バブルはDOMプール、`requestAnimationFrame` で60fps志向
+  
+- **サービス境界**  
+  `ScoreService`/`TokenService` でAPI呼び出しを集約
+
+</td>
+<td width="50%" valign="top">
 
 ### Backend (Robust & Secure)
-- **Cloudflare Workers & Hono**: エッジ実行で低レイテンシなスコア登録/取得。
-- **Supabase (PostgreSQL)**: RLSとスキーマ検証でデータ整合性を担保。
-- **Multi-layer Security**:
-  - **Turnstile**: Bot対策。
-  - **HMAC署名 + Nonce**: 改ざん防止とリプレイ対策。
-  - **RateLimiter (Durable Object)**: IP単位のレート制限。
-  - **Origin検証**: 正規フロント以外からの投稿を遮断。
-- **Service分割**: Workers/Serverで`scoreService`/`adminService`を分離し、ルート層を薄く保守性を向上。
+
+- **Cloudflare Workers & Hono**  
+  エッジ実行で低レイテンシなスコア登録/取得
+  
+- **Supabase (PostgreSQL)**  
+  RLSとスキーマ検証でデータ整合性を担保
+  
+- **Multi-layer Security**  
+  - **Turnstile**: Bot対策
+  - **HMAC署名 + Nonce**: 改ざん防止とリプレイ対策
+  - **RateLimiter (Durable Object)**: IP単位のレート制限
+  - **Origin検証**: 正規フロント以外からの投稿を遮断
+  
+- **Service分割**  
+  Workers/Serverで`scoreService`/`adminService`を分離
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## 技術の見せ場（展示で説明するポイント）
-- **リアルタイム入力**: カメラ入力のランドマークを即時に判定へ接続
-- **判定と演出の一体化**: ホールド中に演出が強化され、体験が可視化される
-- **安全なスコア登録**: HMAC/Nonce/Turnstile/RateLimiterの多層防御
+
+| ポイント | 説明 |
+|:---|:---|
+| **リアルタイム入力** | カメラ入力のランドマークを即時に判定へ接続 |
+| **判定と演出の一体化** | ホールド中に演出が強化され、体験が可視化される |
+| **安全なスコア登録** | HMAC/Nonce/Turnstile/RateLimiterの多層防御 |
 
 ---
 
 ## システム仕様詳細
 
-### 1. システム構成図
+<details>
+<summary><b>1. システム構成図</b></summary>
+<br>
 
 ```mermaid
 flowchart LR
@@ -118,7 +180,12 @@ flowchart LR
   API -->|レート制限/Nonce| DO["Durable Object RateLimiter"]
 ```
 
-### 2. 機能階層図
+</details>
+
+<details>
+<summary><b>2. 機能階層図</b></summary>
+<br>
+
 ```mermaid
 graph TD
   A[クロステ]
@@ -149,7 +216,12 @@ graph TD
   G --> G1[(scores)]
 ```
 
-### 3. 主要機能の処理フロー (IPO図)
+</details>
+
+<details>
+<summary><b>3. 主要機能の処理フロー (IPO図)</b></summary>
+<br>
+
 ```mermaid
 flowchart TB
   subgraph Gameplay[ゲームプレイ/スコアリング]
@@ -174,7 +246,12 @@ flowchart TB
   end
 ```
 
-### 4. 画面遷移図
+</details>
+
+<details>
+<summary><b>4. 画面遷移図</b></summary>
+<br>
+
 ```mermaid
 stateDiagram-v2
   state "タイトル/曲選択" as Index
@@ -197,7 +274,12 @@ stateDiagram-v2
   ExitConfirm --> Index: 終了
 ```
 
-### 5. 要件定義 (マインドマップ)
+</details>
+
+<details>
+<summary><b>5. 要件定義 (マインドマップ)</b></summary>
+<br>
+
 ```mermaid
 mindmap
   root((クロステ))
@@ -235,7 +317,12 @@ mindmap
         アクセシビリティ
 ```
 
-### 6. 開発スケジュール (ガントチャート)
+</details>
+
+<details>
+<summary><b>6. 開発スケジュール (ガントチャート)</b></summary>
+<br>
+
 ```mermaid
 gantt
     title クロステ 開発ロードマップ (2025/10 - 2026/01)
@@ -263,7 +350,11 @@ gantt
     公開               :done, d3, after d2, 4d
 ```
 
-### 7. API仕様
+</details>
+
+<details>
+<summary><b>7. API仕様</b></summary>
+<br>
 
 **API一覧**
 | Method | Path | 概要 | 認証/条件 |
@@ -275,9 +366,15 @@ gantt
 | GET | /api/ranking | ランキング取得 | songId 必須 |
 | DELETE | /admin/scores | スコア削除 | x-admin-token 必須 |
 
+</details>
+
+---
+
 ## データベース設計
 
-### ER図（単一テーブル）
+<details>
+<summary><b>ER図（単一テーブル）</b></summary>
+<br>
 ```mermaid
 erDiagram
   SCORES {
@@ -294,6 +391,8 @@ erDiagram
     timestamptz created_at
   }
 ```
+
+</details>
 
 ### テーブル定義 (scores)
 | カラム | 型 | 説明 |
@@ -314,7 +413,9 @@ erDiagram
 
 ## モジュール設計
 
-### モジュール分割図
+<details>
+<summary><b>モジュール分割図</b></summary>
+<br>
 ```mermaid
 graph TD
   subgraph Frontend
@@ -345,6 +446,8 @@ graph TD
   Worker --> DB
 ```
 
+</details>
+
 ### 主要モジュールの責務
 | モジュール | 責務 | 主なファイル |
 | --- | --- | --- |
@@ -358,7 +461,10 @@ graph TD
 | レート制限 | Durable Object による制限/Nonce | worker/rateLimiter.ts |
 | ローカルServer | Workers互換の開発用API | server/index.ts, server/routes/*, server/services/* |
 
-### クラス図（Frontend）
+<details>
+<summary><b>クラス図（Frontend）</b></summary>
+<br>
+
 ```mermaid
 classDiagram
   direction LR
@@ -418,7 +524,12 @@ classDiagram
   LiveStageVisuals ..> ThreeJS : render
 ```
 
-### クラス図（Backend）
+</details>
+
+<details>
+<summary><b>クラス図（Backend）</b></summary>
+<br>
+
 ```mermaid
 classDiagram
   direction LR
@@ -457,20 +568,30 @@ classDiagram
   AdminService ..> SupabaseClient : db
 ```
 
+</details>
+
 ### 設計の前提
-- フロント: 入力/描画/判定/結果を同一セッションで完結
-- バックエンド: スコア登録/ランキング取得/管理APIに責務を限定
-- Workers が本番基盤、`server/` は開発用の互換実装
-- 外部連携: TextAlive/MediaPipe/Three.js はゲームコア側から直接利用
+
+| 項目 | 内容 |
+|:---|:---|
+| フロント | 入力/描画/判定/結果を同一セッションで完結 |
+| バックエンド | スコア登録/ランキング取得/管理APIに責務を限定 |
+| 本番基盤 | Workers が本番、`server/` は開発用の互換実装 |
+| 外部連携 | TextAlive/MediaPipe/Three.js はゲームコア側から直接利用 |
 
 ### 境界定義
-- UI層: ページ/モーダル/ランキング表示
-- ドメイン層: GameManager + 各Manager + GameLoop + TimerManager + BubblePool
-- サービス層: scoreService/tokenService でAPI境界を固定
-- インフラ層: Workers/Supabase/RateLimiter/Turnstile
-- 開発支援: server (ローカルのみ)
 
-### データフロー（スコア登録）
+| 層 | 構成要素 |
+|:---|:---|
+| UI層 | ページ/モーダル/ランキング表示 |
+| ドメイン層 | GameManager + 各Manager + GameLoop + TimerManager + BubblePool |
+| サービス層 | scoreService/tokenService でAPI境界を固定 |
+| インフラ層 | Workers/Supabase/RateLimiter/Turnstile |
+| 開発支援 | server (ローカルのみ) |
+
+<details>
+<summary><b>データフロー（スコア登録）</b></summary>
+<br>
 ```mermaid
 flowchart LR
   Input[入力/カメラ] --> GM[GameManager]
@@ -487,13 +608,20 @@ flowchart LR
   GP --> GM
 ```
 
-### 非機能設計
-- 性能: GameLoop + BubblePool + DOM再利用でGC圧を抑制
-- 信頼性: TimerManager でタイマーを集中管理、cleanup で資源解放
-- セキュリティ: RateLimiter + HMAC + Turnstile + Origin検証
-- 運用: requestId/sessionId でログ追跡可能
+</details>
 
-### クラス設計
+### 非機能設計
+
+| 項目 | 内容 |
+|:---|:---|
+| 性能 | GameLoop + BubblePool + DOM再利用でGC圧を抑制 |
+| 信頼性 | TimerManager でタイマーを集中管理、cleanup で資源解放 |
+| セキュリティ | RateLimiter + HMAC + Turnstile + Origin検証 |
+| 運用 | requestId/sessionId でログ追跡可能 |
+
+<details>
+<summary><b>クラス設計一覧</b></summary>
+<br>
 | クラス/モジュール | 役割 | 主な責務 |
 | --- | --- | --- |
 | GameManager | ゲーム進行の中枢 | モード制御、スコア/コンボ、ループ更新、各マネージャ統合 |
@@ -517,7 +645,9 @@ flowchart LR
 | scoreService (Server) | Server処理 | スコア保存/ランキング取得 |
 | RateLimiter | レート制限 | IP制限/Nonce管理 |
 
-## ディレクトリ構成
+</details>
+
+### ディレクトリ構成
 
 ```bash
 star/
@@ -539,7 +669,9 @@ star/
 
 ## テスト仕様（ユーザビリティ視点）
 
-### 結合テスト 
+<details>
+<summary><b>結合テスト</b></summary>
+<br> 
 | ID | シーン | 手順/入力 | 期待結果（ユーザビリティ） |
 | --- | --- | --- | --- |
 | 01 | タイトル導線 | モードを切り替える | 選択中のモードが視覚的に強調され、説明文も即時に更新される |
@@ -559,7 +691,11 @@ star/
 | 15 | ランキング空表示 | スコアなしの曲でランキング表示 | 「まだスコアがありません」等の案内が出る |
 | 16 | ランキング通信失敗 | /api/ranking 失敗 | エラーメッセージが表示され、画面がフリーズしない |
 
-### 単体テスト 
+</details>
+
+<details>
+<summary><b>単体テスト</b></summary>
+<br> 
 | ID | 対象 | 条件/入力 | 期待結果（ユーザビリティ） |
 | --- | --- | --- | --- |
 | 01 | UIManager | モード切替操作 | 画面の操作説明文が各モードに適した文言に更新される |
@@ -572,22 +708,30 @@ star/
 | 08 | RankingList | データ状態(loading/error/empty) | 「ロード中」「エラー」「データなし」の表示が正しく切り替わる |
 | 09 | RankCalculator | スコア境界値 | ランク表示（S/A/B/C）が境界値で正しく判定される |
 
+</details>
+
 ---
 
 ## 展示チェックリスト
-- **機材**: PC/スマホ、Webカメラ、スピーカー、安定した回線
-- **環境**: 明るさと背景が安定、カメラ位置は胸〜顔が収まる高さ
-- **動作確認**: カメラ許可、音声出力、ランキングAPI接続
-- **説明順**: 1分概要 → デモ → 技術の見せ場 → 設計図
+
+| カテゴリ | 項目 |
+|:---|:---|
+| **機材** | PC/スマホ、Webカメラ、スピーカー、安定した回線 |
+| **環境** | 明るさと背景が安定、カメラ位置は胸〜顔が収まる高さ |
+| **動作確認** | カメラ許可、音声出力、ランキングAPI接続 |
+| **説明順** | 1分概要 → デモ → 技術の見せ場 → 設計図 |
 
 ---
 
 ## 開発・デプロイ
 
 ### 必須要件
-- Node.js 20+
-- Cloudflare アカウント (Workers / Turnstile)
-- Supabase プロジェクト
+
+| 要件 | バージョン/備考 |
+|:---|:---|
+| Node.js | 20+ |
+| Cloudflare | Workers / Turnstile |
+| Supabase | PostgreSQL |
 
 ### セットアップ
 
@@ -615,10 +759,20 @@ star/
 
 ## ライセンス & クレジット
 
-- **License**: MIT
-- **Music & Lyrics**: Powered by [TextAlive App API](https://api.songle.jp/) (National Institute of Advanced Industrial Science and Technology - AIST).
-- **Vision AI**: MediaPipe by Google.
-- **Special Thanks**: 加賀（ネギシャワーP） ストリートライト piapro（https://piapro.jp/t/ULcJ）
+| 項目 | 内容 |
+|:---|:---|
+| **License** | MIT |
+| **Music & Lyrics** | Powered by [TextAlive App API](https://api.songle.jp/) (AIST) |
+| **Vision AI** | MediaPipe by Google |
+| **Special Thanks** | 加賀（ネギシャワーP） ストリートライト [piapro](https://piapro.jp/t/ULcJ) |
+
+---
+
+<div align="center">
+
+**Made with love for メディアフロンティア**
+
+</div>
 
 
 

@@ -198,7 +198,7 @@ html {
     position: absolute;
     top: 30px;
     right: 40px;
-    z-index: 50;
+    z-index: 150;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -242,7 +242,7 @@ html {
     position: absolute;
     top: 24px;
     left: 28px;
-    z-index: 80;
+    z-index: 150;
     color: white;
     font-family: 'Segoe UI', sans-serif;
     background: rgba(15, 20, 25, 0.4);

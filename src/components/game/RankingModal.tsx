@@ -55,9 +55,9 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors min-w-[80px] sm:min-w-[110px] justify-between"
+                className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-lg px-2 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors sm:min-w-[110px] sm:px-3 sm:gap-2 justify-between"
               >
-                <span>
+                <span className="truncate">
                   {period === 'all' && '全期間'}
                   {period === 'weekly' && '週間'}
                   {period === 'daily' && '24時間'}
@@ -106,9 +106,9 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
             <div className="relative">
               <button
                 onClick={() => setIsSpeedDropdownOpen(!isSpeedDropdownOpen)}
-                className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors min-w-[80px] sm:min-w-[110px] justify-between"
+                className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-lg px-2 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors sm:min-w-[110px] sm:px-3 sm:gap-2 justify-between"
               >
-                <span>
+                <span className="truncate">
                   {speed === undefined && '全コース'}
                   {speed === 8 && '8秒（難）'}
                   {speed === 10 && '10秒（普）'}

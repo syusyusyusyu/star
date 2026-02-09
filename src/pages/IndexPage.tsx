@@ -118,11 +118,39 @@ const HelpModal = memo(function HelpModal({
               <section>
                 <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
                     <span className="w-1 h-6 bg-miku block"></span>
+                    速度コース（難易度）
+                </h3>
+                <p className="leading-relaxed mb-3">
+                    歌詞バブルの表示時間を3段階から選べます。表示時間が短いほどバブルが速く消えるため、難易度が上がります。
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-white/5 p-3 rounded border border-white/5 text-center">
+                        <div className="text-white font-bold">8秒</div>
+                        <div className="text-xs text-red-400 mt-1">難しい</div>
+                    </div>
+                    <div className="bg-white/5 p-3 rounded border border-miku/30 text-center">
+                        <div className="text-white font-bold">10秒</div>
+                        <div className="text-xs text-miku mt-1">普通</div>
+                    </div>
+                    <div className="bg-white/5 p-3 rounded border border-white/5 text-center">
+                        <div className="text-white font-bold">12秒</div>
+                        <div className="text-xs text-green-400 mt-1">易しい</div>
+                    </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                    ※ ランキングはコース別にフィルタリングできます。
+                </p>
+              </section>
+
+              <section>
+                <h3 className="text-miku font-bold text-lg mb-2 flex items-center gap-2">
+                    <span className="w-1 h-6 bg-miku block"></span>
                     プレイの流れ
                 </h3>
                 <ol className="list-decimal pl-5 space-y-2 marker:text-miku">
                   {isMobile ? (
                     <>
+                      <li>速度コース（8秒/10秒/12秒）を選択</li>
                       <li>「ゲームスタート」をタップ</li>
                       <li>歌詞バブルをタップ＆ホールド！</li>
                       <li>曲が終わるとリザルト画面へ</li>
@@ -130,6 +158,7 @@ const HelpModal = memo(function HelpModal({
                   ) : (
                     <>
                       <li>プレイモード（カーソル / ボディ）を選択</li>
+                      <li>速度コース（8秒/10秒/12秒）を選択</li>
                       <li>「ゲームスタート」ボタンをクリック</li>
                       <li>タイミングよく歌詞をキャッチ！</li>
                       <li>曲が終わるとリザルト画面へ</li>

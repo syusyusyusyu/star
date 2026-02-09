@@ -90,6 +90,7 @@ class GameManager {
   public isDebugMode: boolean = false
   private turnstileSiteKey: string | null
   private turnstileSiteKeyPromise: Promise<string | null> | null
+  public speed: number
   
   // デバイス・モード
   public isMobile: boolean
@@ -198,7 +199,12 @@ class GameManager {
     this.resultsDisplayed = false; // リザルト画面表示フラグを初期化（重要：リザルト画面重複表示防止）
     this.turnstileSiteKey = config.turnstileSiteKey ?? null;
     this.turnstileSiteKeyPromise = null;
-    
+
+    // 速度コース設定（8/10/12秒、デフォルト10秒）
+    const rawSpeed = config.speed ?? 10;
+    this.speed = [8, 10, 12].includes(rawSpeed) ? rawSpeed : 10;
+    document.documentElement.style.setProperty('--lyric-speed', `${this.speed}s`);
+
     // モバイルデバイス検出
     this.isMobile = this.detectMobileDevice();
     

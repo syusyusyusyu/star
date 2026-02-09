@@ -22,7 +22,10 @@ export type GameMode = PlayMode
 export interface GameConfig {
   songId: number
   mode: GameMode
+  speed?: number
 }
+
+export type SpeedCourse = 8 | 10 | 12
 
 export type GameResult = {
   songId: string
@@ -31,4 +34,5 @@ export type GameResult = {
   maxCombo: number
   rank: string
   playerName?: string
+  speed?: number
 }

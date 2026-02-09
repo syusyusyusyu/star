@@ -7,10 +7,12 @@ import {
   isValidRank,
   isValidScore,
   isValidSongId,
+  isValidSpeed,
   MAX_COMBO,
   MAX_SCORE,
   MIN_SCORE,
   VALID_RANKS,
+  VALID_SPEEDS,
 } from '../services/scoreValidation'
 import { fetchRanking, insertScore } from '../services/scoreService'
 import type { PlayMode } from '../services/scoreValidation'
@@ -29,13 +31,14 @@ scoreRoute.post('/score', async (c) => {
     return c.json({ error: { message: 'Invalid JSON' } }, 400)
   }
 
-  const { songId, mode, score, maxCombo, rank, playerName } = body as {
+  const { songId, mode, score, maxCombo, rank, playerName, speed: rawSpeed } = body as {
     songId?: unknown
     mode?: unknown
     score?: unknown
     maxCombo?: unknown
     rank?: unknown
     playerName?: unknown
+    speed?: unknown
   }
 
   // Required fields
@@ -63,11 +66,17 @@ scoreRoute.post('/score', async (c) => {
     return c.json({ error: { message: `rank must be one of: ${VALID_RANKS.join(', ')}` } }, 400)
   }
 
+  const speed = rawSpeed !== undefined ? rawSpeed : 10
+  if (!isValidSpeed(speed)) {
+    return c.json({ error: { message: `speed must be one of: ${VALID_SPEEDS.join(', ')}` } }, 400)
+  }
+
   const pName = typeof playerName === 'string' ? playerName.slice(0, 20) : 'ゲスト'
 
   const { error } = await insertScore({
     songId,
     mode,
+    speed,
     score,
     maxCombo,
     rank,
@@ -93,6 +102,7 @@ scoreRoute.get('/ranking', async (c) => {
 
   const songId = c.req.query('songId')
   const modeParam = c.req.query('mode')
+  const speedParam = c.req.query('speed')
   const period = c.req.query('period')
   const limitParam = Math.min(50, Math.max(1, parseInt(c.req.query('limit') || '20', 10) || 20))
   const offsetParam = Math.max(0, parseInt(c.req.query('offset') || '0', 10) || 0)
@@ -109,11 +119,16 @@ scoreRoute.get('/ranking', async (c) => {
     return c.json({ error: { message: 'mode must be cursor, body, mobile, hand or face' } }, 400)
   }
 
+  const parsedSpeed = speedParam ? parseInt(speedParam, 10) : null
+  if (parsedSpeed !== null && !isValidSpeed(parsedSpeed)) {
+    return c.json({ error: { message: `speed must be one of: ${VALID_SPEEDS.join(', ')}` } }, 400)
+  }
+
   if (period && !['weekly', 'daily', 'all'].includes(period)) {
     return c.json({ error: { message: 'Invalid period' } }, 400)
   }
 
-  const cached = getCachedRanking(songId, modeParam as PlayMode | null, period ?? null, offsetParam, limitParam)
+  const cached = getCachedRanking(songId, modeParam as PlayMode | null, period ?? null, offsetParam, limitParam, parsedSpeed)
   if (cached) {
     return c.json(cached)
   }
@@ -121,6 +136,7 @@ scoreRoute.get('/ranking', async (c) => {
   const { data, error, count } = await fetchRanking({
     songId,
     mode: (modeParam as PlayMode | null) ?? null,
+    speed: parsedSpeed,
     period: period ?? null,
     limit: limitParam,
     offset: offsetParam,
@@ -132,7 +148,7 @@ scoreRoute.get('/ranking', async (c) => {
   }
 
   const response = { data, meta: { total: count ?? 0, count: data?.length ?? 0, cached: false } }
-  setCachedRanking(songId, (modeParam as PlayMode | null) ?? null, period ?? null, response, offsetParam, limitParam)
+  setCachedRanking(songId, (modeParam as PlayMode | null) ?? null, period ?? null, response, offsetParam, limitParam, parsedSpeed)
 
   return c.json(response)
 })

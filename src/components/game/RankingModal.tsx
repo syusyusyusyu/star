@@ -13,7 +13,9 @@ type RankingModalProps = {
 
 const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeChange, songId }: RankingModalProps) {
   const [period, setPeriod] = useState<'all' | 'weekly' | 'daily'>('all')
+  const [speed, setSpeed] = useState<number | undefined>(undefined)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isSpeedDropdownOpen, setIsSpeedDropdownOpen] = useState(false)
 
   if (!open) return null
 
@@ -91,6 +93,59 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
               )}
             </div>
 
+            <div className="relative">
+              <button
+                onClick={() => setIsSpeedDropdownOpen(!isSpeedDropdownOpen)}
+                className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors min-w-[110px] justify-between"
+              >
+                <span>
+                  {speed === undefined && '全コース'}
+                  {speed === 8 && '8秒（難）'}
+                  {speed === 10 && '10秒（普）'}
+                  {speed === 12 && '12秒（易）'}
+                </span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={`h-4 w-4 text-gray-500 transition-transform ${isSpeedDropdownOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isSpeedDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setIsSpeedDropdownOpen(false)}
+                  />
+                  <div className="absolute top-full right-0 mt-2 w-36 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl overflow-hidden z-20 flex flex-col py-1 animate-fade-in">
+                    {[
+                      { value: undefined as number | undefined, label: '全コース' },
+                      { value: 8, label: '8秒（難）' },
+                      { value: 10, label: '10秒（普）' },
+                      { value: 12, label: '12秒（易）' },
+                    ].map((option, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setSpeed(option.value)
+                          setIsSpeedDropdownOpen(false)
+                        }}
+                        className={`px-4 py-2 text-left text-sm transition-colors hover:bg-white/5 ${
+                          speed === option.value ? 'text-miku bg-miku/10' : 'text-gray-300'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
             <ModeTabs value={mode} onChange={onModeChange} />
 
             <button
@@ -110,6 +165,7 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
             songId={songId}
             mode={mode}
             period={period}
+            speed={speed}
             className="!bg-transparent !border-none !shadow-none p-0 h-full"
           />
         </div>

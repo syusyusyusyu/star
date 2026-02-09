@@ -43,7 +43,7 @@
 |:---|:---|
 | **体験** | 歌詞を「つかむ・奏でる」体感型リズムアクション |
 | **特徴** | TextAlive歌詞同期 × MediaPipe動作認識の融合 |
-| **強み** | 4つの操作モードで誰でも遊べる（PC/スマホ/カメラ） |
+| **強み** | 4つの操作モード × 3つの速度コースで誰でも遊べる（PC/スマホ/カメラ） |
 | **価値** | 音楽×身体×視覚演出を一体化したライブ感 |
 
 <br>
@@ -61,7 +61,7 @@
 ## デモの流れ（展示用）
 
 ```
-1. タイトルでモード選択（Cursor / Mobile / Body / Face）
+1. タイトルでモード選択（Cursor / Mobile / Body / Face）＋ 速度コース選択（8秒/10秒/12秒）
        ↓
 2. 楽曲開始 → 歌詞が流れてくる
        ↓
@@ -106,6 +106,20 @@
 | **モバイル** | スマートフォン | タップ & ホールド | スマホ操作に特化。画面下部の歌詞表示を排除し、プレイ領域を最大化。親指一つで遊べる直感的な操作感 |
 | **ボディ** | PC (Webカメラ) | 全身アクション | Webカメラでプレイヤーの動きを検知。手や体を歌詞に重ねて「触れる」ことで入力する、全身を使ったモード |
 | **フェイス** | スマートフォン | 顔移動 & 口パク | カメラで顔を認識。顔を動かして位置を合わせ、口を「パクッ」と開けることで歌詞をキャッチするモード |
+
+<br>
+
+### 速度コース（難易度）
+
+歌詞バブルの表示時間を3段階から選択できます。表示時間が短いほど難しく、長いほど簡単です。
+
+| コース | 表示時間 | 難易度 |
+|:---|:---|:---|
+| **8秒コース** | 8秒 | 難しい |
+| **10秒コース** | 10秒 | 普通（デフォルト） |
+| **12秒コース** | 12秒 | 易しい |
+
+ランキングはコース別にフィルタリングして閲覧できます。
 
 <br>
 
@@ -283,6 +297,10 @@ mindmap
         Mobile Mode SP
         Body Mode 全身検知
         Face Mode 顔検知
+      難易度コース
+        8秒コース 難
+        10秒コース 普通
+        12秒コース 易
       外部連携
         TextAlive 歌詞同期
         MediaPipe 身体認識
@@ -343,8 +361,8 @@ gantt
 | GET | `/api/health` | ヘルスチェック | なし |
 | GET | `/api/config` | Turnstile Site Key 取得 | なし |
 | GET | `/api/token` | スコア署名トークン発行 | SCORE_SIGNING_SECRET 設定時のみ有効 |
-| POST | `/api/score` | スコア登録 | FRONTEND_ORIGIN/Rate limit/HMAC/Turnstile (条件付き) |
-| GET | `/api/ranking` | ランキング取得 | songId 必須, offset/limit でページネーション対応 |
+| POST | `/api/score` | スコア登録 | FRONTEND_ORIGIN/Rate limit/HMAC/Turnstile (条件付き), speed パラメータ対応 (8/10/12) |
+| GET | `/api/ranking` | ランキング取得 | songId 必須, offset/limit でページネーション対応, speed でコース別フィルタ |
 | DELETE | `/admin/scores` | スコア削除 | x-admin-token 必須 |
 
 <br>
@@ -367,6 +385,7 @@ erDiagram
     text session_id
     text song_id
     text mode
+    int speed
     int score
     int max_combo
     text rank
@@ -385,6 +404,7 @@ erDiagram
 | session_id | text | 匿名セッションID |
 | song_id | text | 楽曲ID |
 | mode | text | cursor/body/mobile/face |
+| speed | integer | 速度コース (8/10/12) |
 | score | integer | スコア |
 | max_combo | integer | 最大コンボ |
 | rank | text | ランク |

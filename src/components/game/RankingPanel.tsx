@@ -17,6 +17,7 @@ type RankingPanelProps = {
   songId: string
   mode?: PlayMode
   period?: 'all' | 'weekly' | 'daily'
+  speed?: number
   className?: string
 }
 
@@ -29,7 +30,7 @@ export const clearRankingCache = () => {
   rankingCache.clear()
 }
 
-const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingPanelProps) => {
+const RankingPanel = ({ songId, mode, period = 'all', speed, className = "" }: RankingPanelProps) => {
   const [rows, setRows] = useState<RankingRow[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -47,13 +48,13 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
     return 'ボディモード'
   }, [mode])
 
-  // mode/period が変わったらページを1にリセット
+  // mode/period/speed が変わったらページを1にリセット
   useEffect(() => {
     setPage(1)
-  }, [mode, period])
+  }, [mode, period, speed])
 
   const offset = (page - 1) * PAGE_SIZE
-  const cacheKey = useMemo(() => `${songId}-${queryMode ?? 'all'}-${period}-${page}`, [songId, queryMode, period, page])
+  const cacheKey = useMemo(() => `${songId}-${queryMode ?? 'all'}-${period}-${speed ?? 'all'}-${page}`, [songId, queryMode, period, speed, page])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -72,6 +73,7 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
     try {
       const params = new URLSearchParams({ songId, limit: String(PAGE_SIZE), offset: String(offset) })
       if (queryMode) params.append('mode', queryMode)
+      if (speed) params.append('speed', String(speed))
       if (period && period !== 'all') params.append('period', period)
 
       const res = await fetch(`/api/ranking?${params.toString()}`, { signal })
@@ -93,7 +95,7 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
     } finally {
       if (!signal.aborted) setLoading(false)
     }
-  }, [cacheKey, mode, songId, offset])
+  }, [cacheKey, mode, speed, songId, offset])
 
   useEffect(() => {
     // 前のリクエストをキャンセル

@@ -110,6 +110,7 @@ export const submitScore = async (c: HonoContext, body: ScorePayload) => {
       session_id: sessionId,
       song_id: body.songId,
       mode: body.mode,
+      speed: body.speed,
       score: body.score,
       max_combo: body.maxCombo,
       rank: body.rank,
@@ -145,18 +146,22 @@ export const submitScore = async (c: HonoContext, body: ScorePayload) => {
 }
 
 export const fetchRanking = async (c: HonoContext, query: RankingQuery) => {
-  const { songId, mode, period, limit, offset = 0 } = query
+  const { songId, mode, speed, period, limit, offset = 0 } = query
   const requestId = c.get("requestId")
   const supabase = getSupabase(c.env)
 
   let queryBuilder = supabase
     .from("scores")
-    .select("player_name, score, rank, mode, created_at, accuracy, max_combo", { count: "exact" })
+    .select("player_name, score, rank, mode, speed, created_at, accuracy, max_combo", { count: "exact" })
     .eq("song_id", songId)
     .eq("is_suspicious", false)
 
   if (mode) {
     queryBuilder = queryBuilder.eq("mode", mode)
+  }
+
+  if (speed) {
+    queryBuilder = queryBuilder.eq("speed", speed)
   }
 
   if (period === "weekly") {
@@ -189,6 +194,7 @@ export const fetchRanking = async (c: HonoContext, query: RankingQuery) => {
     score: d.score,
     rank: d.rank,
     mode: d.mode,
+    speed: d.speed,
     accuracy: d.accuracy,
     created_at: d.created_at,
     max_combo: d.max_combo

@@ -28,3 +28,9 @@ export const isValidRank = (rank: unknown): rank is string =>
 
 export const isValidSongId = (songId: unknown): songId is string =>
   typeof songId === 'string' && SONG_ID_PATTERN.test(songId)
+
+export const VALID_SPEEDS = [8, 10, 12] as const
+export type SpeedCourse = (typeof VALID_SPEEDS)[number]
+
+export const isValidSpeed = (speed: unknown): speed is SpeedCourse =>
+  typeof speed === 'number' && VALID_SPEEDS.includes(speed as SpeedCourse)

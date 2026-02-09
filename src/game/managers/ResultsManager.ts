@@ -166,6 +166,7 @@ export class ResultsManager {
                             maxCombo: this.game.maxCombo,
                             rank,
                             playerName,
+                            speed: this.game.speed,
                             turnstileToken: token
                           });
                           
@@ -230,6 +231,7 @@ export class ResultsManager {
                         maxCombo: this.game.maxCombo,
                         rank,
                         playerName,
+                        speed: this.game.speed,
                     });
                     if ((result as any) === true) {
                         this.game.resultReported = true;
@@ -258,6 +260,7 @@ export class ResultsManager {
                     maxCombo: this.game.maxCombo,
                     rank,
                     playerName,
+                    speed: this.game.speed,
                   });
                   
                   if ((result as any) === true) {

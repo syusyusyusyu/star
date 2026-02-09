@@ -142,7 +142,7 @@ function GamePage() {
   }, [])
 
   const submitScoreRequest = useCallback(async (gameResult: GameResult): Promise<boolean> => {
-    const key = `${gameResult.songId}-${gameResult.mode}-${gameResult.score}-${gameResult.maxCombo}-${gameResult.rank}`
+    const key = `${gameResult.songId}-${gameResult.mode}-${gameResult.speed ?? 10}-${gameResult.score}-${gameResult.maxCombo}-${gameResult.rank}`
     if (lastSubmittedKeyRef.current === key) return true
     lastSubmittedKeyRef.current = key
 
@@ -256,6 +256,12 @@ function GamePage() {
 
     const initialMode: PlayMode = getInitialMode()
 
+    // 速度コース取得
+    const urlSpeedParam = new URLSearchParams(window.location.search).get('speed')
+    const storedSpeed = localStorage.getItem('gameSpeed')
+    const rawSpeed = urlSpeedParam ? parseInt(urlSpeedParam, 10) : (storedSpeed ? parseInt(storedSpeed, 10) : 10)
+    const initialSpeed = [8, 10, 12].includes(rawSpeed) ? rawSpeed : 10
+
     const handleBeforeUnload = () => {
       try {
         sessionStorage.setItem('returnToTitle', '1')
@@ -267,6 +273,7 @@ function GamePage() {
       managerRef.current = new GameManager({
         songId: SONG_ID,
         mode: initialMode,
+        speed: initialSpeed,
         onGameEnd: handleGameEnd,
       })
       ;(window as unknown as { gameManager: GameManager }).gameManager = managerRef.current

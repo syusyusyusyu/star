@@ -172,6 +172,11 @@ export default function IndexPage() {
     return stored ?? 'cursor'
   }
   const [gameMode, setGameMode] = useState<GameMode>(detectPreferredMode)
+  const [speed, setSpeed] = useState<number>(() => {
+    const stored = localStorage.getItem('gameSpeed')
+    const parsed = stored ? parseInt(stored, 10) : 10
+    return [8, 10, 12].includes(parsed) ? parsed : 10
+  })
   const [showHelp, setShowHelp] = useState(false)
   const [showRanking, setShowRanking] = useState(false)
   const lastFocusedElementRef = useRef<HTMLElement | null>(null)
@@ -205,7 +210,8 @@ export default function IndexPage() {
       difficulty: 'easy'
     }))
     localStorage.setItem('gameMode', gameMode)
-    
+    localStorage.setItem('gameSpeed', String(speed))
+
     // エフェクトアニメーション
     const songItem = document.getElementById(`song-${song.id}`)
     if (songItem) {
@@ -216,9 +222,9 @@ export default function IndexPage() {
     }
 
     setTimeout(() => {
-      navigate(`/game?mode=${gameMode}`)
+      navigate(`/game?mode=${gameMode}&speed=${speed}`)
     }, 200)
-  }, [gameMode, navigate])
+  }, [gameMode, speed, navigate])
 
   const createClickEffect = useCallback((e: React.MouseEvent, element: HTMLElement) => {
     const ripple = document.createElement('div')
@@ -417,6 +423,36 @@ export default function IndexPage() {
                         <p className="text-miku text-sm font-bold">
                             {songsData[0].artist}
                         </p>
+                    </div>
+
+                    {/* 速度コース選択 */}
+                    <div className="bg-white/5 rounded-xl p-5 border border-white/10 backdrop-blur-sm">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="w-1 h-4 bg-miku rounded-full"></span>
+                            <p className="text-gray-400 text-xs font-bold">速度コース</p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            {([
+                              { value: 8, label: '8秒', desc: '難しい' },
+                              { value: 10, label: '10秒', desc: '普通' },
+                              { value: 12, label: '12秒', desc: '易しい' },
+                            ] as const).map((course) => (
+                                <button
+                                    key={course.value}
+                                    onClick={() => setSpeed(course.value)}
+                                    className={`relative p-3 border rounded-lg transition-all duration-300 text-center ${
+                                        speed === course.value
+                                          ? 'border-miku bg-miku/20 shadow-[0_0_10px_rgba(57,197,187,0.3)]'
+                                          : 'border-white/20 hover:border-white/40 bg-white/5'
+                                    }`}
+                                >
+                                    <div className={`text-lg font-bold ${speed === course.value ? 'text-white' : 'text-gray-300'}`}>
+                                        {course.label}
+                                    </div>
+                                    <div className="text-[10px] text-gray-400 mt-0.5">{course.desc}</div>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* スタートボタン */}

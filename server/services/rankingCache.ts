@@ -4,10 +4,10 @@ type RankingCacheEntry = { timestamp: number; data: unknown }
 const CACHE_TTL_MS = 30_000
 const rankingCache = new Map<CacheKey, RankingCacheEntry>()
 
-const buildCacheKey = (songId: string, mode?: string | null, period?: string | null, offset?: number, limit?: number) => `${songId}:${mode ?? 'all'}:${period ?? 'all'}:${offset ?? 0}:${limit ?? 20}`
+const buildCacheKey = (songId: string, mode?: string | null, period?: string | null, offset?: number, limit?: number, speed?: number | null) => `${songId}:${mode ?? 'all'}:${period ?? 'all'}:${offset ?? 0}:${limit ?? 20}:${speed ?? 'all'}`
 
-export const getCachedRanking = (songId: string, mode?: string | null, period?: string | null, offset?: number, limit?: number) => {
-  const key = buildCacheKey(songId, mode ?? null, period ?? null, offset, limit)
+export const getCachedRanking = (songId: string, mode?: string | null, period?: string | null, offset?: number, limit?: number, speed?: number | null) => {
+  const key = buildCacheKey(songId, mode ?? null, period ?? null, offset, limit, speed)
   const entry = rankingCache.get(key)
   if (!entry) return null
   if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
@@ -17,8 +17,8 @@ export const getCachedRanking = (songId: string, mode?: string | null, period?: 
   return entry.data
 }
 
-export const setCachedRanking = (songId: string, mode: string | null, period: string | null, data: unknown, offset?: number, limit?: number) => {
-  rankingCache.set(buildCacheKey(songId, mode, period, offset, limit), {
+export const setCachedRanking = (songId: string, mode: string | null, period: string | null, data: unknown, offset?: number, limit?: number, speed?: number | null) => {
+  rankingCache.set(buildCacheKey(songId, mode, period, offset, limit, speed), {
     timestamp: Date.now(),
     data,
   })

@@ -90,6 +90,7 @@
 | **ネオン×グラスモーフィズム** | ネオンライトと透き通るようなUIデザイン |
 | **3Dステージ演出** | Three.js と CSS Animation を組み合わせた、軽量なライティング演出 |
 | **レスポンシブデザイン** | PCの大画面からスマートフォンプレイまで、デバイスに対応したUI |
+| **PWA対応** | ホーム画面に追加してアプリのように起動可能（manifest.json / アイコン / theme-color） |
 
 <br>
 
@@ -125,6 +126,7 @@
 | **Game Core Architecture** | `GameManager` を中枢に `GameLoop` と各Manager（Input/Lyrics/Results/Visuals/Detectors/UI/Effects）を分離 |
 | **MediaPipe統合** | Pose/FaceMesh/SelfieSegmentation を並列利用し、Body/Face各モードの入力パイプラインを最適化 |
 | **Rendering/UX最適化** | バブルはDOMプール、UIは差分更新、`requestAnimationFrame` で安定した60fps志向 |
+| **PWA対応** | Web App Manifest とアイコンを設定し、ホーム画面への追加・スタンドアロン起動に対応 |
 | **サービス境界** | `ScoreService`/`TokenService` でAPI呼び出しを集約し、画面ロジックと通信を分離 |
 
 ### Backend 
@@ -297,6 +299,7 @@ mindmap
         レート制限
       ユーザビリティ
         レスポンシブ
+        PWA ホーム画面追加
         アクセシビリティ
 ```
 
@@ -642,6 +645,12 @@ flowchart LR
 
 ```
 star/
+├── public/               # 静的アセット
+│   ├── favicon.svg           # ファビコン (SVG)
+│   ├── manifest.json         # PWA マニフェスト
+│   ├── pwa-192x192.png       # PWA アイコン (192×192)
+│   └── pwa-512x512.png       # PWA アイコン (512×512)
+│
 ├── src/                  # フロントエンド・ソースコード
 │   ├── components/       # React UIコンポーネント (Ranking, Modal等)
 │   ├── game/             # ゲームコアロジック

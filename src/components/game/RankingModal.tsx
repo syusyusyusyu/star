@@ -28,24 +28,34 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
 
       <div className="relative w-full max-w-5xl max-h-[90vh] bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-scale-in">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 p-6 border-b border-white/10 bg-white/5">
-          <div className="flex items-center gap-3 min-w-[220px]">
-            <div className="bg-miku/20 p-3 rounded-xl flex-shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 sm:h-8 sm:w-8 text-miku" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        <div className="flex flex-col gap-3 p-4 sm:p-6 border-b border-white/10 bg-white/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-miku/20 p-2.5 sm:p-3 rounded-xl flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8 text-miku" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] sm:text-sm text-gray-400 uppercase tracking-[0.2em]">Global Ranking</p>
+                <h2 className="text-lg sm:text-2xl font-bold text-white leading-tight">ランキング</h2>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition border border-white/5"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-[0.2em]">Global Ranking</p>
-              <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight">ランキング</h2>
-            </div>
+            </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 sm:gap-6 justify-end w-full sm:w-auto relative z-10">
+          <div className="flex items-center gap-2 sm:gap-4 relative z-10">
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors min-w-[110px] justify-between"
+                className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors min-w-[80px] sm:min-w-[110px] justify-between"
               >
                 <span>
                   {period === 'all' && '全期間'}
@@ -96,7 +106,7 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
             <div className="relative">
               <button
                 onClick={() => setIsSpeedDropdownOpen(!isSpeedDropdownOpen)}
-                className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors min-w-[110px] justify-between"
+                className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors min-w-[80px] sm:min-w-[110px] justify-between"
               >
                 <span>
                   {speed === undefined && '全コース'}
@@ -147,15 +157,6 @@ const RankingModal = memo(function RankingModal({ open, onClose, mode, onModeCha
             </div>
 
             <ModeTabs value={mode} onChange={onModeChange} />
-
-            <button
-              onClick={onClose}
-              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition border border-white/5"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
           </div>
         </div>
 

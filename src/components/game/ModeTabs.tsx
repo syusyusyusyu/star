@@ -39,7 +39,7 @@ const ModeTabs = ({ value, onChange }: ModeTabsProps) => {
       <div className="relative">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors min-w-[140px] justify-between"
+          className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors min-w-[110px] sm:min-w-[140px] justify-between"
         >
           <span>{currentTab.label}</span>
           <svg

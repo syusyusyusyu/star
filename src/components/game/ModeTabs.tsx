@@ -6,11 +6,11 @@ type ModeTabsProps = {
   onChange: (mode: PlayMode) => void
 }
 
-const tabs: { value: PlayMode; label: string }[] = [
-  { value: 'cursor', label: 'カーソルモード' },
-  { value: 'body', label: 'ボディモード' },
-  { value: 'mobile', label: 'モバイルモード' },
-  { value: 'face', label: 'フェイスモード' },
+const tabs: { value: PlayMode; label: string; shortLabel: string }[] = [
+  { value: 'cursor', label: 'カーソルモード', shortLabel: 'カーソル' },
+  { value: 'body', label: 'ボディモード', shortLabel: 'ボディ' },
+  { value: 'mobile', label: 'モバイルモード', shortLabel: 'モバイル' },
+  { value: 'face', label: 'フェイスモード', shortLabel: 'フェイス' },
 ]
 
 const isMobileDevice = () => {
@@ -41,7 +41,7 @@ const ModeTabs = ({ value, onChange }: ModeTabsProps) => {
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-lg px-2 py-2 text-xs sm:text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors sm:min-w-[140px] sm:px-3 sm:gap-2 justify-between"
         >
-          <span>{currentTab.label}</span>
+          <span>{currentTab.shortLabel}</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className={`h-4 w-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -68,7 +68,7 @@ const ModeTabs = ({ value, onChange }: ModeTabsProps) => {
                     effectiveValue === option.value ? 'text-miku bg-miku/10' : 'text-gray-300'
                   }`}
                 >
-                  {option.label}
+                  {option.shortLabel}
                 </button>
               ))}
             </div>

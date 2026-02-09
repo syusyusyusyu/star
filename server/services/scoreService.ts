@@ -14,6 +14,8 @@ type RankingQuery = {
   songId: string
   mode?: PlayMode | null
   period?: string | null
+  limit?: number
+  offset?: number
 }
 
 export const insertScore = async ({ songId, mode, score, maxCombo, rank, playerName }: InsertScoreInput) => {
@@ -27,13 +29,13 @@ export const insertScore = async ({ songId, mode, score, maxCombo, rank, playerN
   })
 }
 
-export const fetchRanking = async ({ songId, mode, period }: RankingQuery) => {
+export const fetchRanking = async ({ songId, mode, period, limit = 20, offset = 0 }: RankingQuery) => {
   let query = supabase
     .from("scores")
-    .select("score,max_combo,rank,created_at,player_name")
+    .select("score,max_combo,rank,created_at,player_name", { count: "exact" })
     .eq("song_id", songId)
     .order("score", { ascending: false })
-    .limit(10)
+    .range(offset, offset + limit - 1)
 
   if (mode) {
     query = query.eq("mode", mode)

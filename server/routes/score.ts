@@ -94,6 +94,8 @@ scoreRoute.get('/ranking', async (c) => {
   const songId = c.req.query('songId')
   const modeParam = c.req.query('mode')
   const period = c.req.query('period')
+  const limitParam = Math.min(50, Math.max(1, parseInt(c.req.query('limit') || '20', 10) || 20))
+  const offsetParam = Math.max(0, parseInt(c.req.query('offset') || '0', 10) || 0)
 
   if (!songId) {
     return c.json({ error: { message: 'songId is required' } }, 400)
@@ -111,15 +113,17 @@ scoreRoute.get('/ranking', async (c) => {
     return c.json({ error: { message: 'Invalid period' } }, 400)
   }
 
-  const cached = getCachedRanking(songId, modeParam as PlayMode | null, period ?? null)
+  const cached = getCachedRanking(songId, modeParam as PlayMode | null, period ?? null, offsetParam, limitParam)
   if (cached) {
-    return c.json({ data: cached, meta: { cached: true } })
+    return c.json(cached)
   }
 
-  const { data, error } = await fetchRanking({
+  const { data, error, count } = await fetchRanking({
     songId,
     mode: (modeParam as PlayMode | null) ?? null,
     period: period ?? null,
+    limit: limitParam,
+    offset: offsetParam,
   })
 
   if (error) {
@@ -127,9 +131,10 @@ scoreRoute.get('/ranking', async (c) => {
     return c.json({ error: { message: 'Failed to fetch ranking' } }, 500)
   }
 
-  setCachedRanking(songId, (modeParam as PlayMode | null) ?? null, period ?? null, data)
+  const response = { data, meta: { total: count ?? 0, count: data?.length ?? 0, cached: false } }
+  setCachedRanking(songId, (modeParam as PlayMode | null) ?? null, period ?? null, response, offsetParam, limitParam)
 
-  return c.json({ data, meta: { cached: false } })
+  return c.json(response)
 })
 
 export default scoreRoute

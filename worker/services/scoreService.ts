@@ -145,7 +145,7 @@ export const submitScore = async (c: HonoContext, body: ScorePayload) => {
 }
 
 export const fetchRanking = async (c: HonoContext, query: RankingQuery) => {
-  const { songId, mode, period, limit } = query
+  const { songId, mode, period, limit, offset = 0 } = query
   const requestId = c.get("requestId")
   const supabase = getSupabase(c.env)
 
@@ -169,10 +169,10 @@ export const fetchRanking = async (c: HonoContext, query: RankingQuery) => {
     queryBuilder = queryBuilder.gt("created_at", date.toISOString())
   }
 
-  // Apply ordering and limit after filters
+  // Apply ordering and pagination after filters
   queryBuilder = queryBuilder
     .order("score", { ascending: false })
-    .limit(limit)
+    .range(offset, offset + limit - 1)
 
   const { data, error, count } = await queryBuilder
 

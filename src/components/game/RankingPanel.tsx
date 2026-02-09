@@ -21,8 +21,9 @@ type RankingPanelProps = {
 }
 
 // キャッシュ用のグローバル Map（コンポーネント外に配置）
-const rankingCache = new Map<string, { data: RankingRow[]; timestamp: number }>()
+const rankingCache = new Map<string, { data: RankingRow[]; total: number; timestamp: number }>()
 const CACHE_TTL = 30000 // 30秒キャッシュ
+const PAGE_SIZE = 20
 
 export const clearRankingCache = () => {
   rankingCache.clear()
@@ -30,6 +31,8 @@ export const clearRankingCache = () => {
 
 const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingPanelProps) => {
   const [rows, setRows] = useState<RankingRow[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -44,13 +47,22 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
     return 'ボディモード'
   }, [mode])
 
-  const cacheKey = useMemo(() => `${songId}-${queryMode ?? 'all'}-${period}`, [songId, queryMode, period])
+  // mode/period が変わったらページを1にリセット
+  useEffect(() => {
+    setPage(1)
+  }, [mode, period])
+
+  const offset = (page - 1) * PAGE_SIZE
+  const cacheKey = useMemo(() => `${songId}-${queryMode ?? 'all'}-${period}-${page}`, [songId, queryMode, period, page])
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const fetchRanking = useCallback(async (signal: AbortSignal) => {
     // キャッシュをチェック
     const cached = rankingCache.get(cacheKey)
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       setRows(cached.data)
+      setTotal(cached.total)
       setLoading(false)
       return
     }
@@ -58,28 +70,30 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
     setLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams({ songId })
+      const params = new URLSearchParams({ songId, limit: String(PAGE_SIZE), offset: String(offset) })
       if (queryMode) params.append('mode', queryMode)
       if (period && period !== 'all') params.append('period', period)
-      
+
       const res = await fetch(`/api/ranking?${params.toString()}`, { signal })
       if (!res.ok) {
         const payload = await res.json().catch(() => null)
         throw new Error(payload?.error?.message ?? res.statusText ?? 'Failed to fetch ranking')
       }
-      const payload = (await res.json()) as { data?: RankingRow[]; error?: { message: string } }
-      
-      const data = payload.data || []
+      const payload = (await res.json()) as { data?: RankingRow[]; meta?: { total?: number; count?: number }; error?: { message: string } }
 
-      rankingCache.set(cacheKey, { data, timestamp: Date.now() })
+      const data = payload.data || []
+      const fetchedTotal = payload.meta?.total ?? 0
+
+      rankingCache.set(cacheKey, { data, total: fetchedTotal, timestamp: Date.now() })
       setRows(data)
+      setTotal(fetchedTotal)
     } catch (err) {
       if (signal.aborted) return
       setError(err instanceof Error ? err.message : 'Failed to fetch ranking')
     } finally {
       if (!signal.aborted) setLoading(false)
     }
-  }, [cacheKey, mode, songId])
+  }, [cacheKey, mode, songId, offset])
 
   useEffect(() => {
     // 前のリクエストをキャンセル
@@ -97,7 +111,9 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
       <div className="flex items-center justify-between gap-4 mb-2 flex-none">
         <div>
           <p className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-gray-400">ランキング</p>
-          <h3 className="text-base sm:text-lg font-bold text-white">Top 10</h3>
+          <h3 className="text-base sm:text-lg font-bold text-white">
+            {total > 0 ? `${offset + 1}〜${Math.min(offset + PAGE_SIZE, total)}位` : 'ランキング'}
+          </h3>
         </div>
       </div>
 
@@ -122,7 +138,7 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
                 key={`${row.score}-${row.created_at}-${index}`}
                 className="grid grid-cols-[30px,1fr,auto] md:grid-cols-[30px,1fr,80px,40px,120px] items-center text-[11px] sm:text-xs font-mono text-gray-100 bg-white/5 hover:bg-white/10 transition rounded-lg px-2 py-1.5 border border-white/5 gap-2"
               >
-                <span className={`font-bold ${index < 3 ? 'text-miku' : 'text-gray-500'}`}>{index + 1}</span>
+                <span className={`font-bold ${offset + index < 3 ? 'text-miku' : 'text-gray-500'}`}>{offset + index + 1}</span>
                 
                 <div className="flex flex-col justify-center min-w-0">
                   <span className="truncate text-white font-semibold">{row.player_name || 'Guest'}</span>
@@ -142,6 +158,29 @@ const RankingPanel = ({ songId, mode, period = 'all', className = "" }: RankingP
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ページネーション */}
+      {total > PAGE_SIZE && (
+        <div className="flex items-center justify-center gap-3 mt-3 flex-none">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-2 py-1 text-xs rounded bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed transition"
+          >
+            &lt; 前
+          </button>
+          <span className="text-xs text-gray-300 tabular-nums">
+            {page} / {totalPages} ページ
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="px-2 py-1 text-xs rounded bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed transition"
+          >
+            次 &gt;
+          </button>
         </div>
       )}
     </div>

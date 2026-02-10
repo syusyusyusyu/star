@@ -687,10 +687,6 @@ class GameManager {
       this.playpause.textContent = '一時停止';
       this.isFirstInteraction = false; // 初回インタラクションフラグをオフに
 
-      // 再生開始時に説明テキストのフェードアウトを開始
-      const instructionsEl = document.getElementById('instructions');
-      if (instructionsEl) instructionsEl.classList.add('fade-out');
-      
       // TextAliveプレーヤーの使用
       if (this.player && this.isPlayerInit) {
         try {

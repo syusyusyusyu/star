@@ -448,11 +448,11 @@ class GameManager {
 
 
     let canvasInitialized = false;
-    const processInterval = 50; // ~20FPS（MediaPipe処理負荷軽減）
+    const processInterval = 66; // ~15FPS（MediaPipe処理負荷軽減）
     let lastProcessTime = 0;
 
     const selfieSegmentation = new SelfieSegmentation({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
-    selfieSegmentation.setOptions({ modelSelection: 1, selfieMode: false });
+    selfieSegmentation.setOptions({ modelSelection: 0, selfieMode: false });
     selfieSegmentation.onResults((results: any) => {
       segmentationCtx.save();
       segmentationCtx.clearRect(0, 0, segmentationCanvas.width, segmentationCanvas.height);
@@ -468,7 +468,7 @@ class GameManager {
       if (!this.pose) {
         this.pose = new Pose({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
         this.pose.setOptions({
-            modelComplexity: 1,
+            modelComplexity: 0,
             smoothLandmarks: true,
             enableSegmentation: false,
             minDetectionConfidence: 0.5,

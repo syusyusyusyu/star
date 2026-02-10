@@ -632,10 +632,11 @@ class GameManager {
 
     if (this.player && this.isPlayerInit) {
       try {
-        const pos = this.player.timer?.position ?? this.playbackPosition;
+        const timerPos = this.player.timer?.position;
+        const pos = (typeof timerPos === 'number' && Number.isFinite(timerPos)) ? timerPos : this.playbackPosition;
         // Songle APIタイマーが機能しない環境（学校ネットワーク等）では
         // audio要素のcurrentTimeをフォールバックとして使用
-        if (pos <= 0 && !this.isPaused && this.player.mediaElement) {
+        if (!(pos > 0) && !this.isPaused && this.player.mediaElement) {
           const audioPos = (this.player.mediaElement as HTMLAudioElement).currentTime * 1000;
           if (audioPos > 0) {
             this.playbackPosition = audioPos;

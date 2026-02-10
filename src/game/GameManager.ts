@@ -505,7 +505,7 @@ class GameManager {
 
         // 処理ループの開始
         let requestAnimId: number;
-        let frameToggle = false; // ボディモード時にPoseとSegmentationを交互実行するフラグ
+        let frameCounter = 0; // ボディモード時にPose(2回)とSegmentation(1回)を振り分けるカウンタ
         const tick = async () => {
             if (videoElement.paused || videoElement.ended) return;
 
@@ -520,14 +520,14 @@ class GameManager {
                 lastProcessTime = now;
                 const frame = { image: videoElement };
 
-                // フレーム処理: ボディモードではPoseとSegmentationを交互実行して負荷軽減
+                // フレーム処理: ボディモードではPose(2回)とSegmentation(1回)の2:1比率で負荷軽減
                 if (this.pose) {
-                    frameToggle = !frameToggle;
-                    if (frameToggle) {
+                    if (frameCounter < 2) {
                         await this.pose.send(frame);
                     } else {
                         if (selfieSegmentation) await selfieSegmentation.send(frame);
                     }
+                    frameCounter = (frameCounter + 1) % 3;
                 } else {
                     if (selfieSegmentation) await selfieSegmentation.send(frame);
                 }

@@ -448,7 +448,7 @@ class GameManager {
 
 
     let canvasInitialized = false;
-    const processInterval = 33; // ~30FPS
+    const processInterval = 50; // ~20FPS（MediaPipe処理負荷軽減）
     let lastProcessTime = 0;
 
     const selfieSegmentation = new SelfieSegmentation({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
@@ -468,11 +468,11 @@ class GameManager {
       if (!this.pose) {
         this.pose = new Pose({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
         this.pose.setOptions({
-            modelComplexity: 2,
+            modelComplexity: 1,
             smoothLandmarks: true,
             enableSegmentation: false,
-            minDetectionConfidence: 0.7,
-            minTrackingConfidence: 0.7,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5,
           });
         this.pose.onResults((results: any) => this.handlePoseResults(results?.poseLandmarks));
       }
@@ -491,7 +491,7 @@ class GameManager {
     // ライブラリ由来の"Failed to acquire camera feed"エラーを回避する
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+            video: { width: { ideal: 640 }, height: { ideal: 480 } }
         });
         
         videoElement.srcObject = stream;
@@ -505,6 +505,7 @@ class GameManager {
 
         // 処理ループの開始
         let requestAnimId: number;
+        let frameToggle = false; // ボディモード時にPoseとSegmentationを交互実行するフラグ
         const tick = async () => {
             if (videoElement.paused || videoElement.ended) return;
 
@@ -518,14 +519,22 @@ class GameManager {
             if (now - lastProcessTime >= processInterval) {
                 lastProcessTime = now;
                 const frame = { image: videoElement };
-                
-                // フレーム処理
-                if (selfieSegmentation) await selfieSegmentation.send(frame);
-                if (this.pose) await this.pose.send(frame);
+
+                // フレーム処理: ボディモードではPoseとSegmentationを交互実行して負荷軽減
+                if (this.pose) {
+                    frameToggle = !frameToggle;
+                    if (frameToggle) {
+                        await this.pose.send(frame);
+                    } else {
+                        if (selfieSegmentation) await selfieSegmentation.send(frame);
+                    }
+                } else {
+                    if (selfieSegmentation) await selfieSegmentation.send(frame);
+                }
                 if (this.hands) await this.hands.send(frame);
                 if (this.faceDetection) await this.faceDetection.send(frame);
             }
-            
+
             requestAnimId = requestAnimationFrame(tick);
         };
         tick();

@@ -23,7 +23,7 @@ export class UIManager {
         case 'hand':
           text = 'カメラに手を映してフレーズの上でホールドしよう！';
           break;
-        case 'body':
+        case 'body': 
           text = 'カメラに全身を映してフレーズをホールドしよう！';
           break;
         case 'mobile':

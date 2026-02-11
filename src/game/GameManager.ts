@@ -415,6 +415,9 @@ class GameManager {
         videoElement = document.createElement('video');
         videoElement.id = 'camera-video';
         videoElement.classList.add('hidden'); // デフォルトで非表示
+        videoElement.setAttribute('playsinline', '');
+        videoElement.setAttribute('autoplay', '');
+        videoElement.muted = true;
         document.body.appendChild(videoElement);
     }
     const segmentationCanvas = document.getElementById('segmentation-canvas') as HTMLCanvasElement | null;
@@ -451,47 +454,68 @@ class GameManager {
     const processInterval = 66; // ~15FPS（MediaPipe処理負荷軽減）
     let lastProcessTime = 0;
 
-    const selfieSegmentation = new SelfieSegmentation({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
-    selfieSegmentation.setOptions({ modelSelection: 0, selfieMode: false });
-    selfieSegmentation.onResults((results: any) => {
-      segmentationCtx.save();
-      segmentationCtx.clearRect(0, 0, segmentationCanvas.width, segmentationCanvas.height);
-      segmentationCtx.translate(segmentationCanvas.width, 0);
-      segmentationCtx.scale(-1, 1);
-      segmentationCtx.drawImage(results.segmentationMask, 0, 0, segmentationCanvas.width, segmentationCanvas.height);
-      segmentationCtx.globalCompositeOperation = 'source-in';
-      segmentationCtx.drawImage(results.image, 0, 0, segmentationCanvas.width, segmentationCanvas.height);
-      segmentationCtx.restore();
-    });
-
-    if (this.currentMode === 'body') {
-      if (!this.pose) {
-        this.pose = new Pose({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
-        this.pose.setOptions({
-            modelComplexity: 0,
-            smoothLandmarks: true,
-            enableSegmentation: false,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5,
-          });
-        this.pose.onResults((results: any) => this.handlePoseResults(results?.poseLandmarks));
-      }
-    } else if (this.pose) {
-      this.pose.close();
-      this.pose = null;
+    let selfieSegmentation: any = null;
+    try {
+      selfieSegmentation = new SelfieSegmentation({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
+      selfieSegmentation.setOptions({ modelSelection: 0, selfieMode: false });
+      selfieSegmentation.onResults((results: any) => {
+        segmentationCtx.save();
+        segmentationCtx.clearRect(0, 0, segmentationCanvas.width, segmentationCanvas.height);
+        segmentationCtx.translate(segmentationCanvas.width, 0);
+        segmentationCtx.scale(-1, 1);
+        segmentationCtx.drawImage(results.segmentationMask, 0, 0, segmentationCanvas.width, segmentationCanvas.height);
+        segmentationCtx.globalCompositeOperation = 'source-in';
+        segmentationCtx.drawImage(results.image, 0, 0, segmentationCanvas.width, segmentationCanvas.height);
+        segmentationCtx.restore();
+      });
+    } catch (e) {
+      console.warn('SelfieSegmentation の初期化に失敗しました:', e);
     }
 
-    if (this.currentMode === 'face') {
-        this.faceDetection.init();
-    } else {
-        this.faceDetection.close();
+    try {
+      if (this.currentMode === 'body') {
+        if (!this.pose) {
+          this.pose = new Pose({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+          this.pose.setOptions({
+              modelComplexity: 0,
+              smoothLandmarks: true,
+              enableSegmentation: false,
+              minDetectionConfidence: 0.5,
+              minTrackingConfidence: 0.5,
+            });
+          this.pose.onResults((results: any) => this.handlePoseResults(results?.poseLandmarks));
+        }
+      } else if (this.pose) {
+        this.pose.close();
+        this.pose = null;
+      }
+    } catch (e) {
+      console.warn('Pose の初期化に失敗しました:', e);
+    }
+
+    try {
+      if (this.currentMode === 'face') {
+          this.faceDetection.init();
+      } else {
+          this.faceDetection.close();
+      }
+    } catch (e) {
+      console.warn('FaceDetection の初期化に失敗しました:', e);
     }
 
     // Cameraクラス（MediaPipe utility）を使用せず、直接getUserMediaを使用して
     // ライブラリ由来の"Failed to acquire camera feed"エラーを回避する
     try {
+        const videoConstraints: MediaTrackConstraints = {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+        };
+        // フェイスモード（モバイル）ではフロントカメラを指定
+        if (this.currentMode === 'face') {
+            videoConstraints.facingMode = 'user';
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 640 }, height: { ideal: 480 } }
+            video: videoConstraints
         });
         
         videoElement.srcObject = stream;

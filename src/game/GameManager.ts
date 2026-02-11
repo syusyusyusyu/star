@@ -292,6 +292,13 @@ class GameManager {
     if (this.playpause) this.playpause.disabled = true;
     if (this.restart) this.restart.disabled = true;
 
+    // リトライ時にリザルト画面が残るのを防ぐ（React再レンダリングではclassListの変更がリセットされない）
+    const resultsScreen = getEl('results-screen');
+    if (resultsScreen) {
+      resultsScreen.classList.remove('show');
+      resultsScreen.classList.add('hidden');
+    }
+
     this.loading = getEl('loading')
     this.countdownOverlay = getEl('countdown-overlay') as HTMLElement
     this.countdownText = getEl('countdown-text') as HTMLElement
@@ -1554,14 +1561,20 @@ class GameManager {
     // 一時停止中、初回インタラクション前、またはボディモードのカウントダウン中は歌詞を表示しない
     if (this.isPaused || this.isFirstInteraction || this.bodyDetection.isCountdownActive()) return;
 
+    // 再生開始直後の最初のフレーム: インデックスを現在位置に同期し、表示はスキップ
+    if (this._lastLyricsPosition === 0) {
+      this.syncLyricIndexToPosition(position);
+      this._lastLyricsPosition = position;
+      return;
+    }
+
     // 大きくジャンプした場合はインデックスを同期して一括表示を防ぐ
-    // ただし再生開始直後（_lastLyricsPosition === 0）は初回のジャンプなのでスキップのみ行う
-    if (this._lastLyricsPosition > 0 && Math.abs(position - this._lastLyricsPosition) > 1200) {
+    if (Math.abs(position - this._lastLyricsPosition) > 1200) {
       this.syncLyricIndexToPosition(position);
     }
 
     // 再生位置が巻き戻った場合は歌詞インデックスを再同期
-    if (this._lastLyricsPosition != null && position < this._lastLyricsPosition - 1000) {
+    if (position < this._lastLyricsPosition - 1000) {
       this.syncLyricIndexToPosition(position);
       // 巻き戻し時は表示済みリストをクリア
       this.displayedLyrics.clear();

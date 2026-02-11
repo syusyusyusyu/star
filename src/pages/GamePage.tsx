@@ -171,6 +171,7 @@ function GamePage() {
 
   const handleExitConfirm = useCallback(() => {
     isNavigatingRef.current = true
+    setShowExitConfirm(false)
     if (confirmAction) {
       confirmAction()
     } else {

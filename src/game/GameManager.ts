@@ -1173,6 +1173,10 @@ class GameManager {
           }
         }
       }
+      // 再生開始後にフラグを戻す（updateLyricsが動作するために必要）
+      this.isFirstInteraction = false;
+      this.lastLyricSpawnAt = 0;
+      this.playbackPosition = 0;
       this.playpause.textContent = '一時停止';
     } finally {
       // 操作が完全に完了するのを確実にするために長めの遅延を使用
@@ -1299,7 +1303,8 @@ class GameManager {
               if (span) span.textContent = '再生';
               else this.playpause.textContent = '再生';
             }
-            if (this.restart) {
+            // まだ一度も再生していない場合は最初からボタンを有効化しない
+            if (this.restart && !this.isFirstInteraction) {
               this.restart.disabled = false;
               this.restart.classList.remove('opacity-50', 'cursor-not-allowed');
             }

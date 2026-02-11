@@ -162,6 +162,7 @@ class GameManager {
   public currentLyricIndex = 0
   public _lyricScanIndex = 0
   public _lastLyricsPosition = 0
+  private _lyricsGraceUntil = 0
   private lastPlayerPosition = 0
   private songStartTime = 0
   public lastScoreTime = 0
@@ -727,6 +728,7 @@ class GameManager {
       this.displayedLyrics.clear();
       this.clearActiveBubbles();
       this.playbackPosition = 0;
+      this._lyricsGraceUntil = performance.now() + 500; // 再生開始後0.5秒は歌詞を出さない
 
       // TextAliveプレーヤーの使用
       if (this.player && this.isPlayerInit) {
@@ -1185,6 +1187,7 @@ class GameManager {
       this.isFirstInteraction = false;
       this.lastLyricSpawnAt = 0;
       this.playbackPosition = 0;
+      this._lyricsGraceUntil = performance.now() + 500; // 再生開始後0.5秒は歌詞を出さない
       this.playpause.textContent = '一時停止';
     } finally {
       // 操作が完全に完了するのを確実にするために長めの遅延を使用
@@ -1563,8 +1566,8 @@ class GameManager {
     // 一時停止中、初回インタラクション前、またはボディモードのカウントダウン中は歌詞を表示しない
     if (this.isPaused || this.isFirstInteraction || this.bodyDetection.isCountdownActive()) return;
 
-    // 再生開始直後の最初のフレーム: インデックスを現在位置に同期し、表示はスキップ
-    if (this._lastLyricsPosition === 0) {
+    // 再生開始後0.5秒間は歌詞を出さない（インデックスだけ同期して表示はスキップ）
+    if (performance.now() < this._lyricsGraceUntil) {
       this.syncLyricIndexToPosition(position);
       this._lastLyricsPosition = position;
       return;

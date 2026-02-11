@@ -1217,13 +1217,12 @@ class GameManager {
           // 完全なセットアップのために追加の待機時間を設ける
           setTimeout(() => {
             this.apiLoaded = true; // ここでAPIロード完了フラグを設定
-            
+
             // すべてのボタンのテキストを更新
             if (this.playpause) {
               const span = this.playpause.querySelector('span');
               if (span) span.textContent = '再生';
               else this.playpause.textContent = '再生';
-              this.playpause.disabled = false;
             }
             if (this.restart) {
               const span = this.restart.querySelector('span');
@@ -1235,8 +1234,22 @@ class GameManager {
               this.restart.disabled = true;
               this.restart.classList.add('opacity-50', 'cursor-not-allowed');
             }
-            
-            if (this.loading) this.loading.textContent = "準備完了-「再生」ボタンを押してね";
+
+            // 説明テキストのフェードアウト完了後に再生ボタンを有効化
+            const instructionsEl = document.getElementById('instructions');
+            const enablePlayButton = () => {
+              if (this.playpause) {
+                this.playpause.disabled = false;
+              }
+              if (this.loading) this.loading.textContent = "準備完了-「再生」ボタンを押してね";
+            };
+            if (instructionsEl && getComputedStyle(instructionsEl).opacity !== '0') {
+              // フェードアウトがまだ完了していない場合はアニメーション終了を待つ
+              instructionsEl.addEventListener('animationend', enablePlayButton, { once: true });
+            } else {
+              // 説明テキストが存在しない or フェードアウト済みの場合は即座に有効化
+              enablePlayButton();
+            }
           }, 2000); // 2秒の追加待機時間
         },
         // 時間更新時（歌詞表示タイミング制御）

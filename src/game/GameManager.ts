@@ -1108,9 +1108,8 @@ class GameManager {
     this.cancelFinishGuards();
     this.bodyDetection.reset();
     
-    // スコアと状態のリセット
+    // スコアと状態のリセット（scorePerHitは歌詞データから計算された固定値なのでリセットしない）
     this.score = this.combo = this.currentLyricIndex = 0;
-    this.scorePerHit = 0;
     this.startTime = Date.now();
     this.songStartTime = Date.now(); // 曲の開始時間をリセット
   this._lyricScanIndex = 0; // 歌詞インデックスをリセット

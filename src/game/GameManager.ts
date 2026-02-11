@@ -711,6 +711,14 @@ class GameManager {
       this.playpause.textContent = '一時停止';
       this.isFirstInteraction = false; // 初回インタラクションフラグをオフに
 
+      // 歌詞表示状態をリセット（再生開始時に冒頭の歌詞が漏れるのを防ぐ）
+      this._lyricScanIndex = 0;
+      this._lastLyricsPosition = 0;
+      this.lastLyricSpawnAt = 0;
+      this.displayedLyrics.clear();
+      this.clearActiveBubbles();
+      this.playbackPosition = 0;
+
       // TextAliveプレーヤーの使用
       if (this.player && this.isPlayerInit) {
         try {
@@ -1543,7 +1551,8 @@ class GameManager {
     if (this.isPaused || this.isFirstInteraction || this.bodyDetection.isCountdownActive()) return;
 
     // 大きくジャンプした場合はインデックスを同期して一括表示を防ぐ
-    if (Math.abs(position - this._lastLyricsPosition) > 1200) {
+    // ただし再生開始直後（_lastLyricsPosition === 0）は初回のジャンプなのでスキップのみ行う
+    if (this._lastLyricsPosition > 0 && Math.abs(position - this._lastLyricsPosition) > 1200) {
       this.syncLyricIndexToPosition(position);
     }
 

@@ -292,12 +292,14 @@ class GameManager {
     if (this.playpause) this.playpause.disabled = true;
     if (this.restart) this.restart.disabled = true;
 
-    // リトライ時にリザルト画面が残るのを防ぐ（React再レンダリングではclassListの変更がリセットされない）
+    // リトライ時にDOM表示をリセット（React再レンダリングではclassListやtextContentの変更がリセットされない）
     const resultsScreen = getEl('results-screen');
     if (resultsScreen) {
       resultsScreen.classList.remove('show');
       resultsScreen.classList.add('hidden');
     }
+    if (this.scoreEl) this.scoreEl.textContent = '0';
+    if (this.comboEl) this.comboEl.textContent = 'コンボ: 0';
 
     this.loading = getEl('loading')
     this.countdownOverlay = getEl('countdown-overlay') as HTMLElement

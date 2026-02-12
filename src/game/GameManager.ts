@@ -487,11 +487,11 @@ class GameManager {
         if (!this.pose) {
           this.pose = new Pose({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
           this.pose.setOptions({
-              modelComplexity: 0,
+              modelComplexity: 1,
               smoothLandmarks: true,
               enableSegmentation: false,
-              minDetectionConfidence: 0.5,
-              minTrackingConfidence: 0.5,
+              minDetectionConfidence: 0.6,
+              minTrackingConfidence: 0.6,
             });
           this.pose.onResults((results: any) => this.handlePoseResults(results?.poseLandmarks));
         }
@@ -539,7 +539,7 @@ class GameManager {
 
         // 処理ループの開始
         let requestAnimId: number;
-        let frameCounter = 0; // ボディモード時にPose(2回)とSegmentation(1回)を振り分けるカウンタ
+        let frameCounter = 0; // ボディモード時にSegmentationを3フレームに1回実行するカウンタ
         const tick = async () => {
             if (videoElement.paused || videoElement.ended) return;
 
@@ -554,12 +554,11 @@ class GameManager {
                 lastProcessTime = now;
                 const frame = { image: videoElement };
 
-                // フレーム処理: ボディモードではPose(2回)とSegmentation(1回)の2:1比率で負荷軽減
+                // フレーム処理: ボディモードではPose毎フレーム(15FPS)、Segmentationは3フレームに1回
                 if (this.pose) {
-                    if (frameCounter < 2) {
-                        await this.pose.send(frame);
-                    } else {
-                        if (selfieSegmentation) await selfieSegmentation.send(frame);
+                    await this.pose.send(frame);
+                    if (frameCounter === 0 && selfieSegmentation) {
+                        await selfieSegmentation.send(frame);
                     }
                     frameCounter = (frameCounter + 1) % 3;
                 } else {
@@ -1897,9 +1896,9 @@ class GameManager {
       }
     }
 
-    // 手の判定点 (右手、左手)
-    // 15: left wrist, 16: right wrist
-    const checkPoints = [15, 16]
+    // 手の判定点 (手首 + 指先)
+    // 15: left wrist, 16: right wrist, 17: left pinky, 18: right pinky, 19: left index, 20: right index
+    const checkPoints = [15, 16, 17, 18, 19, 20]
       .map(index => flippedLandmarks[index])
       .filter(p => p && p.visibility && p.visibility > 0.5);
 
